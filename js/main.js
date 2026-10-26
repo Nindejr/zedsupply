@@ -355,6 +355,29 @@
     reader.readAsDataURL(file);
   }
 
+  /* ---------- Payment methods (mobile money) ---------- */
+  var payChoice = '';   // the customer's preferred method for this cart; kept in memory only
+  function payMethods() { return (S.paymentMethods || []).filter(function (m) { return m.enabled !== false; }); }
+  function payChipsHTML() {
+    return '<ul class="paychips" aria-label="Mobile money we accept">' + payMethods().map(function (m) {
+      return '<li class="paychip"><span class="paychip__dot" style="--pay:' + esc(m.colour || '#4CC21A') + '" aria-hidden="true"></span>' + esc(m.name) + '</li>';
+    }).join('') + '</ul>';
+  }
+  function payChoiceHTML() {
+    var list = payMethods();
+    if (!list.length) return '';
+    var opt = function (value, label, sub, colour) {
+      return '<div class="pay-option"><input type="radio" name="co-pay" id="co-pay-' + (value ? esc(value).replace(/\W+/g, '-').toLowerCase() : 'later') + '" value="' + esc(value) + '"' + (payChoice === value ? ' checked' : '') + '>' +
+        '<label for="co-pay-' + (value ? esc(value).replace(/\W+/g, '-').toLowerCase() : 'later') + '">' + (colour ? '<span class="paychip__dot" style="--pay:' + esc(colour) + '" aria-hidden="true"></span>' : '') + esc(label) + (sub ? '<small>' + esc(sub) + '</small>' : '') + '</label></div>';
+    };
+    return '<fieldset class="field pay-choice"><legend>How would you like to pay?</legend>' +
+      list.map(function (m) { return opt(m.name, m.name, m.kind, m.colour); }).join('') +
+      opt('', 'Decide on WhatsApp', '', '') +
+      '</fieldset>';
+  }
+  // Fill every "we accept" spot on the page (footer, help centre)
+  $$('[data-pay-methods]').forEach(function (el) { if (payMethods().length) el.innerHTML = payChipsHTML(); });
+
   /* ---------- Rendering pieces ---------- */
   function media(p) {
     return '<span class="pmedia__emoji" aria-hidden="true">' + dept(p.category).icon + '</span>' +
@@ -788,6 +811,7 @@
             '<button class="btn btn--primary btn--block" type="button" data-add="' + p.id + '" data-qty-from="#pdp-qty">Add to cart</button>' +
             '<a class="btn btn--secondary btn--block" id="buy-now" href="#" target="_blank" rel="noopener">Buy now on WhatsApp</a>' +
             '<p class="pmeta">The final price and delivery are confirmed on WhatsApp before you pay.</p>' +
+            (payMethods().length ? '<div class="buybox__pay"><p class="pmeta">Pay with mobile money</p>' + payChipsHTML() + '</div>' : '') +
           '</aside>' +
         '</div>' +
         '<section class="reviews" id="reviews" aria-labelledby="rev-title"><div>' +
@@ -860,8 +884,9 @@
           '<div class="field"><label for="co-name">Your name</label><input id="co-name" autocomplete="name" value="' + esc(u.name || '') + '"></div>' +
           '<div class="deliver-box"><p class="deliver-box__label">Deliver to</p><p data-loc-summary>' + locSummaryHTML() + '</p><button class="link-btn" type="button" data-open-location aria-haspopup="dialog">Set or change delivery location</button></div>' +
           '<div class="field"><label for="co-note">Notes for your order (optional)</label><input id="co-note"></div>' +
+          payChoiceHTML() +
           '<a class="btn btn--primary btn--block" id="checkout" href="#" target="_blank" rel="noopener">Checkout on WhatsApp</a>' +
-          '<p class="pmeta">We confirm the final price, delivery fee and payment method (<span class="placeholder">[PAYMENT METHODS]</span>) on WhatsApp before you pay.</p>' +
+          '<p class="pmeta">We confirm the final price and delivery fee on WhatsApp, then send payment instructions. You approve the payment on your own phone. We never ask for your PIN.</p>' +
           '<button class="link-btn" type="button" id="clear-cart">Empty cart</button>' +
         '</aside></div>';
       show(html, 'Cart');
@@ -875,16 +900,18 @@
         var nm = $('#co-name').value.trim(), note = $('#co-note').value.trim();
         if (nm) m += '\nName: ' + nm;
         if (note) m += '\nNotes: ' + note;
+        if (payChoice) m += '\nPayment: ' + payChoice;
         return m;
       };
       // data-wa-message lets refreshLoc() update the link when the delivery location changes
       var syncCo = function () { var m = buildMsg(); co.setAttribute('data-wa-message', m); co.href = waUrl(m); };
       ['co-name', 'co-note'].forEach(function (id) { $('#' + id).addEventListener('input', syncCo); });
+      $$('input[name="co-pay"]', view).forEach(function (r) { r.addEventListener('change', function () { payChoice = r.value; syncCo(); }); });
       syncCo();
       co.addEventListener('click', function (e) {
         if (hasCardNumber($('#co-name').value + ' ' + $('#co-note').value)) { e.preventDefault(); toast(esc(CARD_WARNING)); $('#co-note').focus(); return; }
         var list = orders();
-        list.unshift({ ref: ref, date: today, items: items.map(function (it) { return { id: it.p.id, qty: it.qty, price: it.pr.now }; }), total: total, status: 0, deliverTo: locFull() });
+        list.unshift({ ref: ref, date: today, items: items.map(function (it) { return { id: it.p.id, qty: it.qty, price: it.pr.now }; }), total: total, status: 0, deliverTo: locFull(), pay: payChoice });
         store.set('orders', list);
         setCart([]);
         store.set('voucher', '');
@@ -981,6 +1008,7 @@
         askBtn(msg) + '</div>' +
         '<aside class="summary"><h2>Items</h2><ul class="lines">' + o.items.map(function (it) { var p = product(it.id); return '<li class="line line--plain"><div><a class="line__title" href="#/product/' + it.id + '">' + esc(p ? p.title : it.id) + '</a><p class="pmeta">Quantity ' + it.qty + ' · ' + kwacha(it.price * it.qty) + '</p></div></li>'; }).join('') + '</ul>' +
         '<dl class="totals"><div class="is-total"><dt>Total</dt><dd>' + kwacha(o.total) + '</dd></div></dl>' +
+        (o.pay ? '<div class="deliver-box"><p class="deliver-box__label">Payment</p><p>' + esc(o.pay) + '</p></div>' : '') +
         '<div class="deliver-box"><p class="deliver-box__label">Deliver to</p><p>' + (o.deliverTo ? esc(o.deliverTo) : '<span class="pmeta">No location given. We\'ll ask on WhatsApp.</span>') + '</p></div></aside></div>', 'Order ' + o.ref);
     },
 

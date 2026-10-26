@@ -930,3 +930,34 @@ input, select, textarea { border-color: #737F96; }
 /* Friendly "coming soon" notes on the homepage while the store fills up */
 .home-empty { background: var(--glass-bg); -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur); border-color: var(--glass-border); }
 .home-empty .empty__art { width: 56px; height: 56px; }
+
+/* ---------- Mobile money badges and payment choice ---------- */
+.paychips { list-style: none; margin: 0.35rem 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.paychip {
+  display: inline-flex; align-items: center; gap: 0.4rem; max-width: none;
+  padding: 0.3rem 0.7rem; border-radius: 999px; font-size: 0.82rem; font-weight: 600;
+  color: var(--color-text); background: var(--glass-bg); border: 1px solid var(--glass-border);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.5), 0 0 0 1px rgb(245 197 66 / 0.35);
+  -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur);
+}
+.paychip__dot { width: 0.7rem; height: 0.7rem; border-radius: 50%; flex-shrink: 0; background: var(--pay, #4CC21A); box-shadow: 0 0 0 2px rgb(255 255 255 / 0.8), 0 0 0 3px rgb(0 0 0 / 0.15); }
+.site-footer .paychip { color: #FFFFFF; background: rgb(255 255 255 / 0.08); border-color: rgb(255 255 255 / 0.18); }
+.footer-pay { margin-top: 1rem; }
+.footer-pay__label { margin: 0; font-size: 0.8rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #FFFFFF; }
+.footer-pay__list { margin: 0.35rem 0 0; }
+.buybox__pay .pmeta { margin: 0; }
+
+.pay-choice { display: grid; gap: 0.4rem; }
+.pay-choice legend { margin-bottom: 0.35rem; }
+.pay-option { position: relative; }
+.pay-option input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.pay-option label {
+  display: flex; align-items: center; gap: 0.55rem; min-height: 46px; padding: 0.55rem 0.85rem;
+  border: 1.5px solid #737F96; border-radius: var(--radius-sm); cursor: pointer;
+  font-weight: 600; color: var(--color-text); background: var(--color-bg);
+}
+.pay-option label small { margin-left: auto; font-weight: 500; color: var(--color-muted); font-size: 0.8rem; }
+.pay-option input:checked + label { border-color: var(--color-accent-ink); box-shadow: 0 0 0 1px var(--color-accent-ink), inset 0 0 0 9999px rgb(76 194 26 / 0.08); }
+.pay-option input:checked + label::after { content: "✓"; margin-left: 0.5rem; color: var(--color-accent-ink); font-weight: 700; }
+.pay-option input:focus-visible + label { outline: 3px solid var(--color-focus); outline-offset: 2px; }
+@media (prefers-color-scheme: dark) { .pay-option label { border-color: #5B6E96; } }

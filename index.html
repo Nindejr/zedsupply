@@ -52,7 +52,9 @@
     "address": { "@type": "PostalAddress", "streetAddress": "[STREET ADDRESS]", "addressLocality": "Lusaka", "addressCountry": "ZM" },
     "geo": { "@type": "GeoCoordinates", "latitude": "[LATITUDE e.g. -15.4167]", "longitude": "[LONGITUDE e.g. 28.2833]" },
     "openingHours": "[OPENING HOURS e.g. Mo-Fr 08:00-17:00]",
-    "priceRange": "[PRICE RANGE e.g. K50 - K50,000]"
+    "priceRange": "[PRICE RANGE e.g. K50 - K50,000]",
+    "currenciesAccepted": "ZMW",
+    "paymentAccepted": "MTN MoMo, Airtel Money, Zamtel Mobile Money"
   }, {
     "@context": "https://schema.org",
     "@type": "WebSite",
@@ -447,6 +449,10 @@
           <!-- Add Facebook, Instagram, LinkedIn or TikTok here when you have them:
           <li><a href="https://www.facebook.com/YOUR_PAGE" target="_blank" rel="noopener" aria-label="Zed Supply on Facebook">…icon…</a></li> -->
         </ul>
+        <div class="footer-pay">
+          <p class="footer-pay__label">Pay with mobile money</p>
+          <div data-pay-methods><p class="footer-pay__list">MTN MoMo · Airtel Money · Zamtel Mobile Money</p></div>
+        </div>
       </div>
       <nav aria-labelledby="f-shop">
         <h2 id="f-shop">Shop</h2>

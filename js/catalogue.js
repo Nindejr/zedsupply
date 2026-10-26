@@ -39,6 +39,18 @@ window.ZS_CATALOGUE = {
     deliveryText: 'Lusaka delivery: [__] days',  // shown on every local product
     whatsapp: '260979050042',
 
+    // ---- How customers can pay ----
+    // Shown in the cart (customer picks one; it's added to the WhatsApp order), on
+    // product pages, in the footer and in the help centre. Set enabled: false to hide
+    // one. Never publish merchant codes or till numbers here: payment instructions are
+    // sent on WhatsApp after the order is confirmed. Customers approve the payment on
+    // their own phone; Zed Supply never asks for a PIN.
+    paymentMethods: [
+      { id: 'mtn', name: 'MTN MoMo', kind: 'Mobile money', colour: '#FFCB05', enabled: true },
+      { id: 'airtel', name: 'Airtel Money', kind: 'Mobile money', colour: '#E4002B', enabled: true },
+      { id: 'zamtel', name: 'Zamtel Mobile Money', kind: 'Mobile money', colour: '#00A651', enabled: true }
+    ],
+
     // ---- Zambia Independence celebration theme ----
     // Switches on automatically every year between these dates (month-day) and
     // off again on 1 January. Independence Day is 24 October (1964).
