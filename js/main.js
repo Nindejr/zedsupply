@@ -288,7 +288,7 @@
   /* ---------- Rendering pieces ---------- */
   function media(p) {
     return '<span class="pmedia__emoji" aria-hidden="true">' + dept(p.category).icon + '</span>' +
-      (p.image ? '<img src="' + esc(p.image) + '" alt="' + esc(p.alt) + '" width="600" height="600" loading="lazy" decoding="async">' : '');
+      (p.image && !root.classList.contains('data-saver') ? '<img src="' + esc(p.image) + '" alt="' + esc((p.sample ? 'Illustrative sample: ' : '') + (p.alt || p.title)) + '" width="600" height="600" loading="lazy" decoding="async">' : '');
   }
   function starString(n) { var s = ''; for (var i = 1; i <= 5; i++) s += i <= n ? '★' : '☆'; return s; }
   function starsHTML(p) {
@@ -341,7 +341,11 @@
   }
   function brandCard(b) {
     var n = products.filter(function (p) { return p.brand === b.id; }).length;
-    return '<li><a class="brand" href="' + R + 'brand/' + esc(b.id) + '" style="--brand-a:' + b.colours[0] + ';--brand-b:' + b.colours[1] + '"><strong>' + esc(b.name) + '</strong><span>' + esc(b.tagline) + '</span><span>' + n + (n === 1 ? ' product' : ' products') + '</span></a></li>';
+    return '<li><a class="brand" href="' + R + 'brand/' + esc(b.id) + '" style="--brand-a:' + b.colours[0] + ';--brand-b:' + b.colours[1] + '">' + identityArt(b) + '<strong>' + esc(b.name) + '</strong><span>' + esc(b.tagline) + '</span><span>' + n + (n === 1 ? ' product' : ' products') + '</span></a></li>';
+  }
+  function identityArt(entity) {
+    var symbols = { 'brand-a': 'tech', 'brand-b': 'solar', 'brand-c': 'home', 'brand-d': 'hardware', 'store-a': 'office', 'store-b': 'solar', 'store-c': 'fashion' };
+    return '<img class="brand__logo" src="assets/icons/' + (symbols[entity.id] || 'marketplace') + '.svg" alt="" width="56" height="56">';
   }
   function verifiedHTML(s) { return s && s.verified ? ' <span class="verified">' + icon(I.shield) + 'Verified seller</span>' : ''; }
 
@@ -403,7 +407,7 @@
   /* ---------- Footer year, image fallbacks ---------- */
   $$('[data-year]').forEach(function (el) { el.textContent = now.getFullYear(); });
   document.addEventListener('error', function (e) {
-    if (e.target.tagName === 'IMG' && e.target.closest('.pmedia')) e.target.classList.add('is-broken');
+    if (e.target.tagName === 'IMG' && e.target.closest('.pmedia') && !e.target.closest('.pmedia__emoji')) e.target.classList.add('is-broken');
   }, true);
 
   updateCounts();
@@ -440,8 +444,8 @@
         '<img src="' + esc(b.image) + '" alt="' + esc(b.alt || 'Advert') + '" width="1600" height="500"' + (i ? ' loading="lazy"' : ' fetchpriority="high"') + '></picture></a>' + sample + '</div>';
     }
     var c = b.colours || ['#0A2A66', '#0057AE'];
-    var bg = b.image && b.photo && !saverOn ? '<img class="ad__bg" src="' + esc(b.image) + '" alt="" width="1600" height="500" loading="lazy">' : '';
-    var art = bg ? '' : (b.art === 'logo' ? '<img class="ad__logo" src="assets/logo-mark.png" alt="" width="320" height="170">' : (b.art ? '<span class="ad__art" aria-hidden="true">' + b.art + '</span>' : ''));
+    var bg = b.image && b.photo && !saverOn ? '<img class="ad__bg" src="' + esc(b.image) + '" alt="" width="1600" height="500"' + (i ? ' loading="lazy"' : ' fetchpriority="high"') + '>' : '';
+    var art = bg ? '' : (b.art === 'logo' ? '<img class="ad__logo" src="assets/brand/mark.svg" alt="" width="320" height="170">' : (b.art ? '<span class="ad__art" aria-hidden="true">' + b.art + '</span>' : ''));
     return '<div class="ad ad--designed' + (bg ? ' ad--photo' : '') + '"' + attrs + ' style="--ad-a:' + c[0] + ';--ad-b:' + c[1] + '">' + bg +
       '<div class="ad__body">' + (b.label ? '<span class="ad__label">' + esc(b.label) + '</span>' : '') +
       '<p class="ad__title">' + esc(b.title || b.alt || 'Advert') + '</p>' + (b.text ? '<p class="ad__text">' + esc(b.text) + '</p>' : '') +
@@ -535,7 +539,7 @@
       list.map(function (c) { return '<li>' + (c[1] ? '<a href="' + c[1] + '">' + esc(c[0]) + '</a>' : '<span aria-current="page">' + esc(c[0]) + '</span>') + '</li>'; }).join('') + '</ol></nav>';
   }
   function head(title, sub) { return '<div class="view-head"><h1>' + title + '</h1>' + (sub ? '<p>' + sub + '</p>' : '') + '</div>'; }
-  function empty(msg, cta) { return '<div class="empty"><p>' + msg + '</p>' + (cta || '') + '</div>'; }
+  function empty(msg, cta) { return '<div class="empty"><img class="empty__art" src="assets/icons/empty.svg" alt="" width="64" height="64"><p>' + msg + '</p>' + (cta || '') + '</div>'; }
   function askBtn(msg) { return '<a class="btn btn--primary" href="' + waUrl(msg) + '" data-wa-message="' + esc(msg) + '" target="_blank" rel="noopener">Ask on WhatsApp</a>'; }
   function ticks(list) { return '<ul class="ticks">' + list.map(function (t) { return '<li>' + icon(I.check) + t + '</li>'; }).join('') + '</ul>'; }
 
@@ -957,7 +961,7 @@
       var b = brand(id);
       if (!b) return views.notfound();
       listing({ title: esc(b.name), crumbs: [['Brand stores', '#/brands'], [b.name]], list: products.filter(function (p) { return p.brand === id; }), docTitle: b.name,
-        extra: '<div class="store-hero" style="--brand-a:' + b.colours[0] + ';--brand-b:' + b.colours[1] + '"><p>' + esc(b.tagline) + '</p></div>' });
+        extra: '<div class="store-hero" style="--brand-a:' + b.colours[0] + ';--brand-b:' + b.colours[1] + '"><p>' + esc(b.tagline) + '</p>' + identityArt(b) + '</div>' });
     },
 
     store: function (id) {
@@ -965,7 +969,7 @@
       if (!s) return views.notfound();
       var promos = sortPromos(allPromos().filter(function (pr) { return pr.seller === id && promoStatus(pr) !== 'ended'; }));
       listing({ title: esc(s.name), crumbs: [['Stores'], [s.name]], list: products.filter(function (p) { return p.seller === id; }), docTitle: s.name,
-        extra: '<div class="store-hero" style="--brand-a:' + s.colours[0] + ';--brand-b:' + s.colours[1] + '"><p>' + esc(s.city) + verifiedHTML(s) + '</p><p>' + esc(s.about) + '</p></div>' +
+        extra: '<div class="store-hero" style="--brand-a:' + s.colours[0] + ';--brand-b:' + s.colours[1] + '"><p>' + esc(s.city) + verifiedHTML(s) + '</p><p>' + esc(s.about) + '</p>' + identityArt(s) + '</div>' +
           (promos.length ? '<h2>Promotions</h2><ul class="promos promos--gap">' + promos.map(promoCard).join('') + '</ul>' : '') });
     },
 

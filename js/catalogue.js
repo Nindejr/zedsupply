@@ -51,25 +51,25 @@ window.ZS_CATALOGUE = {
        art is a big emoji shown on the right.
      link: where the slide goes, e.g. '#/promo/P2', '#/dept/solar', '#/sell' */
   banners: [
-    { id: 'welcome', label: "Zambia's marketplace", title: 'Everything Within Reach', text: 'Shop products from Zambian sellers in one place, priced in Kwacha, with checkout on WhatsApp.', cta: "Shop today's deals", link: '#/deals', colours: ['#0A2A66', '#0057AE'], art: 'logo' },
+    { id: 'welcome', label: "Zambia's marketplace", title: 'Everything Within Reach', text: 'Shop products from Zambian sellers in one place, priced in Kwacha, with checkout on WhatsApp.', cta: "Shop today's deals", link: '#/deals', colours: ['#0A2A66', '#0057AE'], art: 'logo', photo: true, image: 'assets/banners/marketplace-hero.jpg' },
     { id: 'sample-ad', sample: true, image: 'assets/banners/sample-ad-wide.jpg', imageMobile: 'assets/banners/sample-ad-mobile.jpg', alt: 'Sample advert: your banner here. Replace with real advertising artwork.', link: '#/sell' },
-    { id: 'world', label: 'Coming soon', title: 'Shop the World', text: 'Order from China and beyond, with the full landed cost in Kwacha. Opening once supplier agreements are in place.', cta: 'Find out more', link: '#/world', colours: ['#071D47', '#0E7C86'], art: '🌍' }
+    { id: 'world', label: 'Coming soon', title: 'Shop the World', text: 'Order from China and beyond, with the full landed cost in Kwacha. Opening once supplier agreements are in place.', cta: 'Find out more', link: '#/world', colours: ['#071D47', '#0E7C86'], art: '<img src=\"assets/icons/world.svg\" alt=\"\">' }
   ],
 
   // Departments. Link to one with index.html#/dept/<id>
   departments: [
-    { id: 'tech', name: 'Phones, Tech & Smart Gadgets', icon: '📱' },
-    { id: 'solar', name: 'Solar, Power & Energy', icon: '☀️' },
-    { id: 'fashion', name: 'Fashion, Beauty & Hair', icon: '👗' },
-    { id: 'home', name: 'Home, Kitchen & Appliances', icon: '🍳' },
-    { id: 'business', name: 'Small Business & Manufacturing Equipment', icon: '🏭' },
-    { id: 'office', name: 'Office, School & Stationery', icon: '📎' },
-    { id: 'agri', name: 'Agriculture & Farming', icon: '🌾' },
-    { id: 'auto', name: 'Auto Parts & Accessories', icon: '🚗' },
-    { id: 'hardware', name: 'Building, Tools & Hardware', icon: '🔧' },
-    { id: 'baby', name: 'Baby, Kids & Toys', icon: '🧸' },
-    { id: 'health', name: 'Health, Fitness & Personal Care', icon: '💪' },
-    { id: 'essentials', name: 'Everyday Essentials', icon: '🧺' }
+    { id: 'tech', name: 'Phones, Tech & Smart Gadgets', icon: '<img src=\"assets/icons/tech.svg\" alt=\"\" width=\"32\" height=\"32\">' },
+    { id: 'solar', name: 'Solar, Power & Energy', icon: '<img src=\"assets/icons/solar.svg\" alt=\"\" width=\"32\" height=\"32\">' },
+    { id: 'fashion', name: 'Fashion, Beauty & Hair', icon: '<img src=\"assets/icons/fashion.svg\" alt=\"\" width=\"32\" height=\"32\">' },
+    { id: 'home', name: 'Home, Kitchen & Appliances', icon: '<img src=\"assets/icons/home.svg\" alt=\"\" width=\"32\" height=\"32\">' },
+    { id: 'business', name: 'Small Business & Manufacturing Equipment', icon: '<img src=\"assets/icons/business.svg\" alt=\"\" width=\"32\" height=\"32\">' },
+    { id: 'office', name: 'Office, School & Stationery', icon: '<img src=\"assets/icons/office.svg\" alt=\"\" width=\"32\" height=\"32\">' },
+    { id: 'agri', name: 'Agriculture & Farming', icon: '<img src=\"assets/icons/agri.svg\" alt=\"\" width=\"32\" height=\"32\">' },
+    { id: 'auto', name: 'Auto Parts & Accessories', icon: '<img src=\"assets/icons/auto.svg\" alt=\"\" width=\"32\" height=\"32\">' },
+    { id: 'hardware', name: 'Building, Tools & Hardware', icon: '<img src=\"assets/icons/hardware.svg\" alt=\"\" width=\"32\" height=\"32\">' },
+    { id: 'baby', name: 'Baby, Kids & Toys', icon: '<img src=\"assets/icons/baby.svg\" alt=\"\" width=\"32\" height=\"32\">' },
+    { id: 'health', name: 'Health, Fitness & Personal Care', icon: '<img src=\"assets/icons/health.svg\" alt=\"\" width=\"32\" height=\"32\">' },
+    { id: 'essentials', name: 'Everyday Essentials', icon: '<img src=\"assets/icons/essentials.svg\" alt=\"\" width=\"32\" height=\"32\">' }
   ],
 
   // Seasons sellers can choose for a promotion
@@ -103,30 +103,30 @@ window.ZS_CATALOGUE = {
      image: square photo, 600×600, under 80KB, in assets/products/ ('' shows the department icon)
      stock: 'in' (in stock), 'low' (few left) or 'request' (sourced on request) */
   products: [
-    { id: 'L001', sample: true, title: 'A4 copy paper, box of 5 reams', category: 'office', seller: 'store-a', brand: '', priceZMW: 450, wasZMW: 520, stock: 'in', image: '', alt: 'Box of five reams of white A4 copy paper', tags: 'paper printing office',
+    { id: 'L001', sample: true, title: 'A4 copy paper, box of 5 reams', category: 'office', seller: 'store-a', brand: '', priceZMW: 450, wasZMW: 520, stock: 'in', image: 'assets/products/L001.jpg', alt: 'Box of five reams of white A4 copy paper', tags: 'paper printing office',
       reviews: [{ name: 'Sample customer', rating: 5, date: '2026-10-12', text: '[SAMPLE REVIEW] Replace with a real customer review.' }] },
-    { id: 'L002', sample: true, title: 'Rechargeable solar LED lantern', category: 'solar', seller: 'store-b', brand: 'brand-b', priceZMW: 380, stock: 'in', image: '', alt: 'Portable LED lantern with a small solar panel on top', tags: 'light load-shedding lamp',
+    { id: 'L002', sample: true, title: 'Rechargeable solar LED lantern', category: 'solar', seller: 'store-b', brand: 'brand-b', priceZMW: 380, stock: 'in', image: 'assets/products/L002.jpg', alt: 'Portable LED lantern with a small solar panel on top', tags: 'light load-shedding lamp',
       reviews: [{ name: 'Sample customer', rating: 4, date: '2026-10-02', text: '[SAMPLE REVIEW] Replace with a real customer review.' }] },
-    { id: 'L003', sample: true, title: 'Non-stick cookware set, 7 pieces', category: 'home', seller: 'store-c', brand: 'brand-c', priceZMW: 1200, wasZMW: 1450, stock: 'low', image: '', alt: 'Set of black non-stick pots and pans with glass lids', tags: 'pots pans kitchen', reviews: [] },
-    { id: 'L004', sample: true, title: 'Power bank, 20,000 mAh', category: 'tech', seller: 'store-b', brand: 'brand-a', priceZMW: 520, stock: 'in', image: '', alt: 'Slim black power bank with two USB ports', tags: 'charger battery phone',
+    { id: 'L003', sample: true, title: 'Non-stick cookware set, 7 pieces', category: 'home', seller: 'store-c', brand: 'brand-c', priceZMW: 1200, wasZMW: 1450, stock: 'low', image: 'assets/products/L003.jpg', alt: 'Set of black non-stick pots and pans with glass lids', tags: 'pots pans kitchen', reviews: [] },
+    { id: 'L004', sample: true, title: 'Power bank, 20,000 mAh', category: 'tech', seller: 'store-b', brand: 'brand-a', priceZMW: 520, stock: 'in', image: 'assets/products/L004.jpg', alt: 'Slim black power bank with two USB ports', tags: 'charger battery phone',
       reviews: [{ name: 'Sample customer', rating: 5, date: '2026-09-28', text: '[SAMPLE REVIEW] Replace with a real customer review.' }] },
-    { id: 'L005', sample: true, title: 'Portable Bluetooth speaker', category: 'tech', seller: 'store-a', brand: 'brand-a', priceZMW: 650, stock: 'in', image: '', alt: 'Round portable speaker with a carry strap', tags: 'music audio', reviews: [] },
-    { id: 'L006', sample: true, title: 'Solar home lighting kit, 4 bulbs', category: 'solar', seller: 'store-b', brand: 'brand-b', priceZMW: 1850, wasZMW: 2100, stock: 'in', image: '', alt: 'Small solar panel with battery box and four LED bulbs', tags: 'load-shedding power lights',
+    { id: 'L005', sample: true, title: 'Portable Bluetooth speaker', category: 'tech', seller: 'store-a', brand: 'brand-a', priceZMW: 650, stock: 'in', image: 'assets/products/L005.jpg', alt: 'Round portable speaker with a carry strap', tags: 'music audio', reviews: [] },
+    { id: 'L006', sample: true, title: 'Solar home lighting kit, 4 bulbs', category: 'solar', seller: 'store-b', brand: 'brand-b', priceZMW: 1850, wasZMW: 2100, stock: 'in', image: 'assets/products/L006.jpg', alt: 'Small solar panel with battery box and four LED bulbs', tags: 'load-shedding power lights',
       reviews: [{ name: 'Sample customer', rating: 4, date: '2026-10-15', text: '[SAMPLE REVIEW] Replace with a real customer review.' }] },
-    { id: 'L007', sample: true, title: "Women's leather handbag", category: 'fashion', seller: 'store-c', brand: '', priceZMW: 480, stock: 'in', image: '', alt: 'Brown leather handbag with a shoulder strap', tags: 'bag ladies', reviews: [] },
-    { id: 'L008', sample: true, title: "Men's casual sneakers", category: 'fashion', seller: 'store-c', brand: '', priceZMW: 720, stock: 'low', image: '', alt: 'White casual sneakers', tags: 'shoes trainers', reviews: [] },
-    { id: 'L009', sample: true, title: 'Electric kettle, 1.7 litre', category: 'home', seller: 'store-a', brand: 'brand-c', priceZMW: 390, stock: 'in', image: '', alt: 'Stainless steel electric kettle', tags: 'kitchen appliance', reviews: [] },
-    { id: 'L010', sample: true, title: 'Heat sealing machine for packaging', category: 'business', seller: 'store-b', brand: '', priceZMW: 1650, stock: 'request', image: '', alt: 'Tabletop heat sealing machine sealing a plastic bag', tags: 'packaging sme sealer', reviews: [] },
-    { id: 'L011', sample: true, title: 'School backpack with laptop pocket', category: 'baby', seller: 'store-a', brand: '', priceZMW: 280, stock: 'in', image: '', alt: 'Navy school backpack with a front zip pocket', tags: 'school bag kids', reviews: [] },
-    { id: 'L012', sample: true, title: 'Knapsack sprayer, 16 litre', category: 'agri', seller: 'store-b', brand: '', priceZMW: 560, stock: 'in', image: '', alt: 'Green 16 litre knapsack crop sprayer', tags: 'farming garden', reviews: [] },
-    { id: 'L013', sample: true, title: 'Cordless drill kit with 2 batteries', category: 'hardware', seller: 'store-a', brand: 'brand-d', priceZMW: 1350, wasZMW: 1500, stock: 'in', image: '', alt: 'Cordless drill with two batteries in a carry case', tags: 'tools diy', reviews: [] },
-    { id: 'L014', sample: true, title: 'Car phone holder with charger', category: 'auto', seller: 'store-a', brand: 'brand-a', priceZMW: 210, stock: 'in', image: '', alt: 'Phone holder clipped to a car air vent', tags: 'car accessories', reviews: [] },
-    { id: 'L015', sample: true, title: 'Digital bathroom scale', category: 'health', seller: 'store-c', brand: '', priceZMW: 330, stock: 'in', image: '', alt: 'Glass digital bathroom scale', tags: 'weight fitness', reviews: [] },
-    { id: 'L016', sample: true, title: 'Household cleaning bundle', category: 'essentials', seller: 'store-c', brand: '', priceZMW: 260, stock: 'in', image: '', alt: 'Bundle of household cleaning products', tags: 'cleaning soap detergent', reviews: [] },
+    { id: 'L007', sample: true, title: "Women's leather handbag", category: 'fashion', seller: 'store-c', brand: '', priceZMW: 480, stock: 'in', image: 'assets/products/L007.jpg', alt: 'Brown leather handbag with a shoulder strap', tags: 'bag ladies', reviews: [] },
+    { id: 'L008', sample: true, title: "Men's casual sneakers", category: 'fashion', seller: 'store-c', brand: '', priceZMW: 720, stock: 'low', image: 'assets/products/L008.jpg', alt: 'White casual sneakers', tags: 'shoes trainers', reviews: [] },
+    { id: 'L009', sample: true, title: 'Electric kettle, 1.7 litre', category: 'home', seller: 'store-a', brand: 'brand-c', priceZMW: 390, stock: 'in', image: 'assets/products/L009.jpg', alt: 'Stainless steel electric kettle', tags: 'kitchen appliance', reviews: [] },
+    { id: 'L010', sample: true, title: 'Heat sealing machine for packaging', category: 'business', seller: 'store-b', brand: '', priceZMW: 1650, stock: 'request', image: 'assets/products/L010.jpg', alt: 'Tabletop heat sealing machine sealing a plastic bag', tags: 'packaging sme sealer', reviews: [] },
+    { id: 'L011', sample: true, title: 'School backpack with laptop pocket', category: 'baby', seller: 'store-a', brand: '', priceZMW: 280, stock: 'in', image: 'assets/products/L011.jpg', alt: 'Navy school backpack with a front zip pocket', tags: 'school bag kids', reviews: [] },
+    { id: 'L012', sample: true, title: 'Knapsack sprayer, 16 litre', category: 'agri', seller: 'store-b', brand: '', priceZMW: 560, stock: 'in', image: 'assets/products/L012.jpg', alt: 'Green 16 litre knapsack crop sprayer', tags: 'farming garden', reviews: [] },
+    { id: 'L013', sample: true, title: 'Cordless drill kit with 2 batteries', category: 'hardware', seller: 'store-a', brand: 'brand-d', priceZMW: 1350, wasZMW: 1500, stock: 'in', image: 'assets/products/L013.jpg', alt: 'Cordless drill with two batteries in a carry case', tags: 'tools diy', reviews: [] },
+    { id: 'L014', sample: true, title: 'Car phone holder with charger', category: 'auto', seller: 'store-a', brand: 'brand-a', priceZMW: 210, stock: 'in', image: 'assets/products/L014.jpg', alt: 'Phone holder clipped to a car air vent', tags: 'car accessories', reviews: [] },
+    { id: 'L015', sample: true, title: 'Digital bathroom scale', category: 'health', seller: 'store-c', brand: '', priceZMW: 330, stock: 'in', image: 'assets/products/L015.jpg', alt: 'Glass digital bathroom scale', tags: 'weight fitness', reviews: [] },
+    { id: 'L016', sample: true, title: 'Household cleaning bundle', category: 'essentials', seller: 'store-c', brand: '', priceZMW: 260, stock: 'in', image: 'assets/products/L016.jpg', alt: 'Bundle of household cleaning products', tags: 'cleaning soap detergent', reviews: [] },
 
     // ---- China samples: only shown when chinaOrdering is true ----
-    { id: 'C001', sample: true, source: 'china', title: 'Wireless earbuds with charging case', category: 'tech', seller: '', brand: '', priceCNY: 85, weightKg: 0.2, shipping: '[__] days air cargo', url: '', image: '', alt: 'White wireless earbuds next to their charging case', reviews: [] },
-    { id: 'C002', sample: true, source: 'china', title: '100W foldable solar panel kit', category: 'solar', seller: '', brand: '', priceCNY: 260, weightKg: 3.5, shipping: '[__] days air cargo', url: '', image: '', alt: 'Foldable solar panel opened flat', reviews: [] }
+    { id: 'C001', sample: true, source: 'china', title: 'Wireless earbuds with charging case', category: 'tech', seller: '', brand: '', priceCNY: 85, weightKg: 0.2, shipping: '[__] days air cargo', url: '', image: 'assets/products/C001.jpg', alt: 'White wireless earbuds next to their charging case', reviews: [] },
+    { id: 'C002', sample: true, source: 'china', title: '100W foldable solar panel kit', category: 'solar', seller: '', brand: '', priceCNY: 260, weightKg: 3.5, shipping: '[__] days air cargo', url: '', image: 'assets/products/C002.jpg', alt: 'Foldable solar panel opened flat', reviews: [] }
   ],
 
   /* Promotions run by sellers [SAMPLE]. Optional image: a 1600×500 banner shown in the

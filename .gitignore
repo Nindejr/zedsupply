@@ -12,3 +12,5 @@ desktop.ini
 
 # Private working notes (kept locally, not published)
 brand-brief.md
+.preview-chrome/
+preview-*.png
