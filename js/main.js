@@ -67,7 +67,30 @@
   function initShop(cat) {
     var s = cat.settings;
     var waBase = 'https://wa.me/' + s.whatsapp + '?text=';
+    var locationInput = document.getElementById('delivery-location');
+    var updateCalculator = null;
     var catName = {};
+
+    function waUrl(message) {
+      var location = locationInput ? locationInput.value.trim() : '';
+      if (location) message = message.replace(/\s+$/, '') + '\nDelivery location: ' + location;
+      return waBase + encodeURIComponent(message);
+    }
+
+    function syncLocationLinks(scope) {
+      var links = scope.querySelectorAll('[data-wa-message]');
+      for (var i = 0; i < links.length; i++) {
+        links[i].href = waUrl(links[i].getAttribute('data-wa-message'));
+      }
+    }
+
+    if (locationInput) {
+      locationInput.addEventListener('input', function () {
+        syncLocationLinks(document);
+        if (updateCalculator) updateCalculator();
+      });
+    }
+
     cat.categories.forEach(function (c) { catName[c.id] = c.name; });
 
     // China ordering switch: hide China products and reveal China-only content when on
@@ -156,7 +179,7 @@
           '<p class="product__est">' + (c.local ? 'Delivery confirmed on WhatsApp' : 'Estimate, delivered to Lusaka') + '</p>' +
           '<p class="product__ship"><span aria-hidden="true">' + (c.local ? '🚚' : '✈') + '</span> ' + esc(pr.shipping) + '</p>' +
           '<details class="product__breakdown"><summary>Cost breakdown</summary><dl class="breakdown">' + breakdownHTML(c) + '</dl></details>' +
-          '<a class="btn btn--primary btn--sm" href="' + waBase + encodeURIComponent(msg) + '" target="_blank" rel="noopener">Order via WhatsApp<span class="visually-hidden"> – ' + esc(pr.title) + '</span></a>' +
+          '<a class="btn btn--primary btn--sm" href="' + waUrl(msg) + '" data-wa-message="' + esc(msg) + '" target="_blank" rel="noopener">Order via WhatsApp<span class="visually-hidden"> – ' + esc(pr.title) + '</span></a>' +
           (link ? '<a class="product__link" href="' + esc(link) + '" target="_blank" rel="noopener sponsored">View original listing<span class="visually-hidden"> for ' + esc(pr.title) + '</span></a>' : '') +
         '</div></article></li>';
     }
@@ -178,9 +201,10 @@
       if (!list.length) {
         var where = state.cat === 'all' ? '' : ' in ' + catName[state.cat];
         html = '<li class="feed-empty"><p><strong>Nothing listed here' + esc(where) + ' yet.</strong> Tell us what you need and we\'ll find it.</p>' +
-          '<a class="btn btn--primary btn--sm" href="' + waBase + encodeURIComponent('Hi Zed Supply, I\'m looking for: ') + '" target="_blank" rel="noopener">Ask on WhatsApp</a></li>';
+          '<a class="btn btn--primary btn--sm" href="' + waUrl('Hi Zed Supply, I\'m looking for: ') + '" data-wa-message="Hi Zed Supply, I\'m looking for: " target="_blank" rel="noopener">Ask on WhatsApp</a></li>';
       }
       feed.innerHTML = html;
+      syncLocationLinks(feed);
       watchPhotos(feed);
 
       var btns = chips.querySelectorAll('.chip');
@@ -200,8 +224,9 @@
         var qty = Math.max(1, parseInt(calc.qty.value, 10) || 1);
         var c = cost(cny, kg, qty);
         out.innerHTML = breakdownHTML(c);
-        calcWa.href = waBase + encodeURIComponent('Hi Zed Supply, please confirm a quote. Item price: ' + cny + ' CNY, weight: ' + kg + ' kg, quantity: ' + qty + '. Calculator estimate: ' + kwacha(c.total) + '. Link: ');
+        calcWa.href = waUrl('Hi Zed Supply, please confirm a quote. Item price: ' + cny + ' CNY, weight: ' + kg + ' kg, quantity: ' + qty + '. Calculator estimate: ' + kwacha(c.total) + '. Link: ');
       };
+      updateCalculator = update;
       calc.addEventListener('input', update);
       calc.addEventListener('submit', function (e) { e.preventDefault(); update(); });
       update();

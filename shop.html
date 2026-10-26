@@ -106,6 +106,12 @@
           </div>
         </form>
 
+        <div class="field shop-location">
+          <label for="delivery-location">Delivery location (optional)</label>
+          <input id="delivery-location" type="text" autocomplete="address-level2" placeholder="e.g. Kabulonga, Lusaka" aria-describedby="delivery-location-hint">
+          <p class="hint" id="delivery-location-hint">Add your town or city and area. We’ll include it in your WhatsApp message; no GPS location is collected.</p>
+        </div>
+
         <h3 class="visually-hidden">Shop by department</h3>
         <ul class="chips" id="dept-chips" aria-label="Departments"></ul>
 
@@ -119,7 +125,7 @@
             <p>Describe the product, how many you need and where, and we'll find it from local suppliers and quote in Kwacha.</p>
             <p data-china hidden>You can also send us a link from Alibaba, 1688 or Taobao.</p>
           </div>
-          <a class="btn btn--primary" href="https://wa.me/260979050042?text=Hi%20Zed%20Supply%2C%20I%27m%20looking%20for%3A%20" target="_blank" rel="noopener">Ask on WhatsApp</a>
+          <a class="btn btn--primary" href="https://wa.me/260979050042?text=Hi%20Zed%20Supply%2C%20I%27m%20looking%20for%3A%20" data-wa-message="Hi Zed Supply, I'm looking for: " target="_blank" rel="noopener">Ask on WhatsApp</a>
         </div>
       </div>
     </section>
