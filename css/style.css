@@ -160,8 +160,8 @@ button { font: inherit; }
   padding-block: 0.5rem 0.65rem;
 }
 .menu-btn { grid-area: menu; }
-.site-logo { grid-area: logo; display: inline-flex; align-items: center; min-height: 44px; }
-.site-logo img { height: 34px; width: auto; }
+.site-logo { grid-area: logo; display: inline-flex; align-items: center; min-height: 44px; min-width: 0; max-width: 190px; }
+.site-logo img { width: 190px; height: auto; aspect-ratio: 379 / 96; object-fit: contain; }
 .header-actions { grid-area: actions; display: flex; align-items: center; gap: 0.1rem; }
 .hact {
   position: relative; display: inline-flex; align-items: center; gap: 0.35rem;
@@ -199,7 +199,8 @@ button { font: inherit; }
 
 @media (min-width: 900px) {
   .header-main { grid-template-columns: auto auto 1fr auto; grid-template-areas: "menu logo search actions"; gap: 1rem; padding-block: 0.6rem; }
-  .site-logo img { height: 42px; }
+  .site-logo { max-width: 220px; }
+  .site-logo img { width: 220px; height: auto; }
   .search__dept { display: block; }
   .hact__label { display: block; font-weight: 700; font-size: 0.9rem; }
   .hact--orders { display: inline-flex; font-weight: 700; font-size: 0.9rem; }
@@ -701,7 +702,19 @@ h1[tabindex="-1"]:focus { outline: none; }
 #location-form .check { align-items: center; }
 
 /* Cohesive Zed Supply asset system. */
-.dept__icon img { width: 32px; height: 32px; }
+.dept__icon img { width: 112px; height: 112px; object-fit: contain; filter: drop-shadow(0 10px 12px rgb(10 42 102 / .12)); transition: transform .25s ease; }
+.dept__icon { position: relative; isolation: isolate; width: 124px; height: 124px; border-radius: 28px; background: radial-gradient(ellipse at 50% 70%, #dce9f6 0%, #f1f7fc 56%, transparent 72%); }
+.dept { padding: 1.1rem .5rem 1rem; border-radius: 20px; background: linear-gradient(150deg, var(--color-surface), var(--color-bg-alt)); }
+.dept:hover .dept__icon img { transform: translateY(-5px) rotate(-3deg) scale(1.04); }
+.dept:focus-visible { outline: 3px solid var(--color-focus); outline-offset: 3px; }
+@media (max-width: 599.98px) {
+ .dept__icon { width: 100px; height: 100px; }
+ .dept__icon img { width: 96px; height: 96px; }
+ .ad--photo .ad__bg { object-position: 75% center; opacity: .55; }
+ .ad--photo::before { background: linear-gradient(90deg, rgb(5 13 34 / .9), rgb(5 13 34 / .55)); }
+}
+@media (max-width: 420px) { .depts { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (prefers-reduced-motion: reduce) { .dept, .dept__icon img { transition: none; } .dept:hover, .dept:hover .dept__icon img { transform: none; } }
 .ad__art img { width: clamp(64px, 14vw, 180px); height: auto; padding: 16px; background: #e9f0f8; border-radius: 24px; }
 .emoji img { width: 24px; height: 24px; }
 .chip img { display: inline-block; width: 20px; height: 20px; vertical-align: middle; }
@@ -709,9 +722,147 @@ h1[tabindex="-1"]:focus { outline: none; }
 .data-saver .pmedia__emoji img { display: block; }
 .pmedia > img { object-fit: contain; background: #f7f9fc; }
 .empty__art { margin: 0 auto 1rem; opacity: .7; }
-.brand__logo { width: 56px; height: 56px; padding: 10px; border-radius: 14px; background: #fff; margin-bottom: .8rem; }
+.brand__logo { width: 96px; height: 96px; padding: 4px; object-fit: contain; border-radius: 22px; background: #edf5fc; margin-bottom: .8rem; }
 .footer-brand img { width: 220px; }
 @media (prefers-color-scheme: dark) {
- .dept__icon, .pmedia__emoji, .emoji img, .chip img { background: #e9f0f8; border-radius: 8px; }
+ .dept__icon { background: radial-gradient(ellipse at 50% 70%, #24496b 0%, #15324f 56%, transparent 74%); }
+ .pmedia__emoji, .emoji img, .chip img { background: #e9f0f8; border-radius: 8px; }
  .empty__art { background: #e9f0f8; border-radius: 14px; padding: 8px; }
 }
+
+/* ==========================================================================
+   Glass, gold and Zambia
+   Signature look: see-through glass panels over soft colour, glossy gold
+   touches and the Zambian flag colours. Reuse these tokens for new parts.
+   ========================================================================== */
+:root {
+  /* Zambian flag */
+  --zm-green: #198A00;
+  --zm-red: #DE2010;
+  --zm-black: #000000;
+  --zm-orange: #EF7D00;
+  --zm-stripe: linear-gradient(90deg, var(--zm-green) 0 64%, var(--zm-red) 64% 76%, var(--zm-black) 76% 88%, var(--zm-orange) 88% 100%);
+  /* Glossy gold */
+  --gold: #E0A82E;
+  --gold-gloss: linear-gradient(100deg, #A8740A 0%, #F5C542 20%, #FFF4C2 36%, #E7AE34 52%, #FFE08A 70%, #B8860B 100%);
+  /* Glass */
+  --glass-bg: rgb(255 255 255 / 0.55);
+  --glass-border: rgb(255 255 255 / 0.7);
+  --glass-shadow: 0 10px 30px rgb(10 42 102 / 0.12), inset 0 1px 0 rgb(255 255 255 / 0.8);
+  --glass-blur: blur(16px) saturate(170%);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --glass-bg: rgb(16 30 69 / 0.5);
+    --glass-border: rgb(255 255 255 / 0.14);
+    --glass-shadow: 0 10px 30px rgb(0 0 0 / 0.35), inset 0 1px 0 rgb(255 255 255 / 0.12);
+  }
+}
+
+/* Flag stripe under the header, always on: a quiet nod to Zambia */
+.site-header::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 3px; background: var(--zm-stripe); }
+
+/* Gold underline on section headings */
+.section-head h2::after { content: ""; display: block; width: 52px; height: 4px; margin-top: 0.4rem; border-radius: 4px; background: var(--gold-gloss); }
+
+/* Soft colour stage that glass panels sit on, so they read as see-through */
+.hero-tiles, .depts, .brands { position: relative; isolation: isolate; }
+.hero-tiles::before, .depts::before, .brands::before {
+  content: ""; position: absolute; inset: -28px 0; z-index: -1; pointer-events: none;
+  background:
+    radial-gradient(38% 60% at 12% 40%, rgb(25 138 0 / 0.30), transparent 70%),
+    radial-gradient(30% 55% at 50% 70%, rgb(239 125 0 / 0.24), transparent 70%),
+    radial-gradient(34% 60% at 88% 35%, rgb(27 204 191 / 0.30), transparent 70%),
+    radial-gradient(26% 50% at 70% 10%, rgb(245 197 66 / 0.28), transparent 70%);
+  filter: blur(8px);
+}
+
+/* Glass tiles: Browse categories, Register as a seller, Make a request */
+.tile { border: 1px solid rgb(255 255 255 / 0.35); box-shadow: 0 12px 32px rgb(10 42 102 / 0.18), inset 0 1px 0 rgb(255 255 255 / 0.45); -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur); text-shadow: 0 1px 2px rgb(0 0 0 / 0.25); }
+.tile--browse { background: linear-gradient(135deg, rgb(10 42 102 / 0.90), rgb(0 74 160 / 0.86)); }
+.tile--sell { background: linear-gradient(135deg, rgb(12 82 36 / 0.90), rgb(16 104 12 / 0.86)); }
+.tile--request { background: linear-gradient(135deg, rgb(0 64 100 / 0.90), rgb(0 86 108 / 0.86)); }
+.tile::before { content: ""; position: absolute; top: 0; left: 18px; right: 18px; height: 2px; border-radius: 2px; background: var(--gold-gloss); }
+.tile::after, .dept::after, .brand::after {
+  content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+  background: linear-gradient(160deg, rgb(255 255 255 / 0.28) 0%, rgb(255 255 255 / 0.06) 36%, transparent 38%);
+}
+.tile > * { position: relative; z-index: 1; }
+.tile .btn--light { background: rgb(255 255 255 / 0.92); box-shadow: 0 0 0 1px rgb(245 197 66 / 0.7), 0 4px 12px rgb(0 0 0 / 0.15); text-shadow: none; }
+
+/* Glass category tiles */
+.dept { position: relative; overflow: hidden; background: var(--glass-bg); border: 1px solid var(--glass-border); box-shadow: var(--glass-shadow); -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur); }
+.dept:hover { border-color: rgb(245 197 66 / 0.9); box-shadow: var(--glass-shadow), 0 0 0 1px rgb(245 197 66 / 0.6), 0 14px 30px rgb(224 168 46 / 0.22); }
+.dept__icon { background: radial-gradient(ellipse at 50% 70%, rgb(255 255 255 / 0.9) 0%, rgb(233 240 248 / 0.55) 55%, transparent 72%); }
+@media (prefers-color-scheme: dark) { .dept__icon { background: radial-gradient(ellipse at 50% 70%, rgb(36 73 107 / 0.85) 0%, rgb(21 50 79 / 0.5) 56%, transparent 74%); } }
+
+/* Glass brand store cards: brand colour as a see-through tint */
+.brand { position: relative; overflow: hidden; border: 1px solid rgb(255 255 255 / 0.35); box-shadow: 0 12px 30px rgb(10 42 102 / 0.18), inset 0 1px 0 rgb(255 255 255 / 0.4);
+  background: linear-gradient(160deg, rgb(5 13 34 / 0.18), rgb(5 13 34 / 0.48)), linear-gradient(160deg, var(--brand-a, #0A2A66), var(--brand-b, #0057AE));
+  -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur); text-shadow: 0 1px 2px rgb(0 0 0 / 0.3); }
+@supports (background: color-mix(in srgb, red 50%, transparent)) {
+  .brand { background: linear-gradient(160deg, rgb(5 13 34 / 0.2), rgb(5 13 34 / 0.55)), linear-gradient(160deg, color-mix(in srgb, var(--brand-a, #0A2A66) 78%, transparent), color-mix(in srgb, var(--brand-b, #0057AE) 58%, transparent)); }
+}
+.brand > * { position: relative; z-index: 1; }
+.brand::before { content: ""; position: absolute; top: 0; left: 16px; right: 16px; height: 2px; border-radius: 2px; background: var(--gold-gloss); z-index: 1; }
+.brand__logo { background: rgb(255 255 255 / 0.75); box-shadow: inset 0 1px 0 #fff, 0 0 0 1px rgb(245 197 66 / 0.6); }
+
+/* Gold gloss on promotion badges and the current carousel dot */
+.badge { background: var(--gold-gloss); color: #3A2600; box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.6); }
+.ads__dot[aria-current="true"]::before { background: var(--gold-gloss); }
+
+/* ---------- Zambia Independence season (dates set in js/catalogue.js) ---------- */
+.zm-bar { display: none; }
+.theme-zambia .zm-bar {
+  display: block; position: relative; overflow: hidden; color: #FFFFFF; font-size: 0.92rem;
+  background: linear-gradient(90deg, #0F5E1A, #157A00 55%, #0F5E1A);
+}
+.theme-zambia .zm-bar::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 4px; background: var(--zm-stripe); }
+.theme-zambia .zm-bar::before {
+  content: ""; position: absolute; inset: 0; pointer-events: none; opacity: 0.5;
+  background-image: radial-gradient(circle, #F5C542 1.5px, transparent 2px), radial-gradient(circle, #EF7D00 1.2px, transparent 1.8px);
+  background-size: 34px 22px, 52px 30px; background-position: 0 0, 17px 11px;
+}
+.zm-bar__inner { position: relative; z-index: 1; display: flex; align-items: center; gap: 0.6rem; min-height: 44px; padding-block: 0.4rem 0.65rem; }
+.zm-bar__flag { width: 34px; height: auto; border-radius: 3px; box-shadow: 0 0 0 1px rgb(255 255 255 / 0.6); flex-shrink: 0; }
+.zm-bar p { margin: 0; max-width: none; flex: 1; text-shadow: 0 1px 2px rgb(0 0 0 / 0.35); }
+.zm-bar strong { color: #FFE08A; font-family: var(--font-heading); }
+.zm-bar a { color: #FFFFFF; font-weight: 700; white-space: nowrap; }
+@media (max-width: 599.98px) { .zm-bar a { display: none; } }
+
+.theme-zambia .site-header::after { height: 5px; box-shadow: 0 1px 0 rgb(245 197 66 / 0.8); }
+.theme-zambia .tile::before, .theme-zambia .brand::before { height: 4px; background: var(--zm-stripe); }
+.theme-zambia .dept::before { content: ""; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: var(--zm-stripe); z-index: 1; }
+.theme-zambia .hero-tiles::before, .theme-zambia .depts::before, .theme-zambia .brands::before {
+  background:
+    radial-gradient(38% 60% at 10% 40%, rgb(25 138 0 / 0.42), transparent 70%),
+    radial-gradient(22% 50% at 58% 75%, rgb(222 32 16 / 0.26), transparent 70%),
+    radial-gradient(28% 55% at 78% 40%, rgb(239 125 0 / 0.36), transparent 70%),
+    radial-gradient(26% 50% at 40% 8%, rgb(245 197 66 / 0.40), transparent 70%);
+}
+.theme-zambia .site-footer { border-top: 5px solid; border-image: var(--zm-stripe) 1; }
+
+/* Independence banner slide */
+.ad--zambia { background:
+  radial-gradient(circle at 85% 25%, rgb(245 197 66 / 0.35), transparent 40%),
+  linear-gradient(115deg, #0B4A12 0%, #157A00 55%, #0F6300 100%); }
+.ad--zambia::after { content: ""; position: absolute; right: 0; bottom: 0; width: 26%; height: 62%; background: linear-gradient(90deg, var(--zm-red) 0 33.3%, var(--zm-black) 33.3% 66.6%, var(--zm-orange) 66.6% 100%); opacity: 0.9; }
+.ad--zambia .ad__label { color: #FFE08A; }
+.ad--zambia .ad__title { color: #FFFFFF; text-shadow: 0 2px 0 rgb(168 116 10 / 0.55), 0 4px 18px rgb(0 0 0 / 0.35); }
+.ad--zambia .ad__title em { font-style: normal; color: #FFE08A; }
+.ad--zambia .ad__art { top: 16%; transform: none; right: 6%; z-index: 2; opacity: 1; filter: none; }
+.ad--zambia .ad__art img { width: clamp(90px, 18vw, 220px); padding: 0; background: none; border-radius: 6px; box-shadow: 0 0 0 3px #F5C542, 0 12px 30px rgb(0 0 0 / 0.35); }
+@media (max-width: 599.98px) { .ad--zambia::after { width: 16%; height: 34%; opacity: 0.55; } .ad--zambia .ad__art { display: none; } }
+
+/* Header logo must fit a 360px phone alongside the menu and three icons */
+.site-logo { max-width: none; }
+.site-logo img { width: clamp(118px, 38vw, 190px); }
+@media (min-width: 900px) { .site-logo img { width: 220px; } }
+
+/* Browsers without backdrop-filter: make glass more solid so text stays readable */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  :root { --glass-bg: rgb(255 255 255 / 0.85); }
+}
+
+/* Decorative glows must never cause sideways scrolling on phones */
+body { overflow-x: clip; }

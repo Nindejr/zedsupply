@@ -37,7 +37,13 @@ window.ZS_CATALOGUE = {
     tracking: { param: 'ref', value: '[TRACKING_CODE]' },
 
     deliveryText: 'Lusaka delivery: [__] days',  // shown on every local product
-    whatsapp: '260979050042'
+    whatsapp: '260979050042',
+
+    // ---- Zambia Independence celebration theme ----
+    // Switches on automatically every year between these dates (month-day) and
+    // off again on 1 January. Independence Day is 24 October (1964).
+    // Preview any time by adding ?theme=zambia to the address (or ?theme=off).
+    celebration: { enabled: true, start: '10-01', end: '12-31', independenceDay: '10-24', independenceYear: 1964 }
   },
 
   /* Homepage advertising banner (carousel). Slides appear in this order, followed by
@@ -48,12 +54,14 @@ window.ZS_CATALOGUE = {
        plus alt text describing the advert. Leave title empty: the artwork carries the words.
        Put files in assets/banners/ as JPEG, under 150KB each.
      - Designed slide: leave image empty and fill in title, text, cta and colours.
-       art is a big emoji shown on the right.
+       art is optional decorative artwork on the right. Keep banner copy in HTML.
      link: where the slide goes, e.g. '#/promo/P2', '#/dept/solar', '#/sell' */
   banners: [
-    { id: 'welcome', label: "Zambia's marketplace", title: 'Everything Within Reach', text: 'Shop products from Zambian sellers in one place, priced in Kwacha, with checkout on WhatsApp.', cta: "Shop today's deals", link: '#/deals', colours: ['#0A2A66', '#0057AE'], art: 'logo', photo: true, image: 'assets/banners/marketplace-hero.jpg' },
+    { id: 'welcome', label: "Zambia's marketplace", title: 'Everything Within Reach', text: 'Discover everyday favourites and business essentials from Zambian sellers, priced in Kwacha.', cta: "Shop today's deals", link: '#/deals', colours: ['#0A2A66', '#0057AE'], art: 'logo', photo: true, image: 'assets/banners/alternatives/marketplace-3d.jpg' },
+    { id: 'solar-collection', label: 'Solar & power', title: 'Keep your day moving', text: 'Explore solar lighting, portable power and energy essentials for your home or business.', cta: 'Explore solar & power', link: '#/dept/solar', colours: ['#071D47', '#0E7C86'], photo: true, image: 'assets/banners/alternatives/solar-3d.jpg' },
     { id: 'sample-ad', sample: true, image: 'assets/banners/sample-ad-wide.jpg', imageMobile: 'assets/banners/sample-ad-mobile.jpg', alt: 'Sample advert: your banner here. Replace with real advertising artwork.', link: '#/sell' },
-    { id: 'world', label: 'Coming soon', title: 'Shop the World', text: 'Order from China and beyond, with the full landed cost in Kwacha. Opening once supplier agreements are in place.', cta: 'Find out more', link: '#/world', colours: ['#071D47', '#0E7C86'], art: '<img src=\"assets/icons/world.svg\" alt=\"\">' }
+    { id: 'business-collection', label: 'For your next big step', title: 'Built for your business', text: 'Find tools, packaging, office essentials and equipment for the work ahead.', cta: 'Shop business supplies', link: '#/dept/business', colours: ['#0A2A66', '#0057AE'], photo: true, image: 'assets/banners/alternatives/business-3d.jpg' },
+    { id: 'world', label: 'Coming soon', title: 'A world of possibility', text: 'Shop from China and beyond, with landed costs in Kwacha. Opening once supplier agreements are in place.', cta: 'Discover Shop the World', link: '#/world', colours: ['#071D47', '#0E7C86'], photo: true, image: 'assets/banners/alternatives/world-3d.jpg', art: '<img src=\"assets/icons/world.svg\" alt=\"\">' }
   ],
 
   // Departments. Link to one with index.html#/dept/<id>
@@ -79,7 +87,7 @@ window.ZS_CATALOGUE = {
     { id: 'school', name: 'Back to school', colours: ['#0057AE', '#1BA6C9'] },
     { id: 'easter', name: 'Easter', colours: ['#6D28D9', '#A855F7'] },
     { id: 'valentines', name: "Valentine's Day", colours: ['#9D174D', '#DB2777'] },
-    { id: 'independence', name: 'Independence Day', colours: ['#0F5E2E', '#D97706'] },
+    { id: 'independence', name: 'Independence Day', colours: ['#0F5E1A', '#198A00'] },
     { id: 'farmers', name: "Farmers' Day", colours: ['#3F6212', '#65A30D'] },
     { id: 'own', name: "Seller's own promotion", colours: ['#0A2A66', '#0057AE'] }
   ],
@@ -137,7 +145,8 @@ window.ZS_CATALOGUE = {
     { id: 'P2', sample: true, seller: 'store-b', title: 'Beat load-shedding: solar week', season: 'own', discount: 15, starts: '2026-10-24', ends: '2026-11-15', products: ['L002', 'L006'], about: '[SAMPLE] Solar lighting for power cuts.' },
     { id: 'P3', sample: true, seller: 'store-b', title: 'Black Friday weekend', season: 'blackfriday', discount: 20, starts: '2026-11-27', ends: '2026-11-30', products: ['L004', 'L010'], about: '[SAMPLE] Tech and business equipment.' },
     { id: 'P4', sample: true, seller: 'store-c', title: 'Festive season deals', season: 'christmas', discount: 20, starts: '2026-12-01', ends: '2026-12-26', products: ['L003', 'L007', 'L008'], about: '[SAMPLE] Gifts and homeware for the holidays.' },
-    { id: 'P5', sample: true, seller: 'store-a', title: 'Back to school', season: 'school', discount: 10, starts: '2027-01-04', ends: '2027-01-31', products: ['L011', 'L001'], about: '[SAMPLE] School bags and stationery.' }
+    { id: 'P5', sample: true, seller: 'store-a', title: 'Back to school', season: 'school', discount: 10, starts: '2027-01-04', ends: '2027-01-31', products: ['L011', 'L001'], about: '[SAMPLE] School bags and stationery.' },
+    { id: 'P6', sample: true, seller: 'store-b', title: 'Independence celebration deals', season: 'independence', discount: 12, starts: '2026-10-01', ends: '2026-10-31', products: ['L012', 'L016', 'L013'], about: '[SAMPLE] Celebrating Zambia with local favourites.' }
   ],
 
   // Voucher codes customers can enter in the cart [SAMPLE]

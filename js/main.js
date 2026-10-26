@@ -58,6 +58,34 @@
     shield: '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/><path d="m9 12 2 2 4-4"/>'
   };
 
+  /* ---------- Zambia Independence celebration theme ----------
+     On automatically each year between celebration.start and .end (month-day),
+     off from 1 January. ?theme=zambia or ?theme=off previews it on any date. */
+  var CEL = S.celebration || { enabled: true, start: '10-01', end: '12-31', independenceDay: '10-24', independenceYear: 1964 };
+  var monthDay = pad(now.getMonth() + 1) + '-' + pad(now.getDate());
+  var themeParam = (location.search.match(/[?&]theme=(zambia|off)\b/) || [])[1];
+  var zambia = themeParam ? themeParam === 'zambia' : (CEL.enabled !== false && monthDay >= CEL.start && monthDay <= CEL.end);
+  root.classList.toggle('theme-zambia', zambia);
+  function ordinal(n) { var s = ['th', 'st', 'nd', 'rd'], v = n % 100; return n + (s[(v - 20) % 10] || s[v] || s[0]); }
+  var indYears = now.getFullYear() - (CEL.independenceYear || 1964);
+  function celebrationCopy() {
+    var parts = (CEL.independenceDay || '10-24').split('-'), day = new Date(now.getFullYear(), Number(parts[0]) - 1, Number(parts[1]));
+    var days = Math.round((day - new Date(now.getFullYear(), now.getMonth(), now.getDate())) / 86400000);
+    if (days > 1) return { lead: days + ' days to Independence Day', line: 'Zambia celebrates ' + indYears + ' years of independence on 24 October.' };
+    if (days === 1) return { lead: 'Tomorrow is Independence Day', line: 'Zambia celebrates ' + indYears + ' years of independence on 24 October.' };
+    if (days === 0) return { lead: 'Happy ' + ordinal(indYears) + ' Independence Day, Zambia!', line: 'Celebrating ' + indYears + ' years since 24 October 1964.' };
+    return { lead: 'Celebrating ' + indYears + ' years of independence', line: 'Thank you for shopping Zambian this festive season.' };
+  }
+  if (zambia) {
+    var cc = celebrationCopy(), bar = document.createElement('div');
+    bar.className = 'zm-bar';
+    bar.setAttribute('role', 'note');
+    bar.innerHTML = '<div class="container zm-bar__inner"><img class="zm-bar__flag" src="assets/brand/zambia-flag.svg" alt="Flag of Zambia" width="34" height="23">' +
+      '<p><strong>' + esc(cc.lead) + '</strong> ' + esc(cc.line) + '</p><a href="' + R + 'promotions?season=independence">Independence deals</a></div>';
+    var skipLink = $('.skip-link');
+    if (skipLink) skipLink.parentNode.insertBefore(bar, skipLink.nextSibling);
+  }
+
   /* ---------- Products, prices and promotions ---------- */
   var products = D.products.filter(function (p) { return china || p.source !== 'china'; });
   var localProducts = products.filter(function (p) { return p.source !== 'china'; });
@@ -238,6 +266,11 @@
   }
 
   /* ---------- Data saver ---------- */
+  // Swap 3D category and store artwork for the tiny line icons
+  function saverArt(scope) {
+    if (!root.classList.contains('data-saver')) return;
+    $$('img[data-fallback]', scope).forEach(function (im) { im.src = im.getAttribute('data-fallback'); im.removeAttribute('data-fallback'); });
+  }
   var saver = store.get('datasaver', false);
   root.classList.toggle('data-saver', !!saver);
   $$('[data-saver-toggle]').forEach(function (cb) {
@@ -245,6 +278,7 @@
     cb.addEventListener('change', function () {
       store.set('datasaver', cb.checked);
       root.classList.toggle('data-saver', cb.checked);
+      saverArt(document);
       document.dispatchEvent(new Event('zs:datasaver'));
       toast(cb.checked ? 'Data saver on: photos and banner images hidden' : 'Data saver off');
     });
@@ -345,7 +379,11 @@
   }
   function identityArt(entity) {
     var symbols = { 'brand-a': 'tech', 'brand-b': 'solar', 'brand-c': 'home', 'brand-d': 'hardware', 'store-a': 'office', 'store-b': 'solar', 'store-c': 'fashion' };
-    return '<img class="brand__logo" src="assets/icons/' + (symbols[entity.id] || 'marketplace') + '.svg" alt="" width="56" height="56">';
+    var category = symbols[entity.id];
+    return '<img class="brand__logo" src="' + (category ? 'assets/categories-3d/' + category + '.png' : 'assets/icons/marketplace.svg') + '" data-fallback="assets/icons/' + (category || 'marketplace') + '.svg" alt="" width="96" height="96" loading="lazy" decoding="async">';
+  }
+  function departmentArtwork(d) {
+    return '<img src="assets/categories-3d/' + d.id + '.png" data-fallback="assets/icons/' + d.id + '.svg" alt="" width="112" height="112" loading="lazy" decoding="async">';
   }
   function verifiedHTML(s) { return s && s.verified ? ' <span class="verified">' + icon(I.shield) + 'Verified seller</span>' : ''; }
 
@@ -407,10 +445,17 @@
   /* ---------- Footer year, image fallbacks ---------- */
   $$('[data-year]').forEach(function (el) { el.textContent = now.getFullYear(); });
   document.addEventListener('error', function (e) {
+    if (e.target.tagName === 'IMG' && e.target.hasAttribute('data-fallback')) {
+      var fallback = e.target.getAttribute('data-fallback');
+      e.target.removeAttribute('data-fallback');
+      e.target.src = fallback;
+      return;
+    }
     if (e.target.tagName === 'IMG' && e.target.closest('.pmedia') && !e.target.closest('.pmedia__emoji')) e.target.classList.add('is-broken');
   }, true);
 
   updateCounts();
+  saverArt(document);
   refreshLoc();
 
   if (!onIndex) return;
@@ -431,7 +476,12 @@
       var s = seller(pr.seller), se = season(pr.season), first = product(pr.products[0]);
       return { label: 'Promotion' + (s ? ' · ' + s.name : ''), title: pr.title, text: pr.discount + '% off until ' + niceDate(pr.ends) + '.', cta: 'Shop now', link: '#/promo/' + pr.id, colours: se.colours, art: first ? dept(first.category).icon : '🏷️', image: pr.image || '', photo: true, sample: pr.sample };
     });
-    return (D.banners || []).concat(promos);
+    var list = (D.banners || []).concat(promos);
+    if (zambia) {
+      var cc = celebrationCopy();
+      list.unshift({ id: 'independence', zambia: true, label: 'Independence ' + now.getFullYear(), title: cc.lead, text: cc.line + ' Shop local favourites and seller celebration deals.', cta: 'Shop Independence deals', link: '#/promotions?season=independence', art: '<img src="assets/brand/zambia-flag.svg" alt="" width="220" height="147">' });
+    }
+    return list;
   }
   function adHTML(b, i, n) {
     var saverOn = root.classList.contains('data-saver');
@@ -445,8 +495,8 @@
     }
     var c = b.colours || ['#0A2A66', '#0057AE'];
     var bg = b.image && b.photo && !saverOn ? '<img class="ad__bg" src="' + esc(b.image) + '" alt="" width="1600" height="500"' + (i ? ' loading="lazy"' : ' fetchpriority="high"') + '>' : '';
-    var art = bg ? '' : (b.art === 'logo' ? '<img class="ad__logo" src="assets/brand/mark.svg" alt="" width="320" height="170">' : (b.art ? '<span class="ad__art" aria-hidden="true">' + b.art + '</span>' : ''));
-    return '<div class="ad ad--designed' + (bg ? ' ad--photo' : '') + '"' + attrs + ' style="--ad-a:' + c[0] + ';--ad-b:' + c[1] + '">' + bg +
+    var art = bg ? '' : (b.art === 'logo' ? '<img class="ad__logo" src="assets/brand/mark-original-3d.png" alt="" width="320" height="170">' : (b.art ? '<span class="ad__art" aria-hidden="true">' + b.art + '</span>' : ''));
+    return '<div class="ad ad--designed' + (bg ? ' ad--photo' : '') + (b.zambia ? ' ad--zambia' : '') + '"' + attrs + ' style="--ad-a:' + c[0] + ';--ad-b:' + c[1] + '">' + bg +
       '<div class="ad__body">' + (b.label ? '<span class="ad__label">' + esc(b.label) + '</span>' : '') +
       '<p class="ad__title">' + esc(b.title || b.alt || 'Advert') + '</p>' + (b.text ? '<p class="ad__text">' + esc(b.text) + '</p>' : '') +
       '<a class="btn btn--primary" href="' + link + '">' + esc(b.cta || 'Shop now') + '</a></div>' + art + sample + '</div>';
@@ -516,6 +566,7 @@
     var recent = store.get('recent', []).map(product).filter(Boolean);
     $('#home-recent-wrap').hidden = !recent.length;
     $('#home-recent').innerHTML = cards(recent);
+    saverArt(home);
     $$('[data-sample-note]').forEach(function (n) { n.hidden = !S.isSample; });
   }
 
@@ -524,6 +575,7 @@
     home.hidden = true;
     view.hidden = false;
     view.innerHTML = html;
+    saverArt(view);
     document.title = title + ' | Zed Supply';
     refreshLoc();
     window.scrollTo(0, 0);
@@ -580,7 +632,7 @@
       show(crumbs([['All categories']]) + head('All categories') +
         '<ul class="depts">' + D.departments.map(function (d) {
           var n = products.filter(function (p) { return p.category === d.id; }).length;
-          return '<li><a class="dept" href="#/dept/' + d.id + '"><span class="dept__icon" aria-hidden="true">' + d.icon + '</span>' + esc(d.name) + '<small>' + n + (n === 1 ? ' product' : ' products') + '</small></a></li>';
+          return '<li><a class="dept" href="#/dept/' + d.id + '"><span class="dept__icon" aria-hidden="true">' + departmentArtwork(d) + '</span>' + esc(d.name) + '<small>' + n + (n === 1 ? ' product' : ' products') + '</small></a></li>';
         }).join('') + '</ul>', 'All categories');
     },
 
