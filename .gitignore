@@ -1,0 +1,11 @@
+# Private business files, keys and recovery codes - never publish
+Business/
+github-recovery-codes.txt
+*.key
+*.pem
+.env
+
+# Windows shortcuts / OS junk
+*.lnk
+Thumbs.db
+desktop.ini
