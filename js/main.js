@@ -415,6 +415,36 @@
     if (e.target.closest('[data-back-top]')) { window.scrollTo(0, 0); var skip = $('.skip-link'); if (skip) skip.focus(); }
   });
 
+  /* ---------- Card-number guard (PCI DSS) ----------
+     Zed Supply never accepts card details through this site, email or WhatsApp.
+     If anything typed into a form looks like a real payment card number
+     (13–19 digits that pass the Luhn check), the message is not sent. */
+  function luhn(d) {
+    var sum = 0, alt = false;
+    for (var i = d.length - 1; i >= 0; i--) {
+      var n = d.charCodeAt(i) - 48;
+      if (alt) { n *= 2; if (n > 9) n -= 9; }
+      sum += n; alt = !alt;
+    }
+    return sum % 10 === 0;
+  }
+  function hasCardNumber(text) {
+    var runs = String(text || '').match(/\d(?:[ -]?\d){12,18}/g) || [];
+    return runs.some(function (r) { var d = r.replace(/\D/g, ''); return d.length >= 13 && d.length <= 19 && !/^(\d)\1+$/.test(d) && luhn(d); });
+  }
+  var CARD_WARNING = 'For your security, please remove the card number. Zed Supply never asks for card details on this website, by email or on WhatsApp.';
+  function cardWarning(form) {
+    var st = form && $('.form-status', form);
+    if (st) { st.className = 'form-status is-error'; st.textContent = CARD_WARNING; st.focus(); } else toast(esc(CARD_WARNING));
+  }
+  function formHasCard(form) {
+    return $$('input:not([type=hidden]):not([type=checkbox]):not([type=file]), textarea', form).some(function (f) { return hasCardNumber(f.value); });
+  }
+  // Capture phase: runs before every other submit handler on the page
+  document.addEventListener('submit', function (e) {
+    if (formHasCard(e.target)) { e.preventDefault(); e.stopImmediatePropagation(); cardWarning(e.target); }
+  }, true);
+
   /* ---------- Formspree forms (seller application, contact) ---------- */
   document.addEventListener('submit', function (e) {
     var form = e.target;
@@ -785,7 +815,8 @@
       var syncCo = function () { var m = buildMsg(); co.setAttribute('data-wa-message', m); co.href = waUrl(m); };
       ['co-name', 'co-note'].forEach(function (id) { $('#' + id).addEventListener('input', syncCo); });
       syncCo();
-      co.addEventListener('click', function () {
+      co.addEventListener('click', function (e) {
+        if (hasCardNumber($('#co-name').value + ' ' + $('#co-note').value)) { e.preventDefault(); toast(esc(CARD_WARNING)); $('#co-note').focus(); return; }
         var list = orders();
         list.unshift({ ref: ref, date: today, items: items.map(function (it) { return { id: it.p.id, qty: it.qty, price: it.pr.now }; }), total: total, status: 0, deliverTo: locFull() });
         store.set('orders', list);

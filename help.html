@@ -2,6 +2,9 @@
 <html lang="en" class="no-js">
 <head>
   <meta charset="utf-8">
+  <!-- Security policy (PCI DSS 6.4.3): only these sources may run on the page. If you change an inline <script>, update its sha256 hash here (see Business/PCI-DSS.md). -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self' file:; script-src 'self' file: 'sha256-7nnX2oOzt7UowW1mEvREIsoin+PIvwJs3DopQMg2tVQ=' 'sha256-jVDEcytlIBASSTXX8UWMAW3fwym5+rzcwhDWKbgu4NQ='; style-src 'self' file: 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' file: data: blob:; frame-src https://www.google.com; connect-src https://formspree.io; form-action 'self' https://formspree.io; base-uri 'self'; object-src 'none'">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <script>document.documentElement.className = 'js'; try { if (localStorage.getItem('zs-datasaver') === 'true') document.documentElement.className += ' data-saver'; } catch (e) {} var zq = location.search; if ((new Date().getMonth() >= 9 && !/[?&]theme=off/.test(zq)) || /[?&]theme=zambia/.test(zq)) document.documentElement.className += ' theme-zambia';</script>
   <title>Help Centre | Ordering, Delivery &amp; Contact | Zed Supply</title>
@@ -233,6 +236,15 @@
 
         <h2 id="payments">Payments</h2>
         <p>We confirm the final price on WhatsApp before you pay. Accepted payment methods: <span class="placeholder">[PAYMENT METHODS]</span>.</p>
+        <div class="notice notice--secure">
+          <p><strong>Keeping your payment details safe</strong></p>
+          <ul>
+            <li>Zed Supply will <strong>never</strong> ask for your card number, card security code (CVV), PIN or Mobile Money PIN on this website, by email, by phone or on WhatsApp.</li>
+            <li>If anyone claiming to be Zed Supply asks for them, don't share them. <a href="#contact">Tell us</a> straight away.</li>
+            <li>Our website blocks card numbers from being sent through its forms, so they can't be sent to us by mistake.</li>
+            <li>When online card payments open, you'll pay on our payment provider's secure page. Zed Supply won't see or store your full card details.</li>
+          </ul>
+        </div>
 
         <h2 id="returns">Returns and buyer protection</h2>
         <p><span class="placeholder">[RETURNS POLICY: how long customers have, condition of items, who pays return delivery, how refunds are made]</span></p>
@@ -257,6 +269,7 @@
 
         <h2 id="faq">Frequently asked questions</h2>
         <div class="faq">
+          <details><summary>Is it safe to pay Zed Supply?</summary><p>Yes. We confirm every order with you on WhatsApp before you pay, and we never ask for card numbers, security codes or PINs. See <a href="#payments">Keeping your payment details safe</a>.</p></details>
           <details><summary>Are prices final?</summary><p>Prices are shown in Kwacha. We confirm the final price, including delivery, on WhatsApp before you pay.</p></details>
           <details><summary>Can you find a product that isn't listed?</summary><p>Yes. <a href="index.html#request">Send us a request</a> and we'll look for it from local suppliers.</p></details>
           <details><summary>Can I order from China or other countries?</summary><p>Not yet. We're putting supplier agreements in place first. See <a href="index.html#/world">Shop the World</a>.</p></details>

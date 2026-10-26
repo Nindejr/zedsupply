@@ -866,3 +866,8 @@ h1[tabindex="-1"]:focus { outline: none; }
 
 /* Decorative glows must never cause sideways scrolling on phones */
 body { overflow-x: clip; }
+
+/* Payment safety notice (help centre): gold-edged glass, in keeping with the site */
+.notice--secure { border-left-color: var(--zm-green); background: var(--glass-bg); border-top: 2px solid transparent; border-image: none; box-shadow: var(--glass-shadow); -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur); }
+.notice--secure p { margin-bottom: 0.4rem; }
+.notice--secure ul { margin: 0; }
