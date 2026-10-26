@@ -746,14 +746,14 @@ h1[tabindex="-1"]:focus { outline: none; }
   --gold: #E0A82E;
   --gold-gloss: linear-gradient(100deg, #A8740A 0%, #F5C542 20%, #FFF4C2 36%, #E7AE34 52%, #FFE08A 70%, #B8860B 100%);
   /* Glass */
-  --glass-bg: rgb(255 255 255 / 0.55);
+  --glass-bg: rgb(255 255 255 / 0.34);
   --glass-border: rgb(255 255 255 / 0.7);
   --glass-shadow: 0 10px 30px rgb(10 42 102 / 0.12), inset 0 1px 0 rgb(255 255 255 / 0.8);
-  --glass-blur: blur(16px) saturate(170%);
+  --glass-blur: blur(12px) saturate(150%);
 }
 @media (prefers-color-scheme: dark) {
   :root {
-    --glass-bg: rgb(16 30 69 / 0.5);
+    --glass-bg: rgb(16 30 69 / 0.30);
     --glass-border: rgb(255 255 255 / 0.14);
     --glass-shadow: 0 10px 30px rgb(0 0 0 / 0.35), inset 0 1px 0 rgb(255 255 255 / 0.12);
   }
@@ -778,10 +778,12 @@ h1[tabindex="-1"]:focus { outline: none; }
 }
 
 /* Glass tiles: Browse categories, Register as a seller, Make a request */
-.tile { border: 1px solid rgb(255 255 255 / 0.35); box-shadow: 0 12px 32px rgb(10 42 102 / 0.18), inset 0 1px 0 rgb(255 255 255 / 0.45); -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur); text-shadow: 0 1px 2px rgb(0 0 0 / 0.25); }
-.tile--browse { background: linear-gradient(135deg, rgb(10 42 102 / 0.90), rgb(0 74 160 / 0.86)); }
-.tile--sell { background: linear-gradient(135deg, rgb(12 82 36 / 0.90), rgb(16 104 12 / 0.86)); }
-.tile--request { background: linear-gradient(135deg, rgb(0 64 100 / 0.90), rgb(0 86 108 / 0.86)); }
+.tile { border: 1px solid var(--glass-border); box-shadow: var(--glass-shadow); -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur); color: var(--color-text); text-shadow: none; }
+.tile--browse { background: linear-gradient(135deg, rgb(78 155 255 / .20), rgb(0 74 160 / .10)), var(--glass-bg); }
+.tile--sell { background: linear-gradient(135deg, rgb(76 194 26 / .18), rgb(16 104 12 / .08)), var(--glass-bg); }
+.tile--request { background: linear-gradient(135deg, rgb(27 204 191 / .20), rgb(0 86 108 / .10)), var(--glass-bg); }
+.tile h2, .tile h1, .tile h3 { color: var(--color-heading); }
+.tile p { color: var(--color-text); }
 .tile::before { content: ""; position: absolute; top: 0; left: 18px; right: 18px; height: 2px; border-radius: 2px; background: var(--gold-gloss); }
 .tile::after, .dept::after, .brand::after {
   content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
@@ -793,19 +795,26 @@ h1[tabindex="-1"]:focus { outline: none; }
 /* Glass category tiles */
 .dept { position: relative; overflow: hidden; background: var(--glass-bg); border: 1px solid var(--glass-border); box-shadow: var(--glass-shadow); -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur); }
 .dept:hover { border-color: rgb(245 197 66 / 0.9); box-shadow: var(--glass-shadow), 0 0 0 1px rgb(245 197 66 / 0.6), 0 14px 30px rgb(224 168 46 / 0.22); }
-.dept__icon { background: radial-gradient(ellipse at 50% 70%, rgb(255 255 255 / 0.9) 0%, rgb(233 240 248 / 0.55) 55%, transparent 72%); }
-@media (prefers-color-scheme: dark) { .dept__icon { background: radial-gradient(ellipse at 50% 70%, rgb(36 73 107 / 0.85) 0%, rgb(21 50 79 / 0.5) 56%, transparent 74%); } }
+.dept__icon { background: radial-gradient(ellipse at 50% 70%, rgb(255 255 255 / .22), rgb(123 189 233 / .10) 58%, transparent 76%); border: 1px solid rgb(255 255 255 / .22); box-shadow: inset 0 1px 0 rgb(255 255 255 / .24); }
+@media (prefers-color-scheme: dark) { .dept__icon { background: radial-gradient(ellipse at 50% 70%, rgb(83 161 200 / .18), rgb(21 50 79 / .08) 58%, transparent 76%); } }
 
 /* Glass brand store cards: brand colour as a see-through tint */
-.brand { position: relative; overflow: hidden; border: 1px solid rgb(255 255 255 / 0.35); box-shadow: 0 12px 30px rgb(10 42 102 / 0.18), inset 0 1px 0 rgb(255 255 255 / 0.4);
-  background: linear-gradient(160deg, rgb(5 13 34 / 0.18), rgb(5 13 34 / 0.48)), linear-gradient(160deg, var(--brand-a, #0A2A66), var(--brand-b, #0057AE));
-  -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur); text-shadow: 0 1px 2px rgb(0 0 0 / 0.3); }
+.brand { position: relative; overflow: hidden; border: 1px solid var(--glass-border); box-shadow: var(--glass-shadow);
+  background: linear-gradient(160deg, rgb(80 160 220 / .16), rgb(27 204 191 / .08)), var(--glass-bg);
+  -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur); color: var(--color-text); text-shadow: none; }
 @supports (background: color-mix(in srgb, red 50%, transparent)) {
-  .brand { background: linear-gradient(160deg, rgb(5 13 34 / 0.2), rgb(5 13 34 / 0.55)), linear-gradient(160deg, color-mix(in srgb, var(--brand-a, #0A2A66) 78%, transparent), color-mix(in srgb, var(--brand-b, #0057AE) 58%, transparent)); }
+  .brand { background: linear-gradient(160deg, color-mix(in srgb, var(--brand-a, #0A2A66) 16%, transparent), color-mix(in srgb, var(--brand-b, #0057AE) 10%, transparent)), var(--glass-bg); }
 }
+.brand strong { color: var(--color-heading); }
+.brand span { color: var(--color-text); }
 .brand > * { position: relative; z-index: 1; }
 .brand::before { content: ""; position: absolute; top: 0; left: 16px; right: 16px; height: 2px; border-radius: 2px; background: var(--gold-gloss); z-index: 1; }
-.brand__logo { background: rgb(255 255 255 / 0.75); box-shadow: inset 0 1px 0 #fff, 0 0 0 1px rgb(245 197 66 / 0.6); }
+.brand__logo { background: rgb(255 255 255 / .12); box-shadow: inset 0 1px 0 rgb(255 255 255 / .35), 0 0 0 1px rgb(245 197 66 / .35); }
+.hero-tiles::after, .depts::after, .brands::after {
+  content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none; border-radius: 24px;
+  background: radial-gradient(ellipse at 18% 18%, rgb(64 161 230 / .18), transparent 45%), radial-gradient(ellipse at 82% 80%, rgb(27 204 191 / .15), transparent 45%), repeating-linear-gradient(120deg, transparent 0 100px, rgb(65 146 188 / .10) 101px 102px, transparent 103px 200px);
+}
+.tile:focus-visible, .brand:focus-visible { outline: 3px solid var(--color-focus); outline-offset: 3px; }
 
 /* Gold gloss on promotion badges and the current carousel dot */
 .badge { background: var(--gold-gloss); color: #3A2600; box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.6); }
@@ -861,7 +870,12 @@ h1[tabindex="-1"]:focus { outline: none; }
 
 /* Browsers without backdrop-filter: make glass more solid so text stays readable */
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-  :root { --glass-bg: rgb(255 255 255 / 0.85); }
+  :root { --glass-bg: rgb(255 255 255 / 0.90); }
+  @media (prefers-color-scheme: dark) { :root { --glass-bg: rgb(16 30 69 / .92); } }
+}
+@media (prefers-reduced-transparency: reduce) {
+  .tile, .dept, .brand { background: var(--color-surface); -webkit-backdrop-filter: none; backdrop-filter: none; }
+  .tile::after, .dept::after, .brand::after { display: none; }
 }
 
 /* Decorative glows must never cause sideways scrolling on phones */
@@ -871,3 +885,9 @@ body { overflow-x: clip; }
 .notice--secure { border-left-color: var(--zm-green); background: var(--glass-bg); border-top: 2px solid transparent; border-image: none; box-shadow: var(--glass-shadow); -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur); }
 .notice--secure p { margin-bottom: 0.4rem; }
 .notice--secure ul { margin: 0; }
+
+/* Glass tray behind each panel group: line it up with the page content
+   (the hero tiles sit in a padded .container, the others don't) */
+.hero-tiles::after { inset: -10px 6px; }
+.depts::after, .brands::after { inset: -10px; }
+@media (min-width: 768px) { .hero-tiles::after { inset: -12px 12px; } .depts::after, .brands::after { inset: -12px; } }
