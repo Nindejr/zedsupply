@@ -891,3 +891,42 @@ body { overflow-x: clip; }
 .hero-tiles::after { inset: -10px 6px; }
 .depts::after, .brands::after { inset: -10px; }
 @media (min-width: 768px) { .hero-tiles::after { inset: -12px 12px; } .depts::after, .brands::after { inset: -12px; } }
+
+/* Phone banner photos are pre-cropped around the artwork, so keep them centred */
+@media (max-width: 599.98px) { .ad--photo .ad__bg { object-position: center; } }
+
+/* ==========================================================================
+   Contrast fixes (WCAG AA). Same look, stronger where it matters.
+   ========================================================================== */
+/* Keyboard focus: deep amber on light surfaces, bright gold on dark ones */
+:root { --color-focus: #B45309; }
+.site-header, .subnav, .site-footer, .back-top, .zm-bar, .demo-bar, .ads, .page-hero,
+.sell-band, .band--world, .store-hero, .promo, .toast, .drawer__head { --color-focus: #F5A623; }
+@media (prefers-color-scheme: dark) { :root { --color-focus: #F5A623; } }
+
+/* Form fields: border at least 3:1 against the page */
+input, select, textarea { border-color: #737F96; }
+@media (prefers-color-scheme: dark) { input, select, textarea { border-color: #5B6E96; } }
+
+/* Gold badges: keep the gloss, but only in tones dark text can sit on */
+.badge { background: linear-gradient(100deg, #E2A93A 0%, #F5C542 22%, #FFF4C2 38%, #F2C04C 56%, #FFE08A 74%, #E2A93A 100%); }
+
+/* Shop the World panel: deeper teal end */
+.band--world { background: linear-gradient(135deg, #071D47, #0B3A85 55%, #0A5F68); }
+
+/* Independence theme: slightly deeper green, paler gold text */
+.theme-zambia .zm-bar { background: linear-gradient(90deg, #0F5E1A, #137200 55%, #0F5E1A); }
+.zm-bar strong, .ad--zambia .ad__label { color: #FFEDB3; }
+.ad--zambia { background:
+  radial-gradient(circle at 85% 25%, rgb(245 197 66 / 0.3), transparent 40%),
+  linear-gradient(115deg, #0B4A12 0%, #137200 55%, #0F6300 100%); }
+
+/* ---------- Demo mode bar (only with ?demo=1) ---------- */
+.demo-bar { position: relative; background: linear-gradient(100deg, #F2C04C, #F5C542 40%, #FFE08A 70%, #F2C04C); color: #3A2600; font-size: 0.9rem; box-shadow: inset 0 -1px 0 rgb(0 0 0 / 0.15); }
+.demo-bar__inner { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.25rem 1rem; min-height: 40px; padding-block: 0.35rem; }
+.demo-bar p { margin: 0; max-width: none; }
+.demo-bar a { color: #2A1B00; font-weight: 700; }
+
+/* Friendly "coming soon" notes on the homepage while the store fills up */
+.home-empty { background: var(--glass-bg); -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur); border-color: var(--glass-border); }
+.home-empty .empty__art { width: 56px; height: 56px; }

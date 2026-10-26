@@ -3,19 +3,53 @@
    cart, wishlist, search, product pages, account, orders, seller centre.
 
    PROTOTYPE NOTE: accounts, orders, reviews and seller promotions are saved in
-   this browser only (localStorage). Real shared accounts arrive in Phase 2. */
+   this browser only (localStorage). Real shared accounts arrive in Phase 2.
+
+   DEMO MODE: ?demo=1 loads js/catalogue-sample.js (sample sellers, products,
+   reviews, promotions) for this browser tab; ?demo=0 turns it off. The live store
+   never downloads the demo file. */
 (function () {
   'use strict';
 
+  var demoOn = false;
+  try {
+    if (/[?&]demo=1\b/.test(location.search)) sessionStorage.setItem('zs-demo', '1');
+    if (/[?&]demo=0\b/.test(location.search)) sessionStorage.removeItem('zs-demo');
+    demoOn = sessionStorage.getItem('zs-demo') === '1';
+  } catch (e) { demoOn = /[?&]demo=1\b/.test(location.search); }
+  if (demoOn && !window.ZS_SAMPLE) {
+    var demoScript = document.createElement('script');
+    demoScript.src = 'js/catalogue-sample.js';
+    demoScript.onload = demoScript.onerror = start;
+    document.head.appendChild(demoScript);
+  } else start();
+
+  function start() {
   var root = document.documentElement;
   root.classList.remove('no-js');
   root.classList.add('js');
 
   var D = window.ZS_CATALOGUE || { settings: {}, departments: [], products: [], sellers: [], brands: [], promotions: [], seasons: [], vouchers: [], banners: [] };
   var S = D.settings || {};
+  var DEMO = demoOn && !!window.ZS_SAMPLE;
+  if (DEMO) {
+    var X = window.ZS_SAMPLE;
+    ['sellers', 'brands', 'products', 'promotions', 'vouchers'].forEach(function (k) { D[k] = (D[k] || []).concat(X[k] || []); });
+    D.banners = (D.banners || []).slice(0, 2).concat(X.banners || [], (D.banners || []).slice(2));
+    if (!D.demoOrder) D.demoOrder = X.demoOrder;
+    S.isSample = true;
+  }
   var china = !!S.chinaOrdering;
   var onIndex = !!document.getElementById('view');
   var R = onIndex ? '#/' : 'index.html#/';   // prefix for store links
+  if (DEMO) {
+    var demoBar = document.createElement('div');
+    demoBar.className = 'demo-bar';
+    demoBar.setAttribute('role', 'note');
+    demoBar.innerHTML = '<div class="container demo-bar__inner"><p><strong>Demo mode:</strong> sample sellers, products, prices and reviews for preview only.</p><a href="' + (location.pathname.split('/').pop() || 'index.html') + '?demo=0">Exit demo</a></div>';
+    var skipEl = document.querySelector('.skip-link');
+    if (skipEl) skipEl.parentNode.insertBefore(demoBar, skipEl.nextSibling);
+  }
   var WA = 'https://wa.me/' + (S.whatsapp || '260979050042') + '?text=';
 
   /* ---------- Storage (falls back to memory when blocked) ---------- */
@@ -66,6 +100,7 @@
   var themeParam = (location.search.match(/[?&]theme=(zambia|off)\b/) || [])[1];
   var zambia = themeParam ? themeParam === 'zambia' : (CEL.enabled !== false && monthDay >= CEL.start && monthDay <= CEL.end);
   root.classList.toggle('theme-zambia', zambia);
+  function independenceDeals() { return allPromos().some(function (pr) { return pr.season === 'independence' && promoStatus(pr) !== 'ended'; }); }
   function ordinal(n) { var s = ['th', 'st', 'nd', 'rd'], v = n % 100; return n + (s[(v - 20) % 10] || s[v] || s[0]); }
   var indYears = now.getFullYear() - (CEL.independenceYear || 1964);
   function celebrationCopy() {
@@ -81,7 +116,8 @@
     bar.className = 'zm-bar';
     bar.setAttribute('role', 'note');
     bar.innerHTML = '<div class="container zm-bar__inner"><img class="zm-bar__flag" src="assets/brand/zambia-flag.svg" alt="Flag of Zambia" width="34" height="23">' +
-      '<p><strong>' + esc(cc.lead) + '</strong> ' + esc(cc.line) + '</p><a href="' + R + 'promotions?season=independence">Independence deals</a></div>';
+      '<p><strong>' + esc(cc.lead) + '</strong> ' + esc(cc.line) + '</p>' +
+      (independenceDeals() ? '<a href="' + R + 'promotions?season=independence">Independence deals</a>' : '<a href="' + R + 'departments">Shop local</a>') + '</div>';
     var skipLink = $('.skip-link');
     if (skipLink) skipLink.parentNode.insertBefore(bar, skipLink.nextSibling);
   }
@@ -380,10 +416,10 @@
   function identityArt(entity) {
     var symbols = { 'brand-a': 'tech', 'brand-b': 'solar', 'brand-c': 'home', 'brand-d': 'hardware', 'store-a': 'office', 'store-b': 'solar', 'store-c': 'fashion' };
     var category = symbols[entity.id];
-    return '<img class="brand__logo" src="' + (category ? 'assets/categories-3d/' + category + '.png' : 'assets/icons/marketplace.svg') + '" data-fallback="assets/icons/' + (category || 'marketplace') + '.svg" alt="" width="96" height="96" loading="lazy" decoding="async">';
+    return '<img class="brand__logo" src="' + (category ? 'assets/categories-3d/' + category + '.webp' : 'assets/icons/marketplace.svg') + '" data-fallback="assets/icons/' + (category || 'marketplace') + '.svg" alt="" width="96" height="96" loading="lazy" decoding="async">';
   }
   function departmentArtwork(d) {
-    return '<img src="assets/categories-3d/' + d.id + '.png" data-fallback="assets/icons/' + d.id + '.svg" alt="" width="112" height="112" loading="lazy" decoding="async">';
+    return '<img src="assets/categories-3d/' + d.id + '.webp" data-fallback="assets/icons/' + d.id + '.svg" alt="" width="112" height="112" loading="lazy" decoding="async">';
   }
   function verifiedHTML(s) { return s && s.verified ? ' <span class="verified">' + icon(I.shield) + 'Verified seller</span>' : ''; }
 
@@ -509,7 +545,10 @@
     var list = (D.banners || []).concat(promos);
     if (zambia) {
       var cc = celebrationCopy();
-      list.unshift({ id: 'independence', zambia: true, label: 'Independence ' + now.getFullYear(), title: cc.lead, text: cc.line + ' Shop local favourites and seller celebration deals.', cta: 'Shop Independence deals', link: '#/promotions?season=independence', art: '<img src="assets/brand/zambia-flag.svg" alt="" width="220" height="147">' });
+      var deals = independenceDeals();
+      list.unshift({ id: 'independence', zambia: true, label: 'Independence ' + now.getFullYear(), title: cc.lead,
+        text: cc.line + (deals ? ' Shop local favourites and seller celebration deals.' : ' Shop local and support Zambian sellers.'),
+        cta: deals ? 'Shop Independence deals' : 'Explore categories', link: deals ? '#/promotions?season=independence' : '#/departments', art: '<img src="assets/brand/zambia-flag.svg" alt="" width="220" height="147">' });
     }
     return list;
   }
@@ -518,14 +557,19 @@
     var link = esc(b.link || '#/deals');
     var attrs = ' role="group" aria-roledescription="slide" aria-label="' + (i + 1) + ' of ' + n + '"' + (i === ads.i ? '' : ' hidden');
     var sample = b.sample ? '<span class="tag-sample ad__sample">Sample</span>' : '';
+    // Banner images download only when their slide is about to show (see wakeSlide):
+    // hidden slides keep the address in data-src / data-srcset until then.
+    var now = i === ads.i, src = now ? 'src' : 'data-src', srcset = now ? 'srcset' : 'data-srcset', prio = now ? ' fetchpriority="high"' : '';
     if (b.image && !b.photo && !saverOn) {
       return '<div class="ad ad--image"' + attrs + '><a class="ad__imglink" href="' + link + '"><picture>' +
-        (b.imageMobile ? '<source media="(max-width: 599.98px)" srcset="' + esc(b.imageMobile) + '">' : '') +
-        '<img src="' + esc(b.image) + '" alt="' + esc(b.alt || 'Advert') + '" width="1600" height="500"' + (i ? ' loading="lazy"' : ' fetchpriority="high"') + '></picture></a>' + sample + '</div>';
+        (b.imageMobile ? '<source media="(max-width: 599.98px)" ' + srcset + '="' + esc(b.imageMobile) + '">' : '') +
+        '<img ' + src + '="' + esc(b.image) + '" alt="' + esc(b.alt || 'Advert') + '" width="1600" height="500"' + prio + '></picture></a>' + sample + '</div>';
     }
     var c = b.colours || ['#0A2A66', '#0057AE'];
-    var bg = b.image && b.photo && !saverOn ? '<img class="ad__bg" src="' + esc(b.image) + '" alt="" width="1600" height="500"' + (i ? ' loading="lazy"' : ' fetchpriority="high"') + '>' : '';
-    var art = bg ? '' : (b.art === 'logo' ? '<img class="ad__logo" src="assets/brand/mark-original-3d.png" alt="" width="320" height="170">' : (b.art ? '<span class="ad__art" aria-hidden="true">' + b.art + '</span>' : ''));
+    // Photo slides: phones get the smaller 800×640 crop when one is supplied
+    var bg = b.image && b.photo && !saverOn ? '<picture>' + (b.imageMobile ? '<source media="(max-width: 599.98px)" ' + srcset + '="' + esc(b.imageMobile) + '">' : '') +
+      '<img class="ad__bg" ' + src + '="' + esc(b.image) + '" alt="" width="1440" height="480"' + prio + '></picture>' : '';
+    var art = bg ? '' : (b.art === 'logo' ? '<img class="ad__logo" src="assets/brand/mark-original-3d.webp" alt="" width="320" height="170">' : (b.art ? '<span class="ad__art" aria-hidden="true">' + b.art + '</span>' : ''));
     return '<div class="ad ad--designed' + (bg ? ' ad--photo' : '') + (b.zambia ? ' ad--zambia' : '') + '"' + attrs + ' style="--ad-a:' + c[0] + ';--ad-b:' + c[1] + '">' + bg +
       '<div class="ad__body">' + (b.label ? '<span class="ad__label">' + esc(b.label) + '</span>' : '') +
       '<p class="ad__title">' + esc(b.title || b.alt || 'Advert') + '</p>' + (b.text ? '<p class="ad__text">' + esc(b.text) + '</p>' : '') +
@@ -533,11 +577,18 @@
   }
   function stopAds() { if (ads.timer) clearInterval(ads.timer); ads.timer = null; }
   function playAds() { stopAds(); if (!ads.paused && !ads.hover && $$('.ad', adsWrap).length > 1 && !home.hidden) ads.timer = setInterval(function () { goAd(ads.i + 1); }, 6000); }
+  function wakeSlide(el) {
+    if (!el) return;
+    $$('source[data-srcset]', el).forEach(function (so) { so.srcset = so.getAttribute('data-srcset'); so.removeAttribute('data-srcset'); });
+    $$('img[data-src]', el).forEach(function (im) { im.src = im.getAttribute('data-src'); im.removeAttribute('data-src'); });
+  }
   function goAd(n) {
     var s = $$('.ad', adsWrap);
     if (!s.length) return;
     ads.i = (n + s.length) % s.length;
     s.forEach(function (el, i) { el.hidden = i !== ads.i; });
+    wakeSlide(s[ads.i]);
+    wakeSlide(s[(ads.i + 1) % s.length]);   // fetch the next slide's image ahead of time
     $$('.ads__dot', adsEl).forEach(function (d, i) { if (i === ads.i) d.setAttribute('aria-current', 'true'); else d.removeAttribute('aria-current'); });
   }
   function setPaused(p) {
@@ -585,14 +636,29 @@
     document.addEventListener('zs:datasaver', function () { if (!home.hidden) renderHome(); });
   }
 
+  // Fill a homepage list, or show a friendly "coming soon" note when there's nothing yet
+  function fill(sel, html, msg, cta) {
+    var list = $(sel), note = list.nextElementSibling && list.nextElementSibling.classList.contains('home-empty') ? list.nextElementSibling : null;
+    list.innerHTML = html;
+    list.hidden = !html;
+    if (html) { if (note) note.remove(); return; }
+    if (!note) { note = document.createElement('div'); note.className = 'empty home-empty'; list.parentNode.insertBefore(note, list.nextSibling); }
+    note.innerHTML = '<img class="empty__art" src="assets/icons/empty.svg" alt="" width="64" height="64"><p>' + msg + '</p><div class="btn-row btn-row--center">' + cta + '</div>';
+  }
+
   function renderHome() {
     buildAds();
     var deals = localProducts.filter(function (p) { return priceOf(p).was; });
     if (deals.length < 6) deals = deals.concat(localProducts.filter(function (p) { return deals.indexOf(p) === -1; })).slice(0, 8);
-    $('#home-deals').innerHTML = cards(deals);
+    var livePromos = sortPromos(allPromos().filter(function (pr) { return promoStatus(pr) !== 'ended'; })).slice(0, 4);
+    fill('#home-deals', cards(deals), 'Our first deals are on their way. Sellers are joining Zed Supply now. Tell us what you need and we\'ll find it for you.',
+      '<a class="btn btn--primary" href="#request">Make a request</a><a class="btn btn--secondary" href="#/sell">Sell on Zed Supply</a>');
     $('#home-featured').innerHTML = cards(localProducts.slice(0, 10));
-    $('#home-promos').innerHTML = sortPromos(allPromos().filter(function (pr) { return promoStatus(pr) !== 'ended'; })).slice(0, 4).map(promoCard).join('');
-    $('#home-brands').innerHTML = D.brands.map(brandCard).join('');
+    $('#home-featured').closest('section').hidden = !localProducts.length;
+    fill('#home-promos', livePromos.map(promoCard).join(''), 'No promotions are running yet. Zed Supply sellers will run seasonal and store promotions here.',
+      '<a class="btn btn--secondary" href="#/sell">Sell and run promotions</a>');
+    fill('#home-brands', D.brands.map(brandCard).join(''), 'Brand stores are coming soon.',
+      '<a class="btn btn--secondary" href="#/sell">Open a brand store</a>');
     var recent = store.get('recent', []).map(product).filter(Boolean);
     $('#home-recent-wrap').hidden = !recent.length;
     $('#home-recent').innerHTML = cards(recent);
@@ -662,7 +728,7 @@
       show(crumbs([['All categories']]) + head('All categories') +
         '<ul class="depts">' + D.departments.map(function (d) {
           var n = products.filter(function (p) { return p.category === d.id; }).length;
-          return '<li><a class="dept" href="#/dept/' + d.id + '"><span class="dept__icon" aria-hidden="true">' + departmentArtwork(d) + '</span>' + esc(d.name) + '<small>' + n + (n === 1 ? ' product' : ' products') + '</small></a></li>';
+          return '<li><a class="dept" href="#/dept/' + d.id + '"><span class="dept__icon" aria-hidden="true">' + departmentArtwork(d) + '</span>' + esc(d.name) + '<small>' + (n ? n + (n === 1 ? ' product' : ' products') : 'Coming soon') + '</small></a></li>';
         }).join('') + '</ul>', 'All categories');
     },
 
@@ -922,9 +988,9 @@
       show(crumbs([['Track order']]) + head('Track your order', 'Enter the order number from your WhatsApp message, e.g. ZS-ABC123.') +
         '<form class="form form--card form--narrow" id="track-form"><div class="field"><label for="tr-ref">Order number</label><input id="tr-ref" required autocapitalize="characters" value="' + esc(missing || '') + '"></div>' +
         (missing ? '<p class="form-status is-error">We couldn\'t find order ' + esc(missing) + ' on this device. Ask us on WhatsApp and we\'ll check for you.</p>' : '') +
-        '<button class="btn btn--primary" type="submit">Track order</button><p class="hint">Try the demo order: <button class="link-btn" type="button" id="tr-demo">ZS-DEMO01</button></p></form>', 'Track order');
+        '<button class="btn btn--primary" type="submit">Track order</button>' + (D.demoOrder ? '<p class="hint">Try the demo order: <button class="link-btn" type="button" id="tr-demo">' + esc(D.demoOrder.ref) + '</button></p>' : '') + '</form>', 'Track order');
       $('#track-form').addEventListener('submit', function (e) { e.preventDefault(); location.hash = '#/order/' + encodeURIComponent($('#tr-ref').value.trim().toUpperCase()); });
-      $('#tr-demo').addEventListener('click', function () { location.hash = '#/order/ZS-DEMO01'; });
+      if ($('#tr-demo')) $('#tr-demo').addEventListener('click', function () { location.hash = '#/order/' + D.demoOrder.ref; });
     },
 
     sell: function () {
@@ -951,6 +1017,13 @@
 
     seller: function () {
       var sess = store.get('seller', null), s = sess ? seller(sess.id) : null;
+      if (!s && !D.sellers.length) {
+        show(crumbs([['Seller Centre']]) + head('Seller Centre', 'Manage your store, products and promotions.') +
+          '<div class="duo"><div class="band"><h2>Seller logins open soon</h2><p>We\'re verifying our first sellers now. Once your application is approved, you\'ll manage your store, products and promotions here.</p>' +
+          '<a class="btn btn--primary" href="#/sell">Apply to sell</a></div>' +
+          '<div class="band"><h2>Already applied?</h2><p>We\'ll contact you on WhatsApp or email when your store is ready.</p>' + askBtn('Hi Zed Supply, I\'d like an update on my seller application.') + '</div></div>', 'Seller Centre');
+        return;
+      }
       if (!s) {
         show(crumbs([['Seller Centre']]) + head('Seller Centre', 'Manage your store, products and promotions.') +
           '<div class="duo"><form class="form form--card" id="seller-login"><h2>Seller login</h2><p class="notice">Prototype: choose a sample store to try the Seller Centre. Real seller logins come with full accounts.</p>' +
@@ -1036,7 +1109,7 @@
     },
 
     brands: function () {
-      show(crumbs([['Brand stores']]) + head('Brand stores', 'Shop by brand.') + '<ul class="brands">' + D.brands.map(brandCard).join('') + '</ul>' +
+      show(crumbs([['Brand stores']]) + head('Brand stores', 'Shop by brand.') + (D.brands.length ? '<ul class="brands">' + D.brands.map(brandCard).join('') + '</ul>' : empty('Brand stores are coming soon. Brands selling on Zed Supply will have their own store here.', '<a class="btn btn--primary" href="#/sell">Open a brand store</a>')) +
         '<p class="view-foot">Own a brand? <a href="#/sell">Open a brand store on Zed Supply</a>.</p>', 'Brand stores');
     },
 
@@ -1131,4 +1204,5 @@
   }
   window.addEventListener('hashchange', route);
   route();
+  }
 })();
