@@ -3,8 +3,12 @@
 <head>
   <meta charset="utf-8">
   <!-- Security policy (PCI DSS 6.4.3): only these sources may run on the page. If you change an inline <script>, update its sha256 hash here (see Business/PCI-DSS.md). -->
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self' file:; script-src 'self' file: 'sha256-7nnX2oOzt7UowW1mEvREIsoin+PIvwJs3DopQMg2tVQ=' 'sha256-jVDEcytlIBASSTXX8UWMAW3fwym5+rzcwhDWKbgu4NQ='; style-src 'self' file: 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' file: data: blob:; frame-src https://www.google.com; connect-src https://formspree.io; form-action 'self' https://formspree.io; base-uri 'self'; object-src 'none'">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self' file:; script-src 'self' file: https://*.googletagmanager.com 'sha256-7nnX2oOzt7UowW1mEvREIsoin+PIvwJs3DopQMg2tVQ=' 'sha256-jVDEcytlIBASSTXX8UWMAW3fwym5+rzcwhDWKbgu4NQ=' 'sha256-HuzeagOWxw72t91+fcLW0a2epg2jV2lvbgvXlvSrhbg='; style-src 'self' file: 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' file: data: blob: https://*.google-analytics.com https://*.googletagmanager.com; frame-src https://www.google.com; connect-src https://formspree.io https://*.google-analytics.com https://*.analytics.google.com https://*.googletagmanager.com; form-action 'self' https://formspree.io; base-uri 'self'; object-src 'none'">
   <meta name="referrer" content="strict-origin-when-cross-origin">
+  <!-- Google tag (gtag.js) for Google Analytics 4, with Consent Mode v2:
+       everything is denied by default; js/main.js updates consent only if the visitor accepts. -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-E2MC1NELGE"></script>
+  <script>window.dataLayer = window.dataLayer || []; function gtag(){dataLayer.push(arguments);} gtag('consent', 'default', { analytics_storage: 'denied', ad_storage: 'denied', ad_user_data: 'denied', ad_personalization: 'denied' }); try { if (localStorage.getItem('zs-consent') === 'granted') gtag('consent', 'update', { analytics_storage: 'granted', ad_storage: 'granted' }); } catch (e) {} gtag('js', new Date()); gtag('config', 'G-E2MC1NELGE');</script>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <!-- GitHub Pages can show this page at any missing path (e.g. /a/b/c). Point relative
        links back at the site root so styles, scripts and links still work there.
@@ -272,7 +276,7 @@
     <div class="container footer-legal">
       <p>&copy; <span data-year>2026</span> Zed Supply. All rights reserved.</p>
       <p>Company reg. (PACRA): <span class="placeholder">[REG NUMBER]</span> · TPIN: <span class="placeholder">[TPIN]</span></p>
-      <p><a href="privacy.html">Privacy policy</a></p>
+      <p><a href="privacy.html">Privacy policy</a> · <button class="link-btn footer-cookie" type="button" data-cookie-settings>Cookie settings</button></p>
     </div>
   </footer>
   <!-- /site-footer -->

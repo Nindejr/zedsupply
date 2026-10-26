@@ -504,6 +504,75 @@
     if (formHasCard(e.target)) { e.preventDefault(); e.stopImmediatePropagation(); cardWarning(e.target); }
   }, true);
 
+  /* ---------- Google Analytics 4: custom events ----------
+     The gtag.js snippet is in the <head> of every page. These events use one
+     document-level listener, so links added later (store views, banners) are
+     covered too. Addresses are sent without their ?query part, so customers'
+     WhatsApp messages, names or locations never reach Google Analytics. */
+  function track(name, params) {
+    if (typeof window.gtag === 'function') window.gtag('event', name, params || {});
+  }
+  function cleanUrl(href) {
+    try { var u = new URL(href, location.href); return u.protocol === 'tel:' || u.protocol === 'mailto:' ? u.protocol + u.pathname : u.origin + u.pathname; } catch (e) { return String(href).split('?')[0]; }
+  }
+  function linkText(a) { return (a.textContent || a.getAttribute('aria-label') || '').replace(/\s+/g, ' ').trim().slice(0, 100); }
+  document.addEventListener('click', function (e) {
+    var a = e.target.closest && e.target.closest('a[href]');
+    if (!a) return;
+    var href = a.getAttribute('href'), url;
+    try { url = new URL(href, location.href); } catch (err) { return; }
+    var base = { link_url: cleanUrl(url.href), link_text: linkText(a) };
+    if (url.protocol === 'tel:') return track('phone_click', base);
+    if (url.protocol === 'mailto:') return track('email_click', base);
+    if (/(^|\.)wa\.me$|(^|\.)whatsapp\.com$/.test(url.hostname)) track('whatsapp_click', base);
+    if (/\.pdf$/i.test(url.pathname) || a.hasAttribute('download')) {
+      track('profile_download', { file_name: decodeURIComponent(url.pathname.split('/').pop()), link_url: cleanUrl(url.href), link_text: base.link_text });
+    }
+    // Leaving the site: any http(s) link to another host (file:// previews have no host)
+    if (/^https?:$/.test(url.protocol) && url.hostname && url.hostname !== location.hostname) {
+      track('outbound_click', { link_url: cleanUrl(url.href), link_domain: url.hostname, link_text: base.link_text });
+    }
+  }, true);
+
+  /* ---------- Cookie consent (Google Consent Mode v2) ----------
+     Analytics and ad storage start as 'denied' (set in the <head> snippet).
+     Accept updates them to 'granted'; the choice is kept in localStorage
+     ('zs-consent') and can be changed from "Cookie settings" in the footer. */
+  function consentChoice() { try { return localStorage.getItem('zs-consent'); } catch (e) { return null; } }
+  function setConsent(choice) {
+    try { localStorage.setItem('zs-consent', choice); } catch (e) { /* storage blocked: applies to this page only */ }
+    if (typeof window.gtag === 'function') {
+      var v = choice === 'granted' ? 'granted' : 'denied';
+      window.gtag('consent', 'update', { analytics_storage: v, ad_storage: v });
+    }
+  }
+  function showConsent() {
+    var old = $('.consent');
+    if (old) old.remove();
+    var box = document.createElement('section');
+    box.className = 'consent';
+    box.setAttribute('aria-labelledby', 'consent-title');
+    box.innerHTML = '<div class="consent__inner"><div class="consent__text"><h2 id="consent-title" class="consent__title">Cookies on Zed Supply</h2>' +
+      '<p>We\'d like to use Google Analytics cookies to understand how people use our site so we can improve it. They stay off unless you accept. ' +
+      '<a href="privacy.html#cookies">Read our privacy policy</a></p></div>' +
+      '<div class="consent__actions"><button class="btn btn--primary btn--sm" type="button" data-consent="granted">Accept</button>' +
+      '<button class="btn btn--secondary btn--sm" type="button" data-consent="denied">Decline</button></div></div>';
+    var skip = $('.skip-link');
+    if (skip) skip.parentNode.insertBefore(box, skip.nextSibling); else document.body.insertBefore(box, document.body.firstChild);
+  }
+  document.addEventListener('click', function (e) {
+    var btn = e.target.closest('[data-consent]');
+    if (btn) {
+      setConsent(btn.getAttribute('data-consent'));
+      var box = $('.consent');
+      if (box) box.remove();
+      toast(btn.getAttribute('data-consent') === 'granted' ? 'Thanks. Analytics cookies are on.' : 'Analytics cookies are off.');
+      return;
+    }
+    if (e.target.closest('[data-cookie-settings]')) showConsent();
+  });
+  if (!consentChoice()) showConsent();
+
   /* ---------- Formspree forms (seller application, contact) ---------- */
   document.addEventListener('submit', function (e) {
     var form = e.target;
@@ -517,7 +586,7 @@
     }
     btn.disabled = true; btn.textContent = 'Sending…';
     fetch(form.action, { method: 'POST', body: new FormData(form), headers: { Accept: 'application/json' } })
-      .then(function (res) { if (!res.ok) throw new Error('Request failed'); form.reset(); show('success', form.getAttribute('data-success') || 'Thank you. We will get back to you soon.'); })
+      .then(function (res) { if (!res.ok) throw new Error('Request failed'); form.reset(); show('success', form.getAttribute('data-success') || 'Thank you. We will get back to you soon.'); if (form.id === 'quote') track('form_submit', { form_id: 'contact', form_name: 'Help centre contact form' }); })
       .catch(function () { show('error', 'Sorry, this could not be sent. Please try again or contact us on WhatsApp.'); })
       .then(function () { btn.disabled = false; btn.textContent = label; });
   });
@@ -528,6 +597,7 @@
     e.preventDefault();
     var what = $('#req-what').value.trim(), budget = $('#req-budget').value.trim();
     if (!what) { $('#req-what').focus(); return; }
+    track('whatsapp_click', { link_url: WA.split('?')[0], link_text: 'Request form: Send request on WhatsApp' });
     window.open(waUrl('Hi Zed Supply, please source this for me:\n' + what + (budget ? '\nBudget: ' + budget : '')), '_blank', 'noopener');
   });
 
