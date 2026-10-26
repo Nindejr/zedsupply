@@ -1,5 +1,9 @@
-/* Zed Supply — site script. No libraries. Everything here is progressive
-   enhancement: the site still works if this file fails to load. */
+/* Zed Supply — storefront script. No libraries.
+   The static page content works without this file; this adds the store:
+   cart, wishlist, search, product pages, account, orders, seller centre.
+
+   PROTOTYPE NOTE: accounts, orders, reviews and seller promotions are saved in
+   this browser only (localStorage). Real shared accounts arrive in Phase 2. */
 (function () {
   'use strict';
 
@@ -7,287 +11,1037 @@
   root.classList.remove('no-js');
   root.classList.add('js');
 
-  /* ---------- Mobile navigation ---------- */
-  var toggle = document.querySelector('.nav-toggle');
-  var nav = document.getElementById('site-nav');
+  var D = window.ZS_CATALOGUE || { settings: {}, departments: [], products: [], sellers: [], brands: [], promotions: [], seasons: [], vouchers: [], banners: [] };
+  var S = D.settings || {};
+  var china = !!S.chinaOrdering;
+  var onIndex = !!document.getElementById('view');
+  var R = onIndex ? '#/' : 'index.html#/';   // prefix for store links
+  var WA = 'https://wa.me/' + (S.whatsapp || '260979050042') + '?text=';
 
-  function setMenu(open) {
-    toggle.setAttribute('aria-expanded', String(open));
-    toggle.setAttribute('aria-label', open ? 'Close menu' : 'Open menu');
-    nav.classList.toggle('is-open', open);
+  /* ---------- Storage (falls back to memory when blocked) ---------- */
+  var mem = {};
+  var store = {
+    get: function (k, def) {
+      try { var v = localStorage.getItem('zs-' + k); if (v !== null) return JSON.parse(v); } catch (e) { /* blocked */ }
+      return k in mem ? mem[k] : def;
+    },
+    set: function (k, v) {
+      mem[k] = v;
+      try { localStorage.setItem('zs-' + k, JSON.stringify(v)); } catch (e) { /* blocked: memory only */ }
+    }
+  };
+
+  /* ---------- Small helpers ---------- */
+  function $(sel, scope) { return (scope || document).querySelector(sel); }
+  function $$(sel, scope) { return Array.prototype.slice.call((scope || document).querySelectorAll(sel)); }
+  function esc(t) { return String(t == null ? '' : t).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+  function kwacha(n) { return 'K' + Math.round(n).toLocaleString('en-US'); }
+  function pad(n) { return (n < 10 ? '0' : '') + n; }
+  var now = new Date();
+  var today = now.getFullYear() + '-' + pad(now.getMonth() + 1) + '-' + pad(now.getDate());
+  function niceDate(iso) {
+    var p = String(iso).split('-');
+    if (p.length !== 3) return esc(iso);
+    return Number(p[2]) + ' ' + ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][Number(p[1]) - 1] + ' ' + p[0];
+  }
+  function byId(list, id) { for (var i = 0; i < list.length; i++) if (list[i].id === id) return list[i]; return null; }
+  function dept(id) { return byId(D.departments, id) || { name: '', icon: '🛍️' }; }
+  function seller(id) { return byId(D.sellers, id); }
+  function brand(id) { return byId(D.brands, id); }
+  function season(id) { return byId(D.seasons, id) || { name: '', colours: ['#0A2A66', '#0057AE'] }; }
+  function icon(path, extra) {
+    return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"' + (extra || '') + '>' + path + '</svg>';
+  }
+  var I = {
+    heart: '<path d="M12 21s-7.5-4.6-9.5-9.3C1.2 8.6 3.3 5 6.8 5c2 0 3.4 1.1 4.2 2.4h2C13.8 6.1 15.2 5 17.2 5c3.5 0 5.6 3.6 4.3 6.7C19.5 16.4 12 21 12 21Z"/>',
+    check: '<path d="M20 6 9 17l-5-5"/>',
+    shield: '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/><path d="m9 12 2 2 4-4"/>'
+  };
+
+  /* ---------- Products, prices and promotions ---------- */
+  var products = D.products.filter(function (p) { return china || p.source !== 'china'; });
+  var localProducts = products.filter(function (p) { return p.source !== 'china'; });
+  function product(id) { return byId(D.products, id); }
+
+  function allPromos() { return D.promotions.concat(store.get('promos', [])); }
+  function promoStatus(pr) { return today < pr.starts ? 'upcoming' : (today > pr.ends ? 'ended' : 'live'); }
+  function livePromoFor(p) {
+    var best = null;
+    allPromos().forEach(function (pr) {
+      if (promoStatus(pr) === 'live' && pr.products.indexOf(p.id) !== -1 && (!best || pr.discount > best.discount)) best = pr;
+    });
+    return best;
+  }
+  function chinaCost(cny, kg, qty) {
+    var item = cny * S.exchangeRate * qty;
+    var ship = kg * qty * S.shippingPerKg;
+    var charge = function (rule, base) { return rule.type === 'fixed' ? rule.value : base * rule.value / 100; };
+    var clear = charge(S.clearance, item + ship);
+    var fee = charge(S.fee, item + ship + clear);
+    return { item: item, shipping: ship, clearance: clear, fee: fee, total: Math.ceil(item + ship + clear + fee) };
+  }
+  function priceOf(p) {
+    if (p.source === 'china') return { now: chinaCost(p.priceCNY, p.weightKg, 1).total, was: 0, off: 0, promo: null };
+    var base = p.priceZMW, promo = livePromoFor(p), nowP = base, was = p.wasZMW || 0;
+    if (promo) { nowP = Math.round(base * (1 - promo.discount / 100)); was = Math.max(was, base); }
+    return { now: nowP, was: was > nowP ? was : 0, off: was > nowP ? Math.round((1 - nowP / was) * 100) : 0, promo: promo };
+  }
+  function reviewsFor(p) { return (p.reviews || []).concat((store.get('reviews', {})[p.id]) || []); }
+  function ratingOf(p) {
+    var r = reviewsFor(p);
+    if (!r.length) return null;
+    return { avg: r.reduce(function (a, b) { return a + Number(b.rating); }, 0) / r.length, count: r.length };
+  }
+  function searchText(p) {
+    var b = brand(p.brand), s = seller(p.seller);
+    return [p.title, p.tags, dept(p.category).name, b ? b.name : '', s ? s.name : ''].join(' ').toLowerCase();
   }
 
-  if (toggle && nav) {
-    toggle.addEventListener('click', function () {
-      setMenu(toggle.getAttribute('aria-expanded') !== 'true');
-    });
-
-    document.addEventListener('keydown', function (e) {
-      if (e.key === 'Escape' && nav.classList.contains('is-open')) {
-        setMenu(false);
-        toggle.focus();
-      }
-    });
-
-    document.addEventListener('click', function (e) {
-      if (nav.classList.contains('is-open') && !nav.contains(e.target) && !toggle.contains(e.target)) {
-        setMenu(false);
-      }
-    });
-
-    nav.addEventListener('click', function (e) {
-      if (e.target.closest('a')) setMenu(false);
-    });
-
-    // Reset when the viewport grows past the breakpoint
-    var desktop = window.matchMedia('(min-width: 768px)');
-    var onChange = function (mq) { if (mq.matches) setMenu(false); };
-    if (desktop.addEventListener) desktop.addEventListener('change', onChange);
-    else if (desktop.addListener) desktop.addListener(onChange);
+  /* ---------- Cart, wishlist, account state ---------- */
+  function cart() { return store.get('cart', []); }
+  function setCart(c) { store.set('cart', c); updateCounts(); }
+  function wish() { return store.get('wish', []); }
+  function isLiked(id) { return wish().indexOf(id) !== -1; }
+  function user() { return store.get('user', null); }
+  function addToCart(id, qty) {
+    var c = cart(), line = null;
+    for (var i = 0; i < c.length; i++) if (c[i].id === id) line = c[i];
+    if (line) line.qty = Math.min(99, line.qty + qty); else c.push({ id: id, qty: qty });
+    setCart(c);
+  }
+  function toggleLike(id) {
+    var w = wish(), i = w.indexOf(id);
+    if (i === -1) w.push(id); else w.splice(i, 1);
+    store.set('wish', w);
+    updateCounts();
+    return i === -1;
+  }
+  function addRecent(id) {
+    var r = store.get('recent', []).filter(function (x) { return x !== id; });
+    r.unshift(id);
+    store.set('recent', r.slice(0, 12));
   }
 
-  /* ---------- Footer year ---------- */
-  var year = document.querySelectorAll('[data-year]');
-  for (var i = 0; i < year.length; i++) year[i].textContent = new Date().getFullYear();
+  /* ---------- Delivery location ----------
+     { town, area, landmark }. Kept for this browser tab (sessionStorage) unless the
+     customer ticks "Remember on this device" (localStorage). Never sent anywhere
+     except inside WhatsApp messages the customer chooses to send. No GPS. */
+  var loc = readLoc();
+  function cleanText(v, max) { return String(v || '').replace(/[\r\n]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, max); }
+  function readLoc() {
+    var l = null;
+    try { var v = localStorage.getItem('zs-location'); if (v) { l = JSON.parse(v); l.remember = true; } } catch (e) { /* blocked */ }
+    if (!l) { try { var t = sessionStorage.getItem('zs-location'); if (t) l = JSON.parse(t); } catch (e) { /* blocked */ } }
+    return l && l.town ? l : (mem.location || null);
+  }
+  function locShort() { return loc ? (loc.area ? loc.area + ', ' : '') + loc.town : ''; }
+  function locFull() { return loc ? locShort() + (loc.landmark ? ' (' + loc.landmark + ')' : '') : ''; }
+  function saveLoc(l) {
+    loc = l && l.town ? { town: l.town, area: l.area || '', landmark: l.landmark || '', remember: !!l.remember } : null;
+    mem.location = loc;
+    try { localStorage.removeItem('zs-location'); } catch (e) { /* blocked */ }
+    try { sessionStorage.removeItem('zs-location'); } catch (e) { /* blocked */ }
+    if (loc) {
+      var data = JSON.stringify({ town: loc.town, area: loc.area, landmark: loc.landmark });
+      try { (loc.remember ? localStorage : sessionStorage).setItem('zs-location', data); } catch (e) { /* memory only */ }
+    }
+    refreshLoc();
+  }
+  function waUrl(message) {
+    if (loc) message += '\nDelivery location: ' + locFull();
+    return WA + encodeURIComponent(message);
+  }
+  function syncWa(scope) {
+    $$('[data-wa-message]', scope).forEach(function (a) { a.href = waUrl(a.getAttribute('data-wa-message')); });
+  }
+  function locSummaryHTML() {
+    return loc ? '<strong>' + esc(locShort()) + '</strong>' + (loc.landmark ? '<br><span class="pmeta">' + esc(loc.landmark) + '</span>' : '')
+      : '<span class="pstock pstock--low">Not set yet. Add it so we can confirm delivery to your area.</span>';
+  }
+  function refreshLoc() {
+    $$('[data-location-label]').forEach(function (el) { el.textContent = loc ? 'Deliver to: ' + locShort() : 'Deliver to: set location'; });
+    $$('[data-loc-summary]').forEach(function (el) { el.innerHTML = locSummaryHTML(); });
+    // Pre-fill the help centre contact form, unless the customer has typed their own
+    var cf = $('#contact-location');
+    if (cf && (!cf.value || cf.getAttribute('data-auto'))) { cf.value = locFull(); cf.setAttribute('data-auto', '1'); }
+    syncWa(document);
+  }
+  var cfField = $('#contact-location');
+  if (cfField) cfField.addEventListener('input', function () { cfField.removeAttribute('data-auto'); });
 
-  /* ---------- Announcement banner (dismissal remembered per browser) ---------- */
-  var banner = document.getElementById('site-banner');
-  if (banner) {
-    banner.querySelector('.site-banner__close').addEventListener('click', function () {
-      root.classList.add('banner-off');
-      try { localStorage.setItem('zs-banner', 'hidden'); } catch (e) { /* storage blocked: hide for this visit only */ }
-    });
+  /* ---------- Header: counts, greeting, suggestions ---------- */
+  function updateCounts() {
+    var n = cart().reduce(function (a, l) { return a + l.qty; }, 0), w = wish().length;
+    $$('[data-count="cart"]').forEach(function (el) { el.textContent = n; el.toggleAttribute('data-zero', n === 0); });
+    $$('[data-count="wish"]').forEach(function (el) { el.textContent = w; el.toggleAttribute('data-zero', w === 0); });
+    $$('a[data-label="Cart"]').forEach(function (a) { a.setAttribute('aria-label', 'Cart, ' + n + (n === 1 ? ' item' : ' items')); });
+    $$('a[data-label="Wishlist"]').forEach(function (a) { a.setAttribute('aria-label', 'Wishlist, ' + w + (w === 1 ? ' item' : ' items')); });
+    var u = user();
+    $$('[data-greet]').forEach(function (el) { el.textContent = u ? 'Hello, ' + u.name.split(' ')[0] : 'Hello, sign in'; });
   }
 
-  /* ---------- Shop: feed, filters and landed cost calculator ---------- */
-  var data = window.ZS_CATALOGUE;
-  var feed = document.getElementById('product-feed');
-  if (data && feed) initShop(data);
-
-  function initShop(cat) {
-    var s = cat.settings;
-    var waBase = 'https://wa.me/' + s.whatsapp + '?text=';
-    var locationInput = document.getElementById('delivery-location');
-    var updateCalculator = null;
-    var catName = {};
-
-    function waUrl(message) {
-      var location = locationInput ? locationInput.value.trim() : '';
-      if (location) message = message.replace(/\s+$/, '') + '\nDelivery location: ' + location;
-      return waBase + encodeURIComponent(message);
-    }
-
-    function syncLocationLinks(scope) {
-      var links = scope.querySelectorAll('[data-wa-message]');
-      for (var i = 0; i < links.length; i++) {
-        links[i].href = waUrl(links[i].getAttribute('data-wa-message'));
-      }
-    }
-
-    if (locationInput) {
-      locationInput.addEventListener('input', function () {
-        syncLocationLinks(document);
-        if (updateCalculator) updateCalculator();
-      });
-    }
-
-    cat.categories.forEach(function (c) { catName[c.id] = c.name; });
-
-    // China ordering switch: hide China products and reveal China-only content when on
-    var china = !!s.chinaOrdering;
-    var products = cat.products.filter(function (pr) { return china || pr.source !== 'china'; });
-    if (china) {
-      var cn = document.querySelectorAll('[data-china]');
-      for (var h = 0; h < cn.length; h++) cn[h].hidden = false;
-    }
-
-    var state = { cat: 'all', q: '', sort: 'featured' };
-    try {
-      var p = new URLSearchParams(window.location.search).get('cat');
-      if (p && catName[p]) state.cat = p;
-    } catch (e) { /* old browser: show everything */ }
-
-    // Rate notice
-    var rateEls = document.querySelectorAll('[data-rate]');
-    for (var r = 0; r < rateEls.length; r++) {
-      rateEls[r].textContent = '1 CNY = K' + s.exchangeRate.toFixed(2) + ' (updated ' + s.rateUpdated + ')' + (s.isSample ? ' [SAMPLE RATE]' : '');
-    }
-    var sampleNote = document.getElementById('sample-note');
-    if (sampleNote && !s.isSample) sampleNote.hidden = true;
-
-    // Price maths, shared by cards and calculator
-    function applyCharge(rule, base) { return rule.type === 'fixed' ? rule.value : base * rule.value / 100; }
-    function cost(priceCNY, weightKg, qty, priceZMW) {
-      if (priceZMW != null) return { local: true, item: priceZMW * qty, total: Math.ceil(priceZMW * qty) };
-      var item = priceCNY * s.exchangeRate * qty;
-      var shipping = weightKg * qty * s.shippingPerKg;
-      var clearance = applyCharge(s.clearance, item + shipping);
-      var fee = applyCharge(s.fee, item + shipping + clearance);
-      return { item: item, shipping: shipping, clearance: clearance, fee: fee, total: Math.ceil(item + shipping + clearance + fee) };
-    }
-    function kwacha(n) { return 'K' + Math.round(n).toLocaleString('en-US'); }
-    function esc(t) { return String(t).replace(/[&<>"']/g, function (ch) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]; }); }
-    function breakdownHTML(c) {
-      if (c.local) {
-        return '<div><dt>Price</dt><dd>' + kwacha(c.item) + '</dd></div>' +
-          '<div><dt>Delivery</dt><dd>Confirmed on WhatsApp</dd></div>';
-      }
-      return '<div><dt>Item</dt><dd>' + kwacha(c.item) + '</dd></div>' +
-        '<div><dt>Shipping</dt><dd>' + kwacha(c.shipping) + '</dd></div>' +
-        '<div><dt>Clearance &amp; duties</dt><dd>' + kwacha(c.clearance) + '</dd></div>' +
-        '<div><dt>Service fee</dt><dd>' + kwacha(c.fee) + '</dd></div>' +
-        '<div class="breakdown__total"><dt>Estimated total</dt><dd>' + kwacha(c.total) + '</dd></div>';
-    }
-    function withTracking(url) {
-      var t = s.tracking;
-      if (!url || !t || !t.value || t.value.charAt(0) === '[') return url;
-      return url + (url.indexOf('?') === -1 ? '?' : '&') + encodeURIComponent(t.param) + '=' + encodeURIComponent(t.value);
-    }
-
-    // Department chips
-    var chips = document.getElementById('dept-chips');
-    var chipHTML = '<li><button type="button" class="chip" data-cat="all">All</button></li>';
-    cat.categories.forEach(function (c) {
-      var n = products.filter(function (pr) { return pr.category === c.id; }).length;
-      chipHTML += '<li><button type="button" class="chip" data-cat="' + c.id + '">' + esc(c.name) + ' <span class="chip__count">' + n + '</span></button></li>';
-    });
-    chips.innerHTML = chipHTML;
-    chips.addEventListener('click', function (e) {
-      var b = e.target.closest('.chip');
-      if (!b) return;
-      state.cat = b.getAttribute('data-cat');
-      render();
-    });
-
-    document.getElementById('shop-search').addEventListener('input', function (e) { state.q = e.target.value.trim().toLowerCase(); render(); });
-    document.getElementById('shop-sort').addEventListener('change', function (e) { state.sort = e.target.value; render(); });
-    document.getElementById('shop-form').addEventListener('submit', function (e) { e.preventDefault(); });
-
-    var countEl = document.getElementById('result-count');
-
-    function card(pr) {
-      var c = cost(pr.priceCNY, pr.weightKg, 1, pr.priceZMW);
-      var msg = 'Hi Zed Supply, I\'d like to order: ' + pr.title + ' (ID ' + pr.id + '). Estimated price ' + kwacha(c.total) + '. Quantity: 1';
-      var link = withTracking(pr.url);
-      return '<li><article class="product">' +
-        '<div class="media product__media" data-file="' + esc(pr.image) + '"><img src="' + esc(pr.image) + '" alt="' + esc(pr.alt) + '" width="600" height="600" loading="lazy" decoding="async"></div>' +
-        '<div class="product__body">' +
-          '<p class="product__tags">' + (pr.sample ? '<span class="tag-sample">Sample</span>' : '') + (pr.badge ? '<span class="badge">' + esc(pr.badge) + '</span>' : '') + '</p>' +
-          '<h3 class="product__title">' + esc(pr.title) + '</h3>' +
-          '<p class="product__meta">' + (pr.source === 'china' ? 'From China' : 'Local') + ' · ' + esc(catName[pr.category] || '') + '</p>' +
-          '<p class="product__price"><span class="visually-hidden">Estimated price </span>' + kwacha(c.total) + '</p>' +
-          '<p class="product__est">' + (c.local ? 'Delivery confirmed on WhatsApp' : 'Estimate, delivered to Lusaka') + '</p>' +
-          '<p class="product__ship"><span aria-hidden="true">' + (c.local ? '🚚' : '✈') + '</span> ' + esc(pr.shipping) + '</p>' +
-          '<details class="product__breakdown"><summary>Cost breakdown</summary><dl class="breakdown">' + breakdownHTML(c) + '</dl></details>' +
-          '<a class="btn btn--primary btn--sm" href="' + waUrl(msg) + '" data-wa-message="' + esc(msg) + '" target="_blank" rel="noopener">Order via WhatsApp<span class="visually-hidden"> – ' + esc(pr.title) + '</span></a>' +
-          (link ? '<a class="product__link" href="' + esc(link) + '" target="_blank" rel="noopener sponsored">View original listing<span class="visually-hidden"> for ' + esc(pr.title) + '</span></a>' : '') +
-        '</div></article></li>';
-    }
-
-    function render() {
-      var list = products.filter(function (pr) {
-        if (state.cat !== 'all' && pr.category !== state.cat) return false;
-        if (state.q && (pr.title + ' ' + (catName[pr.category] || '')).toLowerCase().indexOf(state.q) === -1) return false;
-        return true;
-      });
-      if (state.sort !== 'featured') {
-        list = list.slice().sort(function (a, b) {
-          var d = cost(a.priceCNY, a.weightKg, 1, a.priceZMW).total - cost(b.priceCNY, b.weightKg, 1, b.priceZMW).total;
-          return state.sort === 'price-asc' ? d : -d;
-        });
-      }
-
-      var html = list.map(card).join('');
-      if (!list.length) {
-        var where = state.cat === 'all' ? '' : ' in ' + catName[state.cat];
-        html = '<li class="feed-empty"><p><strong>Nothing listed here' + esc(where) + ' yet.</strong> Tell us what you need and we\'ll find it.</p>' +
-          '<a class="btn btn--primary btn--sm" href="' + waUrl('Hi Zed Supply, I\'m looking for: ') + '" data-wa-message="Hi Zed Supply, I\'m looking for: " target="_blank" rel="noopener">Ask on WhatsApp</a></li>';
-      }
-      feed.innerHTML = html;
-      syncLocationLinks(feed);
-      watchPhotos(feed);
-
-      var btns = chips.querySelectorAll('.chip');
-      for (var i = 0; i < btns.length; i++) btns[i].setAttribute('aria-pressed', String(btns[i].getAttribute('data-cat') === state.cat));
-      countEl.textContent = list.length + (list.length === 1 ? ' product' : ' products') + (state.cat === 'all' ? '' : ' in ' + catName[state.cat]);
-    }
-    render();
-
-    // Landed cost calculator
-    var calc = document.getElementById('calc');
-    if (calc && china) {
-      var out = document.getElementById('calc-breakdown');
-      var calcWa = document.getElementById('calc-whatsapp');
-      var update = function () {
-        var cny = parseFloat(calc.cny.value) || 0;
-        var kg = parseFloat(calc.kg.value) || 0;
-        var qty = Math.max(1, parseInt(calc.qty.value, 10) || 1);
-        var c = cost(cny, kg, qty);
-        out.innerHTML = breakdownHTML(c);
-        calcWa.href = waUrl('Hi Zed Supply, please confirm a quote. Item price: ' + cny + ' CNY, weight: ' + kg + ' kg, quantity: ' + qty + '. Calculator estimate: ' + kwacha(c.total) + '. Link: ');
-      };
-      updateCalculator = update;
-      calc.addEventListener('input', update);
-      calc.addEventListener('submit', function (e) { e.preventDefault(); update(); });
-      update();
-    }
+  var suggest = $('#search-suggest');
+  if (suggest) {
+    var seen = {}, opts = '';
+    products.forEach(function (p) { seen[p.title] = 1; });
+    D.brands.forEach(function (b) { seen[b.name] = 1; });
+    D.sellers.forEach(function (s) { seen[s.name] = 1; });
+    D.departments.forEach(function (d) { seen[d.name] = 1; });
+    Object.keys(seen).forEach(function (k) { opts += '<option value="' + esc(k) + '"></option>'; });
+    suggest.innerHTML = opts;
   }
 
-  /* ---------- Photos that haven't been added yet ---------- */
-  function watchPhotos(scope) {
-    var imgs = scope.querySelectorAll('.media img');
-    for (var k = 0; k < imgs.length; k++) {
-      var im = imgs[k];
-      if (im.complete && im.naturalWidth === 0) markMissing(im);
-      else im.addEventListener('error', function () { markMissing(this); });
-    }
-  }
-  function markMissing(img) {
-    var box = img.closest('.media');
-    if (box) box.classList.add('is-missing');
-  }
-  watchPhotos(document);
-
-  /* ---------- Contact form (Formspree) ---------- */
-  var form = document.getElementById('quote-form');
-  if (form && window.fetch && window.FormData) {
-    var status = form.querySelector('.form-status');
-    var button = form.querySelector('button[type="submit"]');
-
-    form.addEventListener('submit', function (e) {
+  // Search: on the store page, route without reloading; elsewhere the form submits to index.html?q=
+  $$('form.search').forEach(function (f) {
+    f.addEventListener('submit', function (e) {
+      if (!onIndex) return;
       e.preventDefault();
+      var q = f.q.value.trim(), dp = f.dept ? f.dept.value : '';
+      location.hash = '#/search?q=' + encodeURIComponent(q) + (dp ? '&dept=' + dp : '');
+    });
+  });
 
-      if (form.action.indexOf('FORMSPREE_ENDPOINT_HERE') !== -1) {
-        showStatus('error', 'This form is not connected yet. Please contact us on WhatsApp or email for now.');
+  /* ---------- Dialogs: departments drawer and delivery location ---------- */
+  function openDialog(d) { if (!d) return; if (d.showModal) d.showModal(); else d.setAttribute('open', ''); }
+  function closeDialog(d) { if (!d) return; if (d.close) d.close(); else d.removeAttribute('open'); }
+  document.addEventListener('click', function (e) {
+    if (e.target.closest('[data-open-drawer]')) openDialog($('#drawer'));
+    if (e.target.closest('[data-open-location]')) openLocation();
+    var dlg = e.target.closest('dialog');
+    if (e.target.closest('[data-close-dialog]') || (dlg && e.target === dlg) || (dlg && e.target.closest('a'))) closeDialog(dlg);
+  });
+
+  var locForm = $('#location-form');
+  function openLocation() {
+    if (!locForm) return;
+    locForm.town.value = loc ? loc.town : '';
+    locForm.area.value = loc ? loc.area : '';
+    locForm.landmark.value = loc ? loc.landmark : '';
+    locForm.remember.checked = !!(loc && loc.remember);
+    $('#loc-clear').hidden = !loc;
+    openDialog($('#location-dialog'));
+  }
+  if (locForm) {
+    locForm.addEventListener('submit', function (e) {
+      e.preventDefault();
+      var town = cleanText(locForm.town.value, 60);
+      if (!town) { locForm.town.focus(); return; }
+      saveLoc({ town: town, area: cleanText(locForm.area.value, 60), landmark: cleanText(locForm.landmark.value, 100), remember: locForm.remember.checked });
+      closeDialog($('#location-dialog'));
+      toast('Delivering to ' + esc(locShort()));
+    });
+    $('#loc-clear').addEventListener('click', function () {
+      saveLoc(null);
+      closeDialog($('#location-dialog'));
+      toast('Delivery location cleared');
+    });
+  }
+
+  /* ---------- Data saver ---------- */
+  var saver = store.get('datasaver', false);
+  root.classList.toggle('data-saver', !!saver);
+  $$('[data-saver-toggle]').forEach(function (cb) {
+    cb.checked = !!saver;
+    cb.addEventListener('change', function () {
+      store.set('datasaver', cb.checked);
+      root.classList.toggle('data-saver', cb.checked);
+      document.dispatchEvent(new Event('zs:datasaver'));
+      toast(cb.checked ? 'Data saver on: photos and banner images hidden' : 'Data saver off');
+    });
+  });
+
+  /* ---------- Toast ---------- */
+  var toastEl = $('#toast'), toastTimer;
+  function toast(html) {
+    if (!toastEl) return;
+    toastEl.innerHTML = html;
+    toastEl.classList.add('is-on');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { toastEl.classList.remove('is-on'); }, 3200);
+  }
+
+  // Save to localStorage and report whether it actually fitted (images can exceed the quota)
+  function trySave(k, v) {
+    try { localStorage.setItem('zs-' + k, JSON.stringify(v)); mem[k] = v; return true; } catch (e) { return false; }
+  }
+
+  // Shrink an uploaded image to a banner (cover crop) and return a JPEG data URL
+  function bannerFromFile(file, w, h, done) {
+    if (!file) return done('');
+    if (!/^image\//.test(file.type) || file.size > 10 * 1024 * 1024) return done(null);
+    var reader = new FileReader();
+    reader.onload = function () {
+      var img = new Image();
+      img.onload = function () {
+        var c = document.createElement('canvas'); c.width = w; c.height = h;
+        var scale = Math.max(w / img.width, h / img.height), sw = w / scale, sh = h / scale;
+        c.getContext('2d').drawImage(img, (img.width - sw) / 2, (img.height - sh) / 2, sw, sh, 0, 0, w, h);
+        done(c.toDataURL('image/jpeg', 0.8));
+      };
+      img.onerror = function () { done(null); };
+      img.src = reader.result;
+    };
+    reader.onerror = function () { done(null); };
+    reader.readAsDataURL(file);
+  }
+
+  /* ---------- Rendering pieces ---------- */
+  function media(p) {
+    return '<span class="pmedia__emoji" aria-hidden="true">' + dept(p.category).icon + '</span>' +
+      (p.image ? '<img src="' + esc(p.image) + '" alt="' + esc(p.alt) + '" width="600" height="600" loading="lazy" decoding="async">' : '');
+  }
+  function starString(n) { var s = ''; for (var i = 1; i <= 5; i++) s += i <= n ? '★' : '☆'; return s; }
+  function starsHTML(p) {
+    var r = ratingOf(p);
+    if (!r) return '';
+    return '<p class="stars"><span class="stars__icons" aria-hidden="true">' + starString(Math.round(r.avg)) + '</span><span aria-hidden="true">(' + r.count + ')</span>' +
+      '<span class="visually-hidden">Rated ' + r.avg.toFixed(1) + ' out of 5 from ' + r.count + (r.count === 1 ? ' review' : ' reviews') + '</span></p>';
+  }
+  function priceHTML(pr) {
+    return '<p class="price"><span class="price__now"><span class="visually-hidden">Price </span>' + kwacha(pr.now) + '</span>' +
+      (pr.was ? '<span class="price__was"><span class="visually-hidden">was </span>' + kwacha(pr.was) + '</span>' : '') + '</p>';
+  }
+  function stockHTML(p) {
+    if (p.source === 'china') return '<p class="pstock">' + esc(p.shipping) + '</p>';
+    if (p.stock === 'low') return '<p class="pstock pstock--low">Only a few left</p>';
+    if (p.stock === 'request') return '<p class="pstock pstock--low">Sourced on request</p>';
+    return '<p class="pstock">In stock</p>';
+  }
+  function likeBtn(p) {
+    return '<button class="like" type="button" data-like="' + esc(p.id) + '" aria-pressed="' + isLiked(p.id) + '" aria-label="Save ' + esc(p.title) + ' to wishlist">' + icon(I.heart) + '</button>';
+  }
+  function card(p) {
+    var pr = priceOf(p), s = seller(p.seller);
+    return '<li><article class="pcard">' +
+      '<div class="pflags">' + (pr.off ? '<span class="flag-sale">-' + pr.off + '%</span>' : '') + (pr.promo ? '<span class="badge">Promotion</span>' : '') + (p.sample ? '<span class="tag-sample">Sample</span>' : '') + '</div>' +
+      likeBtn(p) +
+      '<a class="pmedia" href="' + R + 'product/' + esc(p.id) + '" tabindex="-1" aria-hidden="true">' + media(p) + '</a>' +
+      '<div class="pbody">' +
+        '<a class="ptitle" href="' + R + 'product/' + esc(p.id) + '">' + esc(p.title) + '</a>' +
+        '<p class="pmeta">' + (s ? 'Sold by ' + esc(s.name) : (p.source === 'china' ? 'Shop the World' : esc(dept(p.category).name))) + '</p>' +
+        starsHTML(p) + priceHTML(pr) + stockHTML(p) +
+        '<button class="btn btn--primary btn--sm" type="button" data-add="' + esc(p.id) + '">Add to cart<span class="visually-hidden">: ' + esc(p.title) + '</span></button>' +
+      '</div></article></li>';
+  }
+  function cards(list) { return list.map(card).join(''); }
+  function promoCard(pr) {
+    var s = seller(pr.seller), se = season(pr.season), st = promoStatus(pr);
+    var label = st === 'live' ? 'Live now · ends ' + niceDate(pr.ends) : (st === 'upcoming' ? 'Starts ' + niceDate(pr.starts) : 'Ended');
+    var img = pr.image && !root.classList.contains('data-saver');
+    return '<li><a class="promo' + (img ? ' promo--img' : '') + '" href="' + R + 'promo/' + esc(pr.id) + '" style="--promo-a:' + se.colours[0] + ';--promo-b:' + se.colours[1] + (img ? ';--promo-img:url(\'' + esc(pr.image) + '\')' : '') + '">' +
+      '<span class="promo__status' + (st === 'live' ? ' promo__status--live' : '') + '">' + label + '</span>' +
+      '<span class="promo__off">' + pr.discount + '% off</span>' +
+      '<h3>' + esc(pr.title) + '</h3>' +
+      '<p>' + esc(se.name) + (s ? ' · ' + esc(s.name) : '') + (pr.sample ? ' · Sample' : '') + (pr.demo ? ' · Demo' : '') + '</p>' +
+      '<p class="promo__cta">View promotion →</p></a></li>';
+  }
+  function sortPromos(list) {
+    var rank = { live: 0, upcoming: 1, ended: 2 };
+    return list.slice().sort(function (a, b) { return rank[promoStatus(a)] - rank[promoStatus(b)] || (a.starts < b.starts ? -1 : 1); });
+  }
+  function brandCard(b) {
+    var n = products.filter(function (p) { return p.brand === b.id; }).length;
+    return '<li><a class="brand" href="' + R + 'brand/' + esc(b.id) + '" style="--brand-a:' + b.colours[0] + ';--brand-b:' + b.colours[1] + '"><strong>' + esc(b.name) + '</strong><span>' + esc(b.tagline) + '</span><span>' + n + (n === 1 ? ' product' : ' products') + '</span></a></li>';
+  }
+  function verifiedHTML(s) { return s && s.verified ? ' <span class="verified">' + icon(I.shield) + 'Verified seller</span>' : ''; }
+
+  /* ---------- Delegated actions: add to cart, like, quantities ---------- */
+  document.addEventListener('click', function (e) {
+    var add = e.target.closest('[data-add]');
+    if (add) {
+      var id = add.getAttribute('data-add'), qtyEl = add.getAttribute('data-qty-from') ? $(add.getAttribute('data-qty-from')) : null;
+      var p = product(id);
+      addToCart(id, qtyEl ? Math.max(1, parseInt(qtyEl.value, 10) || 1) : 1);
+      toast('Added to cart: ' + esc(p ? p.title : '') + ' <a href="' + R + 'cart">View cart</a>');
+      return;
+    }
+    var like = e.target.closest('[data-like]');
+    if (like) {
+      var lid = like.getAttribute('data-like'), on = toggleLike(lid);
+      $$('[data-like="' + lid + '"]').forEach(function (b) { b.setAttribute('aria-pressed', String(on)); });
+      toast(on ? 'Saved to your wishlist <a href="' + R + 'wishlist">View</a>' : 'Removed from your wishlist');
+      if (onIndex && location.hash.indexOf('#/wishlist') === 0) route();
+      return;
+    }
+    var step = e.target.closest('[data-step]');
+    if (step) {
+      var input = $(step.getAttribute('data-target'));
+      input.value = Math.min(99, Math.max(1, (parseInt(input.value, 10) || 1) + Number(step.getAttribute('data-step'))));
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+      return;
+    }
+    if (e.target.closest('[data-back-top]')) { window.scrollTo(0, 0); var skip = $('.skip-link'); if (skip) skip.focus(); }
+  });
+
+  /* ---------- Formspree forms (seller application, contact) ---------- */
+  document.addEventListener('submit', function (e) {
+    var form = e.target;
+    if (!form.classList.contains('js-formspree') || !window.fetch) return;
+    e.preventDefault();
+    var status = $('.form-status', form), btn = $('button[type="submit"]', form), label = btn.textContent;
+    var show = function (type, msg) { status.className = 'form-status is-' + type; status.textContent = msg; status.focus(); };
+    if (form.getAttribute('action').indexOf('FORMSPREE_ENDPOINT_HERE') !== -1) {
+      show('error', 'This form is not connected yet. Please contact us on WhatsApp for now.');
+      return;
+    }
+    btn.disabled = true; btn.textContent = 'Sending…';
+    fetch(form.action, { method: 'POST', body: new FormData(form), headers: { Accept: 'application/json' } })
+      .then(function (res) { if (!res.ok) throw new Error('Request failed'); form.reset(); show('success', form.getAttribute('data-success') || 'Thank you. We will get back to you soon.'); })
+      .catch(function () { show('error', 'Sorry, this could not be sent. Please try again or contact us on WhatsApp.'); })
+      .then(function () { btn.disabled = false; btn.textContent = label; });
+  });
+
+  /* ---------- Request form (home) ---------- */
+  var reqForm = $('#request-form');
+  if (reqForm) reqForm.addEventListener('submit', function (e) {
+    e.preventDefault();
+    var what = $('#req-what').value.trim(), budget = $('#req-budget').value.trim();
+    if (!what) { $('#req-what').focus(); return; }
+    window.open(waUrl('Hi Zed Supply, please source this for me:\n' + what + (budget ? '\nBudget: ' + budget : '')), '_blank', 'noopener');
+  });
+
+  /* ---------- Footer year, image fallbacks ---------- */
+  $$('[data-year]').forEach(function (el) { el.textContent = now.getFullYear(); });
+  document.addEventListener('error', function (e) {
+    if (e.target.tagName === 'IMG' && e.target.closest('.pmedia')) e.target.classList.add('is-broken');
+  }, true);
+
+  updateCounts();
+  refreshLoc();
+
+  if (!onIndex) return;
+
+  /* =====================================================================
+     STORE (index.html only)
+     ===================================================================== */
+  var home = $('#home'), view = $('#view');
+  var homeTitle = document.title;
+
+  /* ---------- Advertising banner (carousel) ---------- */
+  var reduceMotion = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+  var ads = { i: 0, timer: null, paused: reduceMotion, hover: false };
+  var adsEl = $('#ads'), adsWrap = $('#ads-slides'), adsPause = $('.ads__pause');
+
+  function adSlides() {
+    var promos = allPromos().filter(function (pr) { return promoStatus(pr) === 'live'; }).map(function (pr) {
+      var s = seller(pr.seller), se = season(pr.season), first = product(pr.products[0]);
+      return { label: 'Promotion' + (s ? ' · ' + s.name : ''), title: pr.title, text: pr.discount + '% off until ' + niceDate(pr.ends) + '.', cta: 'Shop now', link: '#/promo/' + pr.id, colours: se.colours, art: first ? dept(first.category).icon : '🏷️', image: pr.image || '', photo: true, sample: pr.sample };
+    });
+    return (D.banners || []).concat(promos);
+  }
+  function adHTML(b, i, n) {
+    var saverOn = root.classList.contains('data-saver');
+    var link = esc(b.link || '#/deals');
+    var attrs = ' role="group" aria-roledescription="slide" aria-label="' + (i + 1) + ' of ' + n + '"' + (i === ads.i ? '' : ' hidden');
+    var sample = b.sample ? '<span class="tag-sample ad__sample">Sample</span>' : '';
+    if (b.image && !b.photo && !saverOn) {
+      return '<div class="ad ad--image"' + attrs + '><a class="ad__imglink" href="' + link + '"><picture>' +
+        (b.imageMobile ? '<source media="(max-width: 599.98px)" srcset="' + esc(b.imageMobile) + '">' : '') +
+        '<img src="' + esc(b.image) + '" alt="' + esc(b.alt || 'Advert') + '" width="1600" height="500"' + (i ? ' loading="lazy"' : ' fetchpriority="high"') + '></picture></a>' + sample + '</div>';
+    }
+    var c = b.colours || ['#0A2A66', '#0057AE'];
+    var bg = b.image && b.photo && !saverOn ? '<img class="ad__bg" src="' + esc(b.image) + '" alt="" width="1600" height="500" loading="lazy">' : '';
+    var art = bg ? '' : (b.art === 'logo' ? '<img class="ad__logo" src="assets/logo-mark.png" alt="" width="320" height="170">' : (b.art ? '<span class="ad__art" aria-hidden="true">' + b.art + '</span>' : ''));
+    return '<div class="ad ad--designed' + (bg ? ' ad--photo' : '') + '"' + attrs + ' style="--ad-a:' + c[0] + ';--ad-b:' + c[1] + '">' + bg +
+      '<div class="ad__body">' + (b.label ? '<span class="ad__label">' + esc(b.label) + '</span>' : '') +
+      '<p class="ad__title">' + esc(b.title || b.alt || 'Advert') + '</p>' + (b.text ? '<p class="ad__text">' + esc(b.text) + '</p>' : '') +
+      '<a class="btn btn--primary" href="' + link + '">' + esc(b.cta || 'Shop now') + '</a></div>' + art + sample + '</div>';
+  }
+  function stopAds() { if (ads.timer) clearInterval(ads.timer); ads.timer = null; }
+  function playAds() { stopAds(); if (!ads.paused && !ads.hover && $$('.ad', adsWrap).length > 1 && !home.hidden) ads.timer = setInterval(function () { goAd(ads.i + 1); }, 6000); }
+  function goAd(n) {
+    var s = $$('.ad', adsWrap);
+    if (!s.length) return;
+    ads.i = (n + s.length) % s.length;
+    s.forEach(function (el, i) { el.hidden = i !== ads.i; });
+    $$('.ads__dot', adsEl).forEach(function (d, i) { if (i === ads.i) d.setAttribute('aria-current', 'true'); else d.removeAttribute('aria-current'); });
+  }
+  function setPaused(p) {
+    ads.paused = p;
+    adsPause.setAttribute('aria-pressed', String(p));
+    adsPause.setAttribute('aria-label', p ? 'Play slideshow' : 'Pause slideshow');
+    if (p) stopAds(); else playAds();
+  }
+  function buildAds() {
+    if (!adsWrap) return;
+    var list = adSlides(), multi = list.length > 1;
+    if (ads.i >= list.length) ads.i = 0;
+    adsWrap.innerHTML = list.map(function (b, i) { return adHTML(b, i, list.length); }).join('');
+    $$('.ads__arrow, .ads__bar', adsEl).forEach(function (el) { el.hidden = !multi; });
+    $('#ads-dots').innerHTML = list.map(function (b, i) { return '<button class="ads__dot" type="button" data-ad="' + i + '" aria-label="Show slide ' + (i + 1) + ': ' + esc(b.title || b.alt || 'Advert') + '"></button>'; }).join('');
+    goAd(ads.i);
+    setPaused(ads.paused);
+  }
+  if (adsEl) {
+    adsEl.addEventListener('click', function (e) {
+      if (e.target.closest('.ads__arrow--prev')) goAd(ads.i - 1);
+      else if (e.target.closest('.ads__arrow--next')) goAd(ads.i + 1);
+      else if (e.target.closest('.ads__dot')) goAd(Number(e.target.closest('.ads__dot').getAttribute('data-ad')));
+      else if (e.target.closest('.ads__pause')) { setPaused(!ads.paused); return; }
+      else return;
+      playAds();   // restart the timer after a manual change
+    });
+    adsEl.addEventListener('keydown', function (e) {
+      if (e.key === 'ArrowLeft') { goAd(ads.i - 1); playAds(); }
+      if (e.key === 'ArrowRight') { goAd(ads.i + 1); playAds(); }
+    });
+    // Pause while the pointer or keyboard focus is on the banner
+    adsEl.addEventListener('mouseenter', function () { ads.hover = true; stopAds(); });
+    adsEl.addEventListener('mouseleave', function () { ads.hover = false; playAds(); });
+    adsEl.addEventListener('focusin', function () { ads.hover = true; stopAds(); });
+    adsEl.addEventListener('focusout', function (e) { if (!adsEl.contains(e.relatedTarget)) { ads.hover = false; playAds(); } });
+    // Swipe on touch screens
+    var x0 = null;
+    adsEl.addEventListener('touchstart', function (e) { x0 = e.touches[0].clientX; }, { passive: true });
+    adsEl.addEventListener('touchend', function (e) {
+      if (x0 === null) return;
+      var dx = e.changedTouches[0].clientX - x0; x0 = null;
+      if (Math.abs(dx) > 40) { goAd(ads.i + (dx < 0 ? 1 : -1)); playAds(); }
+    });
+    document.addEventListener('zs:datasaver', function () { if (!home.hidden) renderHome(); });
+  }
+
+  function renderHome() {
+    buildAds();
+    var deals = localProducts.filter(function (p) { return priceOf(p).was; });
+    if (deals.length < 6) deals = deals.concat(localProducts.filter(function (p) { return deals.indexOf(p) === -1; })).slice(0, 8);
+    $('#home-deals').innerHTML = cards(deals);
+    $('#home-featured').innerHTML = cards(localProducts.slice(0, 10));
+    $('#home-promos').innerHTML = sortPromos(allPromos().filter(function (pr) { return promoStatus(pr) !== 'ended'; })).slice(0, 4).map(promoCard).join('');
+    $('#home-brands').innerHTML = D.brands.map(brandCard).join('');
+    var recent = store.get('recent', []).map(product).filter(Boolean);
+    $('#home-recent-wrap').hidden = !recent.length;
+    $('#home-recent').innerHTML = cards(recent);
+    $$('[data-sample-note]').forEach(function (n) { n.hidden = !S.isSample; });
+  }
+
+  function show(html, title) {
+    stopAds();
+    home.hidden = true;
+    view.hidden = false;
+    view.innerHTML = html;
+    document.title = title + ' | Zed Supply';
+    refreshLoc();
+    window.scrollTo(0, 0);
+    var h = $('h1', view);
+    if (h) { h.setAttribute('tabindex', '-1'); h.focus({ preventScroll: true }); }
+    $$('.subnav a').forEach(function (a) {
+      var target = a.getAttribute('href').replace('index.html', '');
+      if (target.length > 2 && location.hash.indexOf(target) === 0) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
+    });
+  }
+  function crumbs(list) {
+    return '<nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="#">Home</a></li>' +
+      list.map(function (c) { return '<li>' + (c[1] ? '<a href="' + c[1] + '">' + esc(c[0]) + '</a>' : '<span aria-current="page">' + esc(c[0]) + '</span>') + '</li>'; }).join('') + '</ol></nav>';
+  }
+  function head(title, sub) { return '<div class="view-head"><h1>' + title + '</h1>' + (sub ? '<p>' + sub + '</p>' : '') + '</div>'; }
+  function empty(msg, cta) { return '<div class="empty"><p>' + msg + '</p>' + (cta || '') + '</div>'; }
+  function askBtn(msg) { return '<a class="btn btn--primary" href="' + waUrl(msg) + '" data-wa-message="' + esc(msg) + '" target="_blank" rel="noopener">Ask on WhatsApp</a>'; }
+  function ticks(list) { return '<ul class="ticks">' + list.map(function (t) { return '<li>' + icon(I.check) + t + '</li>'; }).join('') + '</ul>'; }
+
+  /* Product listing with sort and filters: departments, search, deals, brands, stores, promotions */
+  function listing(opts) {
+    var html = crumbs(opts.crumbs) + head(opts.title, opts.sub) + (opts.extra || '') +
+      '<div class="toolbar"><p class="result-count" id="lst-count" role="status"></p><div class="toolbar__filters">' +
+        '<label class="inline-check"><input type="checkbox" id="lst-promo"> On promotion</label>' +
+        '<label class="inline-check"><input type="checkbox" id="lst-stock"> In stock</label>' +
+        '<label for="lst-sort" class="visually-hidden">Sort by</label><select id="lst-sort"><option value="">Sort: Relevance</option><option value="asc">Price: low to high</option><option value="desc">Price: high to low</option><option value="rating">Top rated</option></select>' +
+      '</div></div><ul class="grid" id="lst-grid"></ul>';
+    show(html, opts.docTitle || opts.title);
+    var draw = function () {
+      var list = opts.list.slice();
+      if ($('#lst-promo').checked) list = list.filter(function (p) { var pr = priceOf(p); return pr.promo || pr.was; });
+      if ($('#lst-stock').checked) list = list.filter(function (p) { return p.stock === 'in' || p.stock === 'low'; });
+      var sort = $('#lst-sort').value;
+      if (sort === 'asc' || sort === 'desc') list.sort(function (a, b) { var d = priceOf(a).now - priceOf(b).now; return sort === 'asc' ? d : -d; });
+      if (sort === 'rating') list.sort(function (a, b) { return (ratingOf(b) || { avg: 0 }).avg - (ratingOf(a) || { avg: 0 }).avg; });
+      $('#lst-grid').innerHTML = list.length ? cards(list) : '<li class="grid__full">' + empty('Nothing listed here yet. Tell us what you need and we\'ll find it.', askBtn('Hi Zed Supply, I\'m looking for: ')) + '</li>';
+      $('#lst-count').textContent = list.length + (list.length === 1 ? ' product' : ' products');
+    };
+    ['lst-promo', 'lst-stock', 'lst-sort'].forEach(function (id) { $('#' + id).addEventListener('change', draw); });
+    draw();
+  }
+
+  var STATUS = ['Order sent on WhatsApp', 'Confirmed by Zed Supply', 'Packed by the seller', 'Out for delivery', 'Delivered'];
+  function orders() { return store.get('orders', []); }
+  function findOrder(ref) {
+    ref = String(ref || '').trim().toUpperCase();
+    var o = orders().filter(function (x) { return x.ref === ref; })[0];
+    if (!o && D.demoOrder && D.demoOrder.ref === ref) o = D.demoOrder;
+    return o || null;
+  }
+
+  var views = {
+    departments: function () {
+      show(crumbs([['All categories']]) + head('All categories') +
+        '<ul class="depts">' + D.departments.map(function (d) {
+          var n = products.filter(function (p) { return p.category === d.id; }).length;
+          return '<li><a class="dept" href="#/dept/' + d.id + '"><span class="dept__icon" aria-hidden="true">' + d.icon + '</span>' + esc(d.name) + '<small>' + n + (n === 1 ? ' product' : ' products') + '</small></a></li>';
+        }).join('') + '</ul>', 'All categories');
+    },
+
+    dept: function (id) {
+      var d = byId(D.departments, id);
+      if (!d) return views.notfound();
+      listing({ title: esc(d.name), crumbs: [['Categories', '#/departments'], [d.name]], list: products.filter(function (p) { return p.category === id; }), docTitle: d.name,
+        extra: '<ul class="chips" aria-label="Other categories">' + D.departments.map(function (x) { return '<li><a class="chip" href="#/dept/' + x.id + '"' + (x.id === id ? ' aria-current="page"' : '') + '>' + x.icon + ' ' + esc(x.name) + '</a></li>'; }).join('') + '</ul>' });
+    },
+
+    search: function (arg, q) {
+      var term = (q.get('q') || '').trim(), dp = q.get('dept') || '';
+      var words = term.toLowerCase().split(/\s+/).filter(Boolean);
+      var matches = function (name) { return words.length && words.every(function (w) { return name.toLowerCase().indexOf(w) !== -1; }); };
+      var list = products.filter(function (p) {
+        if (dp && p.category !== dp) return false;
+        var t = searchText(p);
+        return words.every(function (w) { return t.indexOf(w) !== -1; });
+      });
+      var stores = D.sellers.filter(function (s) { return matches(s.name); }), brands = D.brands.filter(function (b) { return matches(b.name); });
+      var extra = (stores.length || brands.length) ? '<ul class="chips" aria-label="Matching stores and brands">' +
+        stores.map(function (s) { return '<li><a class="chip" href="#/store/' + s.id + '">🏪 Store: ' + esc(s.name) + '</a></li>'; }).join('') +
+        brands.map(function (b) { return '<li><a class="chip" href="#/brand/' + b.id + '">🏷️ Brand: ' + esc(b.name) + '</a></li>'; }).join('') + '</ul>' : '';
+      var box = $('#q'); if (box) box.value = term;
+      listing({ title: term ? 'Results for “' + esc(term) + '”' : 'All products', sub: dp ? 'In ' + esc(dept(dp).name) : '', crumbs: [['Search']], list: list, extra: extra, docTitle: term ? 'Search: ' + term : 'All products' });
+    },
+
+    deals: function () {
+      listing({ title: "Today's deals", sub: 'Discounts and live seller promotions.', crumbs: [["Today's deals"]], list: localProducts.filter(function (p) { var pr = priceOf(p); return pr.was || pr.promo; }) });
+    },
+
+    product: function (id) {
+      var p = product(id);
+      if (!p || (p.source === 'china' && !china)) return views.notfound();
+      addRecent(p.id);
+      var pr = priceOf(p), s = seller(p.seller), b = brand(p.brand), d = dept(p.category), r = ratingOf(p), u = user();
+      var buyMsg = 'Hi Zed Supply, I\'d like to buy: ' + p.title + ' (ID ' + p.id + '), price ' + kwacha(pr.now) + ' each.';
+      var revs = reviewsFor(p);
+      var related = products.filter(function (x) { return x.category === p.category && x.id !== p.id; }).slice(0, 8);
+      var html = crumbs([[d.name, '#/dept/' + p.category], [p.title]]) +
+        '<div class="pdp">' +
+          '<div class="pdp__media"><div class="pflags">' + (pr.off ? '<span class="flag-sale">-' + pr.off + '%</span>' : '') + (p.sample ? '<span class="tag-sample">Sample</span>' : '') + '</div>' + likeBtn(p) + '<div class="pmedia">' + media(p) + '</div></div>' +
+          '<div>' +
+            '<h1>' + esc(p.title) + '</h1>' +
+            '<p class="pmeta">' + (b ? 'Brand: <a href="#/brand/' + b.id + '">' + esc(b.name) + '</a> · ' : '') + (s ? 'Sold by <a href="#/store/' + s.id + '">' + esc(s.name) + '</a>' + verifiedHTML(s) : '') + '</p>' +
+            (r ? starsHTML(p) + '<p><a href="#reviews" data-jump="reviews">' + r.count + (r.count === 1 ? ' review' : ' reviews') + '</a></p>' : '<p class="pmeta">No reviews yet</p>') +
+            priceHTML(pr) +
+            (pr.promo ? '<p class="notice">Part of <a href="#/promo/' + pr.promo.id + '">' + esc(pr.promo.title) + '</a>: ' + pr.promo.discount + '% off until ' + niceDate(pr.promo.ends) + '.</p>' : '') +
+            '<h2 class="h3">About this product</h2><p>' + (p.description ? esc(p.description) : '<span class="placeholder">[PRODUCT DESCRIPTION: add a description field in catalogue.js]</span>') + '</p>' +
+            '<p class="pmeta">Category: <a href="#/dept/' + p.category + '">' + esc(d.name) + '</a> · Product ID ' + esc(p.id) + '</p>' +
+          '</div>' +
+          '<aside class="buybox" aria-label="Buy this product">' +
+            priceHTML(pr) + stockHTML(p) +
+            '<p>' + esc(p.source === 'china' ? p.shipping : S.deliveryText) + '</p>' +
+            '<p class="pmeta"><button class="link-btn" type="button" data-open-location aria-haspopup="dialog"><span data-location-label>Deliver to: set location</span></button></p>' +
+            '<div><label for="pdp-qty" class="pmeta">Quantity</label><div class="qty"><button type="button" data-step="-1" data-target="#pdp-qty" aria-label="Decrease quantity">−</button><input id="pdp-qty" type="number" min="1" max="99" value="1" inputmode="numeric"><button type="button" data-step="1" data-target="#pdp-qty" aria-label="Increase quantity">+</button></div></div>' +
+            '<button class="btn btn--primary btn--block" type="button" data-add="' + p.id + '" data-qty-from="#pdp-qty">Add to cart</button>' +
+            '<a class="btn btn--secondary btn--block" id="buy-now" href="#" target="_blank" rel="noopener">Buy now on WhatsApp</a>' +
+            '<p class="pmeta">The final price and delivery are confirmed on WhatsApp before you pay.</p>' +
+          '</aside>' +
+        '</div>' +
+        '<section class="reviews" id="reviews" aria-labelledby="rev-title"><div>' +
+          '<h2 id="rev-title">Customer reviews</h2>' + (r ? starsHTML(p) + '<p>' + r.avg.toFixed(1) + ' out of 5</p>' : '<p>No reviews yet.</p>') +
+          (u ? '<form class="form form--card" id="review-form"><h3>Write a review</h3>' +
+            '<div class="field"><label for="rev-rating">Your rating</label><select id="rev-rating" required><option value="5">5 – Excellent</option><option value="4">4 – Good</option><option value="3">3 – Okay</option><option value="2">2 – Poor</option><option value="1">1 – Bad</option></select></div>' +
+            '<div class="field"><label for="rev-text">Your review</label><textarea id="rev-text" required maxlength="600"></textarea></div>' +
+            '<p class="hint">Prototype: your review is saved on this device only.</p><button class="btn btn--primary" type="submit">Post review</button></form>'
+            : '<p><a class="btn btn--secondary" href="#/account">Sign in to write a review</a></p>') +
+        '</div><div>' + revs.map(function (v) {
+          return '<div class="review"><span class="stars__icons" aria-hidden="true">' + starString(v.rating) + '</span><span class="visually-hidden">' + v.rating + ' out of 5</span> <strong>' + esc(v.name) + '</strong> <small>' + niceDate(v.date) + '</small><p>' + esc(v.text) + '</p></div>';
+        }).join('') + '</div></section>' +
+        (related.length ? '<section class="section" aria-labelledby="rel-title"><h2 id="rel-title">More in ' + esc(d.name) + '</h2><ul class="row">' + cards(related) + '</ul></section>' : '');
+      show(html, p.title);
+      var qty = $('#pdp-qty'), buy = $('#buy-now');
+      var syncBuy = function () { var m = buyMsg + ' Quantity: ' + Math.max(1, parseInt(qty.value, 10) || 1); buy.setAttribute('data-wa-message', m); buy.href = waUrl(m); };
+      qty.addEventListener('input', syncBuy); syncBuy();
+      view.onclick = function (e) {
+        var j = e.target.closest('[data-jump]');
+        if (j) { e.preventDefault(); $('#' + j.getAttribute('data-jump')).scrollIntoView(); }
+      };
+      var rf = $('#review-form');
+      if (rf) rf.addEventListener('submit', function (e) {
+        e.preventDefault();
+        var all = store.get('reviews', {});
+        (all[p.id] = all[p.id] || []).push({ name: u.name, rating: Number($('#rev-rating').value), date: today, text: $('#rev-text').value.trim(), mine: true });
+        store.set('reviews', all);
+        toast('Thanks for your review');
+        route();
+      });
+    },
+
+    cart: function () {
+      var lines = cart().filter(function (l) { return product(l.id); });
+      var saved = store.get('saved', []).map(product).filter(Boolean);
+      var u = user() || {};
+      var savedHTML = saved.length ? '<h2 class="cart__saved">Saved for later</h2><ul class="grid">' + cards(saved) + '</ul>' : '';
+      if (!lines.length) {
+        show(crumbs([['Cart']]) + head('Your cart is empty') + empty('Find something you like, or tell us what you need and we\'ll source it.', '<div class="btn-row btn-row--center"><a class="btn btn--primary" href="#/deals">Shop today\'s deals</a><a class="btn btn--secondary" href="#/wishlist">View wishlist</a></div>') + savedHTML, 'Cart');
+        bindSaved();
         return;
       }
+      var voucher = store.get('voucher', '');
+      var sub = 0, save = 0, items = [];
+      lines.forEach(function (l) { var p = product(l.id), pr = priceOf(p); sub += pr.now * l.qty; if (pr.was) save += (pr.was - pr.now) * l.qty; items.push({ p: p, pr: pr, qty: l.qty }); });
+      var v = voucher ? (D.vouchers || []).filter(function (x) { return x.code === voucher; })[0] : null;
+      var vOff = v && sub >= v.minSpend ? Math.round(sub * v.percent / 100) : 0;
+      var total = sub - vOff;
+      var html = crumbs([['Cart']]) + head('Your cart', items.length + (items.length === 1 ? ' product' : ' products')) +
+        '<div class="cart"><div><ul class="lines">' + items.map(function (it, i) {
+          var s = seller(it.p.seller);
+          return '<li class="line"><a class="pmedia" href="#/product/' + it.p.id + '" tabindex="-1" aria-hidden="true">' + media(it.p) + '</a><div>' +
+            '<a class="line__title" href="#/product/' + it.p.id + '">' + esc(it.p.title) + '</a>' +
+            '<p class="pmeta">' + (s ? 'Sold by ' + esc(s.name) + ' ' : '') + (it.pr.promo ? '<span class="badge">' + esc(it.pr.promo.title) + '</span>' : '') + '</p>' +
+            '<p class="line__price">' + kwacha(it.pr.now * it.qty) + (it.qty > 1 ? ' <small class="pmeta">(' + kwacha(it.pr.now) + ' each)</small>' : '') + '</p>' +
+            '<div class="line__actions"><div class="qty"><button type="button" data-step="-1" data-target="#cq' + i + '" aria-label="Decrease quantity of ' + esc(it.p.title) + '">−</button>' +
+            '<input id="cq' + i + '" type="number" min="1" max="99" value="' + it.qty + '" data-cart-qty="' + it.p.id + '" aria-label="Quantity of ' + esc(it.p.title) + '"><button type="button" data-step="1" data-target="#cq' + i + '" aria-label="Increase quantity of ' + esc(it.p.title) + '">+</button></div>' +
+            '<button class="link-btn" type="button" data-remove="' + it.p.id + '">Remove<span class="visually-hidden"> ' + esc(it.p.title) + '</span></button><button class="link-btn" type="button" data-save="' + it.p.id + '">Save for later<span class="visually-hidden">: ' + esc(it.p.title) + '</span></button></div>' +
+          '</div></li>';
+        }).join('') + '</ul>' + savedHTML +
+        '</div><aside class="summary" aria-labelledby="sum-title"><h2 id="sum-title">Order summary</h2>' +
+          '<dl class="totals"><div><dt>Subtotal</dt><dd>' + kwacha(sub) + '</dd></div>' +
+          (save ? '<div class="is-save"><dt>You save</dt><dd>' + kwacha(save) + '</dd></div>' : '') +
+          (vOff ? '<div class="is-save"><dt>Voucher ' + esc(v.code) + '</dt><dd>−' + kwacha(vOff) + '</dd></div>' : '') +
+          '<div><dt>Delivery</dt><dd>Confirmed on WhatsApp</dd></div>' +
+          '<div class="is-total"><dt>Estimated total</dt><dd>' + kwacha(total) + '</dd></div></dl>' +
+          '<form class="voucher" id="voucher-form"><label for="voucher" class="visually-hidden">Voucher code</label><input id="voucher" placeholder="Voucher code" value="' + esc(voucher) + '" autocapitalize="characters"><button class="btn btn--secondary btn--sm" type="submit">Apply</button></form>' +
+          (voucher && !v ? '<p class="form-status is-error">That voucher code isn\'t valid.</p>' : '') +
+          (v && !vOff ? '<p class="form-status is-error">' + esc(v.code) + ' needs a minimum spend of ' + kwacha(v.minSpend) + '.</p>' : '') +
+          '<div class="field"><label for="co-name">Your name</label><input id="co-name" autocomplete="name" value="' + esc(u.name || '') + '"></div>' +
+          '<div class="deliver-box"><p class="deliver-box__label">Deliver to</p><p data-loc-summary>' + locSummaryHTML() + '</p><button class="link-btn" type="button" data-open-location aria-haspopup="dialog">Set or change delivery location</button></div>' +
+          '<div class="field"><label for="co-note">Notes for your order (optional)</label><input id="co-note"></div>' +
+          '<a class="btn btn--primary btn--block" id="checkout" href="#" target="_blank" rel="noopener">Checkout on WhatsApp</a>' +
+          '<p class="pmeta">We confirm the final price, delivery fee and payment method (<span class="placeholder">[PAYMENT METHODS]</span>) on WhatsApp before you pay.</p>' +
+          '<button class="link-btn" type="button" id="clear-cart">Empty cart</button>' +
+        '</aside></div>';
+      show(html, 'Cart');
 
-      button.disabled = true;
-      button.textContent = 'Sending…';
-
-      fetch(form.action, {
-        method: 'POST',
-        body: new FormData(form),
-        headers: { Accept: 'application/json' }
-      })
-        .then(function (res) {
-          if (!res.ok) throw new Error('Request failed');
-          form.reset();
-          showStatus('success', 'Thank you — your request has been sent. We will get back to you as soon as we can.');
-        })
-        .catch(function () {
-          showStatus('error', 'Sorry, your message could not be sent. Please try again, or contact us on WhatsApp.');
-        })
-        .then(function () {
-          button.disabled = false;
-          button.textContent = 'Send my request';
+      var ref = 'ZS-' + Date.now().toString(36).toUpperCase().slice(-6);
+      var co = $('#checkout');
+      var buildMsg = function () {
+        var m = 'Hi Zed Supply, I\'d like to place an order (ref ' + ref + '):\n' +
+          items.map(function (it, i) { return (i + 1) + '. ' + it.p.title + ' (' + it.p.id + ') x ' + it.qty + ' = ' + kwacha(it.pr.now * it.qty); }).join('\n') +
+          (vOff ? '\nVoucher ' + v.code + ': -' + kwacha(vOff) : '') + '\nEstimated total: ' + kwacha(total);
+        var nm = $('#co-name').value.trim(), note = $('#co-note').value.trim();
+        if (nm) m += '\nName: ' + nm;
+        if (note) m += '\nNotes: ' + note;
+        return m;
+      };
+      // data-wa-message lets refreshLoc() update the link when the delivery location changes
+      var syncCo = function () { var m = buildMsg(); co.setAttribute('data-wa-message', m); co.href = waUrl(m); };
+      ['co-name', 'co-note'].forEach(function (id) { $('#' + id).addEventListener('input', syncCo); });
+      syncCo();
+      co.addEventListener('click', function () {
+        var list = orders();
+        list.unshift({ ref: ref, date: today, items: items.map(function (it) { return { id: it.p.id, qty: it.qty, price: it.pr.now }; }), total: total, status: 0, deliverTo: locFull() });
+        store.set('orders', list);
+        setCart([]);
+        store.set('voucher', '');
+        setTimeout(function () { location.hash = '#/order/' + ref; }, 400);
+      });
+      $$('[data-cart-qty]', view).forEach(function (inp) {
+        inp.addEventListener('change', function () {
+          var c = cart();
+          c.forEach(function (l) { if (l.id === inp.getAttribute('data-cart-qty')) l.qty = Math.min(99, Math.max(1, parseInt(inp.value, 10) || 1)); });
+          setCart(c); views.cart();
         });
-    });
+        inp.addEventListener('input', function (e) { if (e.isTrusted === false) inp.dispatchEvent(new Event('change')); });
+      });
+      $('#voucher-form').addEventListener('submit', function (e) { e.preventDefault(); store.set('voucher', $('#voucher').value.trim().toUpperCase()); views.cart(); });
+      bindSaved();
+    },
 
-    function showStatus(type, message) {
-      status.className = 'form-status is-' + type;
-      status.textContent = message;
-      status.focus();
+    wishlist: function () {
+      var list = wish().map(product).filter(Boolean);
+      show(crumbs([['Wishlist']]) + head('Your wishlist', 'Products you\'ve liked, saved for later.') +
+        (list.length ? '<ul class="grid">' + cards(list) + '</ul>' : empty('Tap the heart on any product to save it here.', '<a class="btn btn--primary" href="#/deals">Browse deals</a>')), 'Wishlist');
+    },
+
+    account: function () {
+      var u = user();
+      if (!u) {
+        show(crumbs([['My Account']]) + head('Sign in or create an account') +
+          '<div class="duo"><form class="form form--card" id="signin"><h2>Welcome to Zed Supply</h2>' +
+          '<p class="notice">Prototype: there are no passwords yet and nothing is sent to a server. Your details stay on this device. Secure accounts are coming soon.</p>' +
+          '<div class="field"><label for="su-name">Your name</label><input id="su-name" autocomplete="name" required></div>' +
+          '<div class="field"><label for="su-phone">Phone or WhatsApp number</label><input id="su-phone" type="tel" autocomplete="tel" required></div>' +
+          '<div class="field"><label for="su-email">Email (optional)</label><input id="su-email" type="email" autocomplete="email"></div>' +
+          '<button class="btn btn--primary" type="submit">Continue</button></form>' +
+          '<div class="band"><h2>With a Zed Supply account you can</h2>' + ticks(['Track your orders', 'Save products to your wishlist', 'Write product reviews', 'Check out faster on WhatsApp']) +
+          '<p>Selling? <a href="#/seller">Go to the Seller Centre</a></p></div></div>', 'My Account');
+        $('#signin').addEventListener('submit', function (e) {
+          e.preventDefault();
+          store.set('user', { name: $('#su-name').value.trim(), phone: $('#su-phone').value.trim(), email: $('#su-email').value.trim() });
+          updateCounts(); toast('Signed in'); route();
+        });
+        return;
+      }
+      var myReviews = 0, all = store.get('reviews', {});
+      Object.keys(all).forEach(function (k) { myReviews += all[k].filter(function (rv) { return rv.mine; }).length; });
+      var recent = store.get('recent', []).map(product).filter(Boolean);
+      var tile = function (href, t, sub) { return '<li><a href="' + href + '"><strong>' + t + '</strong><span>' + sub + '</span></a></li>'; };
+      show(crumbs([['My Account']]) + head('Hello, ' + esc(u.name.split(' ')[0])) +
+        '<ul class="tiles">' +
+          tile('#/orders', 'Orders', orders().length + ' orders · track and reorder') +
+          tile('#/wishlist', 'Wishlist', wish().length + ' saved products') +
+          tile('#/cart', 'Cart', cart().length + ' products in your cart') +
+          tile('#/track', 'Track an order', 'Enter an order number') +
+          tile('help.html#returns', 'Returns', 'How returns work') +
+          tile('#/seller', 'Seller Centre', 'Manage your store') +
+          tile('help.html', 'Help centre', 'Answers and contact') +
+          tile('#/promotions', 'Promotions', 'Deals from sellers') +
+        '</ul>' +
+        '<div class="duo duo--gap"><form class="form form--card" id="acct"><h2>Your details</h2>' +
+          '<div class="field"><label for="ac-name">Name</label><input id="ac-name" autocomplete="name" value="' + esc(u.name) + '" required></div>' +
+          '<div class="field"><label for="ac-phone">Phone or WhatsApp</label><input id="ac-phone" type="tel" autocomplete="tel" value="' + esc(u.phone) + '"></div>' +
+          '<div class="field"><label for="ac-email">Email</label><input id="ac-email" type="email" autocomplete="email" value="' + esc(u.email) + '"></div>' +
+          '<div class="btn-row"><button class="btn btn--primary" type="submit">Save</button><button class="btn btn--secondary" type="button" id="signout">Sign out</button></div></form>' +
+          '<div><div class="card"><h2>Delivery location</h2><p data-loc-summary>' + locSummaryHTML() + '</p>' +
+            '<p class="pmeta">Added to your WhatsApp orders so we can confirm delivery to your area and the delivery fee. ' + (loc && loc.remember ? 'Remembered on this device.' : 'Kept until you close this tab unless you choose to remember it.') + '</p>' +
+            '<button class="btn btn--secondary btn--sm" type="button" data-open-location aria-haspopup="dialog">Set or change location</button></div>' +
+          '<div class="card"><h2>Your activity</h2><p>' + myReviews + (myReviews === 1 ? ' review' : ' reviews') + ' written · ' + recent.length + ' products viewed recently.</p><p class="pmeta">Prototype: your account is stored on this device only.</p></div></div></div>' +
+        (recent.length ? '<section class="section"><h2>Recently viewed</h2><ul class="row">' + cards(recent) + '</ul></section>' : ''), 'My Account');
+      $('#acct').addEventListener('submit', function (e) {
+        e.preventDefault();
+        store.set('user', { name: $('#ac-name').value.trim(), phone: $('#ac-phone').value.trim(), email: $('#ac-email').value.trim() });
+        updateCounts(); toast('Details saved');
+      });
+      $('#signout').addEventListener('click', function () { store.set('user', null); updateCounts(); toast('Signed out'); route(); });
+    },
+
+    orders: function () {
+      var list = orders();
+      show(crumbs([['My Account', '#/account'], ['Orders']]) + head('Your orders', 'Orders you\'ve sent from this device.') +
+        (list.length ? '<ul class="orders">' + list.map(function (o) {
+          return '<li><a class="order-row" href="#/order/' + o.ref + '"><span><strong>' + o.ref + '</strong><br><span class="pmeta">' + niceDate(o.date) + ' · ' + o.items.length + (o.items.length === 1 ? ' product' : ' products') + '</span></span><span><span class="status">' + STATUS[o.status] + '</span><br><strong>' + kwacha(o.total) + '</strong></span></a></li>';
+        }).join('') + '</ul>' : empty('No orders yet. When you check out on WhatsApp, your order appears here.', '<a class="btn btn--primary" href="#/deals">Start shopping</a>')) +
+        '<p class="view-foot"><a href="#/track">Track an order by number</a></p>', 'Orders');
+    },
+
+    order: function (ref) {
+      var o = findOrder(ref);
+      if (!o) return views.track(null, null, ref);
+      var msg = 'Hi Zed Supply, I\'d like an update on my order ' + o.ref + '.';
+      show(crumbs([['Orders', '#/orders'], [o.ref]]) + head('Order ' + esc(o.ref), 'Placed ' + niceDate(o.date) + (o.sample ? ' · <span class="tag-sample">Demo order</span>' : '')) +
+        '<div class="cart"><div class="card"><h2>Tracking</h2><ol class="timeline">' + STATUS.map(function (s, i) {
+          return '<li class="' + (i < o.status ? 'is-done' : (i === o.status ? 'is-done is-current' : '')) + '">' + s + (i === o.status ? ' <span class="visually-hidden">(current status)</span>' : '') + '</li>';
+        }).join('') + '</ol>' +
+        (o.sample ? '<p class="pmeta">This is a demo order to show how tracking will look.</p>' : '<p class="pmeta">We update your order once it\'s confirmed on WhatsApp. Prototype: live tracking arrives with full accounts.</p>') +
+        askBtn(msg) + '</div>' +
+        '<aside class="summary"><h2>Items</h2><ul class="lines">' + o.items.map(function (it) { var p = product(it.id); return '<li class="line line--plain"><div><a class="line__title" href="#/product/' + it.id + '">' + esc(p ? p.title : it.id) + '</a><p class="pmeta">Quantity ' + it.qty + ' · ' + kwacha(it.price * it.qty) + '</p></div></li>'; }).join('') + '</ul>' +
+        '<dl class="totals"><div class="is-total"><dt>Total</dt><dd>' + kwacha(o.total) + '</dd></div></dl>' +
+        '<div class="deliver-box"><p class="deliver-box__label">Deliver to</p><p>' + (o.deliverTo ? esc(o.deliverTo) : '<span class="pmeta">No location given. We\'ll ask on WhatsApp.</span>') + '</p></div></aside></div>', 'Order ' + o.ref);
+    },
+
+    track: function (arg, q, missing) {
+      show(crumbs([['Track order']]) + head('Track your order', 'Enter the order number from your WhatsApp message, e.g. ZS-ABC123.') +
+        '<form class="form form--card form--narrow" id="track-form"><div class="field"><label for="tr-ref">Order number</label><input id="tr-ref" required autocapitalize="characters" value="' + esc(missing || '') + '"></div>' +
+        (missing ? '<p class="form-status is-error">We couldn\'t find order ' + esc(missing) + ' on this device. Ask us on WhatsApp and we\'ll check for you.</p>' : '') +
+        '<button class="btn btn--primary" type="submit">Track order</button><p class="hint">Try the demo order: <button class="link-btn" type="button" id="tr-demo">ZS-DEMO01</button></p></form>', 'Track order');
+      $('#track-form').addEventListener('submit', function (e) { e.preventDefault(); location.hash = '#/order/' + encodeURIComponent($('#tr-ref').value.trim().toUpperCase()); });
+      $('#tr-demo').addEventListener('click', function () { location.hash = '#/order/ZS-DEMO01'; });
+    },
+
+    sell: function () {
+      show(crumbs([['Sell on Zed Supply']]) +
+        '<div class="store-hero" style="--brand-a:#0A2A66;--brand-b:#106B3A"><h1>Sell on Zed Supply</h1><p>Open your store, reach more customers and run your own promotions.</p></div>' +
+        '<ol class="steps"><li class="step"><h3>Apply</h3><p>Tell us about your business with the form below.</p></li><li class="step"><h3>Get verified</h3><p>We check your details and set up your seller account.</p></li><li class="step"><h3>List and promote</h3><p>Add products, set up your brand store and run seasonal promotions.</p></li></ol>' +
+        '<div class="duo duo--gap"><div class="band"><h2>Why sell with us</h2>' +
+          ticks(['Your own store page and brand store', 'Run seasonal or your own promotions from your Seller Centre', 'Orders confirmed with you before delivery', 'Reach Zambian households, professionals, SMEs and organisations']) +
+          '<p><strong>Fees:</strong> <span class="placeholder">[SELLER FEES OR COMMISSION]</span></p><p>Already registered? <a href="#/seller">Seller Centre login</a></p></div>' +
+        '<form class="form form--card js-formspree" id="seller-form" action="FORMSPREE_ENDPOINT_HERE" method="POST" data-success="Thank you. We\'ve received your application and will contact you to verify your business.">' +
+          '<h2>Seller application</h2><p class="hint">Fields marked * are required.</p><input type="hidden" name="_subject" value="New seller application from the Zed Supply website">' +
+          '<div class="field"><label for="sf-biz">Business name *</label><input id="sf-biz" name="business" required autocomplete="organization"></div>' +
+          '<div class="field-row"><div class="field"><label for="sf-name">Contact person *</label><input id="sf-name" name="name" required autocomplete="name"></div>' +
+          '<div class="field"><label for="sf-phone">Phone or WhatsApp *</label><input id="sf-phone" name="phone" type="tel" required autocomplete="tel"></div></div>' +
+          '<div class="field-row"><div class="field"><label for="sf-email">Email *</label><input id="sf-email" name="email" type="email" required autocomplete="email"></div>' +
+          '<div class="field"><label for="sf-town">Town or city *</label><input id="sf-town" name="town" required autocomplete="address-level2"></div></div>' +
+          '<div class="field"><label for="sf-pacra">PACRA registration number (if registered)</label><input id="sf-pacra" name="pacra"></div>' +
+          '<fieldset class="field"><legend>What do you sell?</legend><div class="checks">' + D.departments.map(function (d) { return '<div class="check"><input type="checkbox" id="sf-d-' + d.id + '" name="categories" value="' + esc(d.name) + '"><label for="sf-d-' + d.id + '">' + esc(d.name) + '</label></div>'; }).join('') + '</div></fieldset>' +
+          '<div class="field"><label for="sf-more">Tell us about your products</label><textarea id="sf-more" name="message"></textarea></div>' +
+          '<div class="hp-field" aria-hidden="true"><label for="sf-hp">Leave this field empty</label><input id="sf-hp" name="_gotcha" tabindex="-1" autocomplete="off"></div>' +
+          '<div class="check"><input id="sf-consent" name="consent" type="checkbox" value="yes" required><label for="sf-consent">I agree that Zed Supply may use these details to assess my application, as set out in the <a href="privacy.html">privacy policy</a>. *</label></div>' +
+          '<p class="form-status" role="status" aria-live="polite" tabindex="-1"></p><button class="btn btn--primary" type="submit">Send application</button></form></div>', 'Sell on Zed Supply');
+    },
+
+    seller: function () {
+      var sess = store.get('seller', null), s = sess ? seller(sess.id) : null;
+      if (!s) {
+        show(crumbs([['Seller Centre']]) + head('Seller Centre', 'Manage your store, products and promotions.') +
+          '<div class="duo"><form class="form form--card" id="seller-login"><h2>Seller login</h2><p class="notice">Prototype: choose a sample store to try the Seller Centre. Real seller logins come with full accounts.</p>' +
+          '<div class="field"><label for="sl-store">Store</label><select id="sl-store">' + D.sellers.map(function (x) { return '<option value="' + x.id + '">' + esc(x.name) + '</option>'; }).join('') + '</select></div>' +
+          '<button class="btn btn--primary" type="submit">Enter Seller Centre</button></form>' +
+          '<div class="band"><h2>Not selling yet?</h2><p>Apply to open your store on Zed Supply.</p><a class="btn btn--dark" href="#/sell">Register as a seller</a></div></div>', 'Seller Centre');
+        $('#seller-login').addEventListener('submit', function (e) { e.preventDefault(); store.set('seller', { id: $('#sl-store').value }); route(); });
+        return;
+      }
+      var mine = products.filter(function (p) { return p.seller === s.id; });
+      var promos = sortPromos(allPromos().filter(function (pr) { return pr.seller === s.id; }));
+      var live = promos.filter(function (pr) { return promoStatus(pr) === 'live'; }).length;
+      show(crumbs([['Seller Centre']]) +
+        '<div class="store-hero" style="--brand-a:' + s.colours[0] + ';--brand-b:' + s.colours[1] + '"><h1>' + esc(s.name) + '</h1><p>Seller Centre' + (s.sample ? ' · sample store' : '') + verifiedHTML(s) + '</p></div>' +
+        '<ul class="tiles"><li><a href="#/store/' + s.id + '"><strong>' + mine.length + ' products</strong><span>View your store</span></a></li><li><a href="#sc-promos" data-jump="sc-promos"><strong>' + live + ' live</strong><span>Promotions running now</span></a></li><li><a href="#sc-new" data-jump="sc-new"><strong>New</strong><span>Create a promotion</span></a></li><li><a href="help.html#selling"><strong>Help</strong><span>Selling on Zed Supply</span></a></li></ul>' +
+        '<div class="duo duo--gap">' +
+        '<section class="card" id="sc-promos" aria-labelledby="sc-p-title"><h2 id="sc-p-title">Your promotions</h2>' + (promos.length ? '<ul class="orders">' + promos.map(function (pr) {
+          return '<li class="order-row"><span><strong>' + esc(pr.title) + '</strong><br><span class="pmeta">' + esc(season(pr.season).name) + ' · ' + pr.discount + '% off · ' + niceDate(pr.starts) + ' to ' + niceDate(pr.ends) + (pr.image ? ' · with banner image' : '') + '</span></span><span><span class="status">' + promoStatus(pr) + '</span>' + (pr.demo ? ' <button class="link-btn" type="button" data-del-promo="' + pr.id + '">Delete<span class="visually-hidden"> ' + esc(pr.title) + '</span></button>' : '') + '</span></li>';
+        }).join('') + '</ul>' : '<p>No promotions yet.</p>') + '</section>' +
+        '<form class="form form--card" id="sc-new" aria-labelledby="sc-n-title"><h2 id="sc-n-title">Create a promotion</h2>' +
+          '<p class="notice">Prototype: promotions you create appear across the store in this browser only.</p>' +
+          '<div class="field"><label for="pn-title">Promotion name</label><input id="pn-title" required maxlength="60" placeholder="e.g. Festive season specials"></div>' +
+          '<div class="field-row"><div class="field"><label for="pn-season">Type</label><select id="pn-season">' + D.seasons.map(function (x) { return '<option value="' + x.id + '">' + esc(x.name) + '</option>'; }).join('') + '</select></div>' +
+          '<div class="field"><label for="pn-off">Discount (%)</label><input id="pn-off" type="number" min="5" max="90" value="10" required></div></div>' +
+          '<div class="field-row"><div class="field"><label for="pn-start">Starts</label><input id="pn-start" type="date" value="' + today + '" required></div>' +
+          '<div class="field"><label for="pn-end">Ends</label><input id="pn-end" type="date" min="' + today + '" required></div></div>' +
+          '<fieldset class="field"><legend>Products in this promotion</legend><div class="checks">' + (mine.length ? mine.map(function (p) { return '<div class="check"><input type="checkbox" id="pn-p-' + p.id + '" value="' + p.id + '" checked><label for="pn-p-' + p.id + '">' + esc(p.title) + '</label></div>'; }).join('') : '<p>No products yet.</p>') + '</div></fieldset>' +
+          '<div class="field"><label for="pn-img">Banner image (optional)</label><input id="pn-img" type="file" accept="image/jpeg,image/png,image/webp" aria-describedby="pn-img-hint">' +
+          '<p class="hint" id="pn-img-hint">Shown in the homepage banner and on your promotion while it\'s live. Best size 1600 × 500 pixels; we crop and resize it for you. Keep important words in the middle.</p></div>' +
+          '<p class="form-status" role="status" tabindex="-1"></p><button class="btn btn--primary" type="submit">Publish promotion</button></form></div>' +
+        '<p class="view-foot"><button class="link-btn" type="button" id="seller-out">Sign out of Seller Centre</button></p>', 'Seller Centre');
+      $('#sc-new').addEventListener('submit', function (e) {
+        e.preventDefault();
+        var st = $('.form-status', e.target), start = $('#pn-start').value, end = $('#pn-end').value;
+        var picked = $$('#sc-new .checks input:checked').map(function (c) { return c.value; });
+        var fail = function (m) { st.className = 'form-status is-error'; st.textContent = m; st.focus(); };
+        if (end < start) return fail('The end date must be on or after the start date.');
+        if (!picked.length) return fail('Choose at least one product.');
+        var btn = $('button[type="submit"]', e.target);
+        btn.disabled = true; btn.textContent = 'Publishing…';
+        bannerFromFile($('#pn-img').files[0], 1600, 500, function (image) {
+          btn.disabled = false; btn.textContent = 'Publish promotion';
+          if (image === null) return fail('That image couldn\'t be used. Choose a JPEG, PNG or WebP under 10 MB.');
+          var promo = { id: 'U' + Date.now().toString(36), demo: true, seller: s.id, title: $('#pn-title').value.trim(), season: $('#pn-season').value, discount: Math.min(90, Math.max(5, parseInt($('#pn-off').value, 10) || 10)), starts: start, ends: end, products: picked, image: image };
+          var list = store.get('promos', []).concat([promo]);
+          var note = '';
+          if (!trySave('promos', list)) {
+            // Browser storage is full: keep the promotion without its picture
+            promo.image = '';
+            store.set('promos', list);
+            note = ' (without the image: this browser\'s storage is full)';
+          }
+          toast('Promotion published' + note + ' <a href="#/promotions">View</a>');
+          route();
+        });
+      });
+      view.onclick = function (e) {
+        var j = e.target.closest('[data-jump]');
+        if (j) { e.preventDefault(); $('#' + j.getAttribute('data-jump')).scrollIntoView(); }
+        var del = e.target.closest('[data-del-promo]');
+        if (del) { store.set('promos', store.get('promos', []).filter(function (x) { return x.id !== del.getAttribute('data-del-promo'); })); route(); }
+        if (e.target.closest('#seller-out')) { store.set('seller', null); route(); }
+      };
+    },
+
+    promotions: function (arg, q) {
+      var f = q.get('season') || '';
+      var list = sortPromos(allPromos().filter(function (pr) { return promoStatus(pr) !== 'ended' && (!f || pr.season === f); }));
+      show(crumbs([['Promotions']]) + head('Promotions', 'Seasonal and store promotions from Zed Supply sellers.') +
+        '<ul class="chips" aria-label="Filter by type"><li><a class="chip" href="#/promotions"' + (!f ? ' aria-current="page"' : '') + '>All</a></li>' +
+        D.seasons.map(function (x) { return '<li><a class="chip" href="#/promotions?season=' + x.id + '"' + (f === x.id ? ' aria-current="page"' : '') + '>' + esc(x.name) + '</a></li>'; }).join('') + '</ul>' +
+        (list.length ? '<ul class="promos">' + list.map(promoCard).join('') + '</ul>' : empty('No promotions of this type right now.', '<a class="btn btn--secondary" href="#/promotions">See all promotions</a>')) +
+        '<p class="view-foot">Are you a seller? <a href="#/seller">Create a promotion in your Seller Centre</a>.</p>', 'Promotions');
+    },
+
+    promo: function (id) {
+      var pr = byId(allPromos(), id);
+      if (!pr) return views.notfound();
+      var s = seller(pr.seller), se = season(pr.season), st = promoStatus(pr);
+      listing({ title: esc(pr.title), crumbs: [['Promotions', '#/promotions'], [pr.title]], list: pr.products.map(product).filter(Boolean), docTitle: pr.title,
+        extra: '<div class="store-hero' + (pr.image && !root.classList.contains('data-saver') ? ' promo--img' : '') + '" style="--brand-a:' + se.colours[0] + ';--brand-b:' + se.colours[1] + (pr.image ? ';--promo-img:url(\'' + esc(pr.image) + '\')' : '') + '"><p class="promo__off">' + pr.discount + '% off</p><p>' + esc(se.name) + (s ? ' · by <a class="on-dark" href="#/store/' + s.id + '">' + esc(s.name) + '</a>' : '') + '</p><p>' +
+          (st === 'live' ? 'Live now until ' + niceDate(pr.ends) : st === 'upcoming' ? 'Starts ' + niceDate(pr.starts) + '. Prices drop automatically when it begins.' : 'This promotion has ended.') + '</p>' + (pr.about ? '<p>' + esc(pr.about) + '</p>' : '') + '</div>' });
+    },
+
+    brands: function () {
+      show(crumbs([['Brand stores']]) + head('Brand stores', 'Shop by brand.') + '<ul class="brands">' + D.brands.map(brandCard).join('') + '</ul>' +
+        '<p class="view-foot">Own a brand? <a href="#/sell">Open a brand store on Zed Supply</a>.</p>', 'Brand stores');
+    },
+
+    brand: function (id) {
+      var b = brand(id);
+      if (!b) return views.notfound();
+      listing({ title: esc(b.name), crumbs: [['Brand stores', '#/brands'], [b.name]], list: products.filter(function (p) { return p.brand === id; }), docTitle: b.name,
+        extra: '<div class="store-hero" style="--brand-a:' + b.colours[0] + ';--brand-b:' + b.colours[1] + '"><p>' + esc(b.tagline) + '</p></div>' });
+    },
+
+    store: function (id) {
+      var s = seller(id);
+      if (!s) return views.notfound();
+      var promos = sortPromos(allPromos().filter(function (pr) { return pr.seller === id && promoStatus(pr) !== 'ended'; }));
+      listing({ title: esc(s.name), crumbs: [['Stores'], [s.name]], list: products.filter(function (p) { return p.seller === id; }), docTitle: s.name,
+        extra: '<div class="store-hero" style="--brand-a:' + s.colours[0] + ';--brand-b:' + s.colours[1] + '"><p>' + esc(s.city) + verifiedHTML(s) + '</p><p>' + esc(s.about) + '</p></div>' +
+          (promos.length ? '<h2>Promotions</h2><ul class="promos promos--gap">' + promos.map(promoCard).join('') + '</ul>' : '') });
+    },
+
+    world: function () {
+      if (!china) {
+        show(crumbs([['Shop the World']]) +
+          '<div class="band band--world band--big"><span class="eyebrow eyebrow--light">Shop the World</span><h1>Coming soon: shop from China and beyond</h1>' +
+          '<p>We\'re putting supplier agreements in place first. When Shop the World opens, you\'ll be able to order from overseas marketplaces through Zed Supply as your local agent.</p>' +
+          ticks(['The full landed cost in Kwacha shown upfront, including shipping and clearance', 'An estimated delivery time on every product', 'One local contact in Lusaka for your order']) +
+          '<a class="btn btn--light" href="#" data-wa-message="Hi Zed Supply, please let me know when Shop the World opens." target="_blank" rel="noopener">Tell me when it opens</a></div>' +
+          '<p class="view-foot">Until then, <a href="#request">send us a request</a> and we\'ll source it locally.</p>', 'Shop the World');
+        return;
+      }
+      var intl = D.products.filter(function (p) { return p.source === 'china'; });
+      show(crumbs([['Shop the World']]) + head('Shop the World', 'Products from China, with the estimated landed cost in Kwacha. Exchange rate: 1 CNY = K' + S.exchangeRate.toFixed(2) + ' (updated ' + esc(S.rateUpdated) + ').') +
+        '<ul class="grid">' + cards(intl) + '</ul>' +
+        '<section class="section"><h2>Landed cost calculator</h2><form class="form form--card form--narrow" id="calc">' +
+          '<div class="field"><label for="c-cny">Item price in Chinese Yuan (CNY)</label><input id="c-cny" type="number" min="0" step="0.01" value="100" inputmode="decimal"></div>' +
+          '<div class="field-row"><div class="field"><label for="c-kg">Weight per item (kg)</label><input id="c-kg" type="number" min="0" step="0.1" value="1" inputmode="decimal"></div><div class="field"><label for="c-qty">Quantity</label><input id="c-qty" type="number" min="1" value="1" inputmode="numeric"></div></div>' +
+          '<dl class="totals" id="c-out" aria-live="polite"></dl><p class="hint">Estimate. Final price confirmed on WhatsApp before you pay.</p></form></section>', 'Shop the World');
+      var calc = function () {
+        var c = chinaCost(parseFloat($('#c-cny').value) || 0, parseFloat($('#c-kg').value) || 0, Math.max(1, parseInt($('#c-qty').value, 10) || 1));
+        $('#c-out').innerHTML = [['Item', c.item], ['Shipping', c.shipping], ['Clearance & duties', c.clearance], ['Service fee', c.fee]].map(function (r) { return '<div><dt>' + r[0] + '</dt><dd>' + kwacha(r[1]) + '</dd></div>'; }).join('') + '<div class="is-total"><dt>Estimated total</dt><dd>' + kwacha(c.total) + '</dd></div>';
+      };
+      $('#calc').addEventListener('input', calc); calc();
+    },
+
+    notfound: function () {
+      show(head('We couldn\'t find that') + empty('It may have moved or no longer exist.', '<a class="btn btn--primary" href="#">Back to the store</a>'), 'Not found');
     }
+  };
+
+  // "Saved for later" items in the cart: adding one to the cart removes it from the saved list
+  function bindSaved() {
+    view.onclick = function (e) {
+      var rm = e.target.closest('[data-remove]'), sv = e.target.closest('[data-save]'), ad = e.target.closest('[data-add]');
+      if (rm || sv) {
+        var id = (rm || sv).getAttribute(rm ? 'data-remove' : 'data-save');
+        setCart(cart().filter(function (l) { return l.id !== id; }));
+        if (sv) { var s2 = store.get('saved', []); if (s2.indexOf(id) === -1) s2.push(id); store.set('saved', s2); toast('Saved for later'); }
+        views.cart();
+      }
+      if (e.target.closest('#clear-cart')) { setCart([]); views.cart(); }
+      if (ad) {
+        var aid = ad.getAttribute('data-add');
+        if (store.get('saved', []).indexOf(aid) !== -1) {
+          store.set('saved', store.get('saved', []).filter(function (x) { return x !== aid; }));
+          setTimeout(views.cart, 0);
+        }
+      }
+    };
   }
+
+  function route() {
+    view.onclick = null;
+    var h = location.hash;
+    if (h.indexOf('#/') !== 0 || h === '#/') {
+      view.hidden = true; view.innerHTML = '';
+      home.hidden = false;
+      document.title = homeTitle;
+      $$('.subnav a[aria-current]').forEach(function (a) { a.removeAttribute('aria-current'); });
+      renderHome();
+      if (h.length > 1 && h !== '#/') { var t = document.getElementById(h.slice(1)); if (t) t.scrollIntoView(); }
+      return;
+    }
+    var parts = h.slice(2).split('?'), path = parts[0].split('/');
+    var q = new URLSearchParams(parts[1] || '');
+    (views[path[0]] || views.notfound)(decodeURIComponent(path[1] || ''), q);
+  }
+
+  // Support index.html?q=term (from other pages and search engines)
+  var params = new URLSearchParams(location.search);
+  if (params.has('q') && location.hash.indexOf('#/') !== 0) {
+    var target = '#/search?q=' + encodeURIComponent(params.get('q') || '') + (params.get('dept') ? '&dept=' + encodeURIComponent(params.get('dept')) : '');
+    try { history.replaceState(null, '', location.pathname + target); } catch (e) { location.hash = target; }
+  }
+  window.addEventListener('hashchange', route);
+  route();
 })();

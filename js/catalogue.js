@@ -40,11 +40,20 @@ window.ZS_CATALOGUE = {
     whatsapp: '260979050042'
   },
 
-  // Extra messages for the deals banner at the top of every page.
-  // Live promotions are added to the banner automatically.
-  ticker: [
-    { text: "Can't find it? We'll source it for you.", link: 'index.html#request', cta: 'Ask now' },
-    { text: 'Sell on Zed Supply and run your own promotions.', link: 'index.html#/sell', cta: 'Register' }
+  /* Homepage advertising banner (carousel). Slides appear in this order, followed by
+     every live seller promotion (sellers can upload a banner image in the Seller Centre).
+
+     Two kinds of slide:
+     - Image advert: set image (desktop, 1600×500) and imageMobile (phones, 800×640),
+       plus alt text describing the advert. Leave title empty: the artwork carries the words.
+       Put files in assets/banners/ as JPEG, under 150KB each.
+     - Designed slide: leave image empty and fill in title, text, cta and colours.
+       art is a big emoji shown on the right.
+     link: where the slide goes, e.g. '#/promo/P2', '#/dept/solar', '#/sell' */
+  banners: [
+    { id: 'welcome', label: "Zambia's marketplace", title: 'Everything Within Reach', text: 'Shop products from Zambian sellers in one place, priced in Kwacha, with checkout on WhatsApp.', cta: "Shop today's deals", link: '#/deals', colours: ['#0A2A66', '#0057AE'], art: 'logo' },
+    { id: 'sample-ad', sample: true, image: 'assets/banners/sample-ad-wide.jpg', imageMobile: 'assets/banners/sample-ad-mobile.jpg', alt: 'Sample advert: your banner here. Replace with real advertising artwork.', link: '#/sell' },
+    { id: 'world', label: 'Coming soon', title: 'Shop the World', text: 'Order from China and beyond, with the full landed cost in Kwacha. Opening once supplier agreements are in place.', cta: 'Find out more', link: '#/world', colours: ['#071D47', '#0E7C86'], art: '🌍' }
   ],
 
   // Departments. Link to one with index.html#/dept/<id>
@@ -120,7 +129,8 @@ window.ZS_CATALOGUE = {
     { id: 'C002', sample: true, source: 'china', title: '100W foldable solar panel kit', category: 'solar', seller: '', brand: '', priceCNY: 260, weightKg: 3.5, shipping: '[__] days air cargo', url: '', image: '', alt: 'Foldable solar panel opened flat', reviews: [] }
   ],
 
-  /* Promotions run by sellers [SAMPLE]. Sellers can also create their own in the
+  /* Promotions run by sellers [SAMPLE]. Optional image: a 1600×500 banner shown in the
+     homepage carousel while the promotion is live. Sellers can also create their own in the
      Seller Centre demo; those are saved in that browser only until Phase 2. */
   promotions: [
     { id: 'P1', sample: true, seller: 'store-a', title: 'Grand opening specials', season: 'own', discount: 10, starts: '2026-10-20', ends: '2026-11-30', products: ['L001', 'L005', 'L009'], about: '[SAMPLE] Opening offers across office and home.' },

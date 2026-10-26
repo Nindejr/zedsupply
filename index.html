@@ -3,23 +3,23 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <script>document.documentElement.className = 'js'; try { if (localStorage.getItem('zs-banner') === 'hidden') document.documentElement.className += ' banner-off'; } catch (e) {}</script>
-  <title>Zed Supply | Everything Within Reach | Lusaka, Zambia</title>
-  <meta name="description" content="Zed Supply helps Zambian households, professionals and businesses find everyday products, electronics and office supplies. Request a quote on WhatsApp.">
+  <script>document.documentElement.className = 'js'; try { if (localStorage.getItem('zs-datasaver') === 'true') document.documentElement.className += ' data-saver'; } catch (e) {}</script>
+  <title>Zed Supply | Online Shopping in Zambia, Priced in Kwacha</title>
+  <meta name="description" content="Shop electronics, solar, fashion, home, office and business supplies from Zambian sellers. Prices in Kwacha, seller promotions and WhatsApp checkout.">
   <link rel="canonical" href="https://SITE_URL/">
   <meta name="theme-color" content="#0A2A66">
 
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="Zed Supply">
   <meta property="og:title" content="Zed Supply | Everything Within Reach">
-  <meta property="og:description" content="Zed Supply helps Zambian households, professionals and businesses find everyday products, electronics and office supplies. Request a quote on WhatsApp.">
+  <meta property="og:description" content="Shop electronics, solar, fashion, home, office and business supplies from Zambian sellers. Prices in Kwacha, seller promotions and WhatsApp checkout.">
   <meta property="og:image" content="https://SITE_URL/assets/og-image.jpg">
   <meta property="og:image:alt" content="Zed Supply logo with the tagline Everything Within Reach">
   <meta property="og:url" content="https://SITE_URL/">
   <meta property="og:locale" content="en_ZM">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="Zed Supply | Everything Within Reach">
-  <meta name="twitter:description" content="Zed Supply helps Zambian households, professionals and businesses find everyday products, electronics and office supplies. Request a quote on WhatsApp.">
+  <meta name="twitter:description" content="Shop electronics, solar, fashion, home, office and business supplies from Zambian sellers. Prices in Kwacha, seller promotions and WhatsApp checkout.">
   <meta name="twitter:image" content="https://SITE_URL/assets/og-image.jpg">
   <meta name="twitter:image:alt" content="Zed Supply logo with the tagline Everything Within Reach">
 
@@ -29,306 +29,458 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Exo+2:wght@600;700&family=Inter:wght@400;500;600;700&display=swap">
   <link rel="stylesheet" href="css/style.css">
+  <script src="js/catalogue.js" defer></script>
   <script src="js/main.js" defer></script>
 
   <script type="application/ld+json">
-  {
+  [{
     "@context": "https://schema.org",
     "@type": "LocalBusiness",
     "@id": "https://SITE_URL/#business",
     "name": "Zed Supply",
     "slogan": "Everything Within Reach",
-    "description": "A Zambia-based e-commerce business building an online marketplace for everyday products, electronics, home and lifestyle goods, and office and business supplies.",
+    "description": "A Zambia-based online marketplace for electronics, solar, fashion, home, office and business supplies from local sellers.",
     "url": "https://SITE_URL/",
     "logo": "https://SITE_URL/assets/logo-header.png",
     "image": "https://SITE_URL/assets/og-image.jpg",
     "telephone": "+260979050042",
     "email": "expresszambezi@gmail.com",
-    "address": {
-      "@type": "PostalAddress",
-      "streetAddress": "[STREET ADDRESS]",
-      "addressLocality": "Lusaka",
-      "addressCountry": "ZM"
-    },
-    "geo": {
-      "@type": "GeoCoordinates",
-      "latitude": "[LATITUDE e.g. -15.4167]",
-      "longitude": "[LONGITUDE e.g. 28.2833]"
-    },
+    "address": { "@type": "PostalAddress", "streetAddress": "[STREET ADDRESS]", "addressLocality": "Lusaka", "addressCountry": "ZM" },
+    "geo": { "@type": "GeoCoordinates", "latitude": "[LATITUDE e.g. -15.4167]", "longitude": "[LONGITUDE e.g. 28.2833]" },
     "openingHours": "[OPENING HOURS e.g. Mo-Fr 08:00-17:00]",
     "priceRange": "[PRICE RANGE e.g. K50 - K50,000]"
-  }
+  }, {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    "name": "Zed Supply",
+    "url": "https://SITE_URL/",
+    "potentialAction": { "@type": "SearchAction", "target": "https://SITE_URL/?q={search_term_string}", "query-input": "required name=search_term_string" }
+  }]
   </script>
 </head>
 <body>
   <a class="skip-link" href="#main">Skip to content</a>
-  <div class="site-banner" id="site-banner" role="region" aria-label="Announcement">
-    <div class="container site-banner__inner">
-      <p>We source from local suppliers. <a href="https://wa.me/260979050042?text=Hi%2C%20I%27d%20like%20a%20quote" target="_blank" rel="noopener">Get a quote on WhatsApp</a></p>
-      <button class="site-banner__close" type="button" aria-label="Dismiss announcement">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>
-      </button>
-    </div>
-  </div>
 
   <header class="site-header">
-    <div class="container site-header__inner">
-      <a class="site-logo" href="index.html">
-        <picture>
-          <source srcset="assets/logo-header-dark.png" media="(prefers-color-scheme: dark)">
-          <img src="assets/logo-header.png" alt="Zed Supply home" width="379" height="96">
-        </picture>
-      </a>
-      <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="site-nav" aria-label="Open menu">
-        <svg class="icon-open" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
-        <svg class="icon-close" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>
+    <div class="container header-main">
+      <button class="icon-btn menu-btn" type="button" data-open-drawer aria-haspopup="dialog" aria-controls="drawer" aria-label="Open categories menu">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
       </button>
-      <nav class="site-nav" id="site-nav" aria-label="Main">
-        <ul>
-          <li><a href="index.html" aria-current="page">Home</a></li>
-          <li><a href="shop.html">Shop</a></li>
-          <li><a href="about.html">About</a></li>
-          <li><a href="services.html">Services</a></li>
-          <li><a href="contact.html">Contact</a></li>
-          <li><a class="btn btn--primary" href="contact.html#quote">Get a quote</a></li>
-        </ul>
+      <a class="site-logo" href="index.html"><img src="assets/logo-header-dark.png" alt="Zed Supply home" width="379" height="96"></a>
+
+      <form class="search" action="index.html" method="get" role="search">
+        <label class="visually-hidden" for="q">Search Zed Supply</label>
+        <select class="search__dept" name="dept" aria-label="Search in category">
+          <option value="">All</option>
+          <option value="tech">Phones &amp; Tech</option>
+          <option value="solar">Solar &amp; Power</option>
+          <option value="fashion">Fashion &amp; Beauty</option>
+          <option value="home">Home &amp; Kitchen</option>
+          <option value="business">Business Equipment</option>
+          <option value="office">Office &amp; School</option>
+          <option value="agri">Agriculture</option>
+          <option value="auto">Auto</option>
+          <option value="hardware">Tools &amp; Hardware</option>
+          <option value="baby">Baby &amp; Kids</option>
+          <option value="health">Health &amp; Fitness</option>
+          <option value="essentials">Everyday Essentials</option>
+        </select>
+        <input id="q" name="q" type="search" placeholder="Search products, brands and stores" list="search-suggest" autocomplete="off" enterkeyhint="search">
+        <datalist id="search-suggest"></datalist>
+        <button type="submit" aria-label="Search">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        </button>
+      </form>
+
+      <nav class="header-actions" aria-label="Your account">
+        <a class="hact" href="index.html#/account">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>
+          <span class="hact__label"><small data-greet>Hello, sign in</small>My Account</span>
+          <span class="visually-hidden">My Account</span>
+        </a>
+        <a class="hact hact--orders" href="index.html#/orders"><span><small>Returns</small>&amp; Orders</span></a>
+        <a class="hact" href="index.html#/wishlist" data-label="Wishlist" aria-label="Wishlist">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-7.5-4.6-9.5-9.3C1.2 8.6 3.3 5 6.8 5c2 0 3.4 1.1 4.2 2.4h2C13.8 6.1 15.2 5 17.2 5c3.5 0 5.6 3.6 4.3 6.7C19.5 16.4 12 21 12 21Z"/></svg>
+          <span class="count" data-count="wish" data-zero>0</span>
+        </a>
+        <a class="hact" href="index.html#/cart" data-label="Cart" aria-label="Cart">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="20" r="1.5"/><circle cx="18" cy="20" r="1.5"/><path d="M2 3h3l2.6 11.2a2 2 0 0 0 2 1.6h7.9a2 2 0 0 0 2-1.5L22 7H6"/></svg>
+          <span class="count" data-count="cart" data-zero>0</span>
+          <span class="hact__label" aria-hidden="true">Cart</span>
+        </a>
       </nav>
     </div>
   </header>
 
+  <nav class="subnav" aria-label="Shop">
+    <div class="container">
+      <ul>
+        <li><button class="subnav__all" type="button" data-open-drawer aria-haspopup="dialog" aria-controls="drawer"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><path d="M3 6h18M3 12h18M3 18h18"/></svg>All categories</button></li>
+        <li><button type="button" data-open-location aria-haspopup="dialog" aria-controls="location-dialog"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg><span data-location-label>Deliver to: set location</span></button></li>
+        <li><a href="index.html#/deals">Today's deals</a></li>
+        <li><a href="index.html#/promotions">Promotions</a></li>
+        <li><a href="index.html#/brands">Brand stores</a></li>
+        <li><a href="index.html#/world">Shop the World <span class="pill">Soon</span></a></li>
+        <li><a href="index.html#/sell">Sell on Zed Supply</a></li>
+        <li><a href="index.html#/track">Track order</a></li>
+        <li><a href="help.html">Help</a></li>
+      </ul>
+    </div>
+  </nav>
+
+  <dialog class="drawer" id="drawer" aria-labelledby="drawer-title">
+    <div class="drawer__head">
+      <p id="drawer-title">Shop by category</p>
+      <button class="icon-btn" type="button" data-close-dialog aria-label="Close menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+    </div>
+    <div class="drawer__body">
+      <ul>
+        <li><a href="index.html#/dept/tech"><span class="emoji" aria-hidden="true">📱</span>Phones, Tech &amp; Smart Gadgets</a></li>
+        <li><a href="index.html#/dept/solar"><span class="emoji" aria-hidden="true">☀️</span>Solar, Power &amp; Energy</a></li>
+        <li><a href="index.html#/dept/fashion"><span class="emoji" aria-hidden="true">👗</span>Fashion, Beauty &amp; Hair</a></li>
+        <li><a href="index.html#/dept/home"><span class="emoji" aria-hidden="true">🍳</span>Home, Kitchen &amp; Appliances</a></li>
+        <li><a href="index.html#/dept/business"><span class="emoji" aria-hidden="true">🏭</span>Small Business &amp; Manufacturing</a></li>
+        <li><a href="index.html#/dept/office"><span class="emoji" aria-hidden="true">📎</span>Office, School &amp; Stationery</a></li>
+        <li><a href="index.html#/dept/agri"><span class="emoji" aria-hidden="true">🌾</span>Agriculture &amp; Farming</a></li>
+        <li><a href="index.html#/dept/auto"><span class="emoji" aria-hidden="true">🚗</span>Auto Parts &amp; Accessories</a></li>
+        <li><a href="index.html#/dept/hardware"><span class="emoji" aria-hidden="true">🔧</span>Building, Tools &amp; Hardware</a></li>
+        <li><a href="index.html#/dept/baby"><span class="emoji" aria-hidden="true">🧸</span>Baby, Kids &amp; Toys</a></li>
+        <li><a href="index.html#/dept/health"><span class="emoji" aria-hidden="true">💪</span>Health, Fitness &amp; Personal Care</a></li>
+        <li><a href="index.html#/dept/essentials"><span class="emoji" aria-hidden="true">🧺</span>Everyday Essentials</a></li>
+      </ul>
+      <hr>
+      <h2>Shop</h2>
+      <ul>
+        <li><a href="index.html#/deals">Today's deals</a></li>
+        <li><a href="index.html#/promotions">Seller promotions</a></li>
+        <li><a href="index.html#/brands">Brand stores</a></li>
+        <li><a href="index.html#/world">Shop the World (coming soon)</a></li>
+      </ul>
+      <hr>
+      <h2>Your account</h2>
+      <ul>
+        <li><a href="index.html#/account">My Account</a></li>
+        <li><a href="index.html#/orders">Orders &amp; tracking</a></li>
+        <li><a href="index.html#/wishlist">Wishlist</a></li>
+        <li><a href="index.html#/sell">Sell on Zed Supply</a></li>
+        <li><a href="index.html#/seller">Seller Centre</a></li>
+        <li><a href="help.html">Help centre</a></li>
+      </ul>
+      <hr>
+      <div class="switch">
+        <label for="data-saver">Data saver<small>Hide product photos to use less mobile data</small></label>
+        <input id="data-saver" type="checkbox" data-saver-toggle>
+      </div>
+    </div>
+  </dialog>
+
+  <dialog class="drawer" id="location-dialog" aria-labelledby="location-title">
+    <div class="drawer__head">
+      <p id="location-title">Where should we deliver?</p>
+      <button class="icon-btn" type="button" data-close-dialog aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+    </div>
+    <form class="form drawer__body drawer__form" id="location-form">
+      <p class="hint">We add your delivery location to your WhatsApp order, so we can confirm delivery to your area and the delivery fee before you pay.</p>
+      <div class="field">
+        <label for="loc-town">Town or city *</label>
+        <input id="loc-town" name="town" type="text" list="zm-towns" autocomplete="address-level2" maxlength="60" required placeholder="e.g. Lusaka">
+        <datalist id="zm-towns">
+          <option value="Lusaka"></option><option value="Kitwe"></option><option value="Ndola"></option><option value="Kabwe"></option>
+          <option value="Chingola"></option><option value="Mufulira"></option><option value="Luanshya"></option><option value="Livingstone"></option>
+          <option value="Kasama"></option><option value="Chipata"></option><option value="Solwezi"></option><option value="Mansa"></option>
+          <option value="Mongu"></option><option value="Choma"></option><option value="Kafue"></option><option value="Chongwe"></option>
+          <option value="Chilanga"></option><option value="Mazabuka"></option><option value="Kalulushi"></option><option value="Chililabombwe"></option>
+        </datalist>
+      </div>
+      <div class="field">
+        <label for="loc-area">Area or neighbourhood</label>
+        <input id="loc-area" name="area" type="text" autocomplete="address-level3" maxlength="60" placeholder="e.g. Kabulonga">
+      </div>
+      <div class="field">
+        <label for="loc-landmark">Street, plot or nearby landmark (optional)</label>
+        <input id="loc-landmark" name="landmark" type="text" autocomplete="address-line1" maxlength="100" aria-describedby="loc-landmark-hint">
+        <p class="hint" id="loc-landmark-hint">For example "Plot 12, near the filling station". Please don't share GPS coordinates.</p>
+      </div>
+      <div class="check">
+        <input id="loc-remember" name="remember" type="checkbox" aria-describedby="loc-remember-hint">
+        <label for="loc-remember">Remember on this device</label>
+      </div>
+      <p class="hint" id="loc-remember-hint">If you leave this unticked, we keep your location only until you close this browser tab. It's never sent to us except in WhatsApp messages you choose to send.</p>
+      <div class="btn-row">
+        <button class="btn btn--primary" type="submit">Save location</button>
+        <button class="btn btn--secondary" type="button" id="loc-clear">Clear</button>
+      </div>
+    </form>
+  </dialog>
+  <!-- /site-header -->
+
   <main id="main">
-    <!-- Hero -->
-    <section class="hero" aria-labelledby="hero-title">
-      <div class="container hero__inner">
-        <div>
-          <h1 id="hero-title">Everything Within Reach</h1>
-          <p class="hero__lead">Tell us what you need, from household essentials to office supplies, and we'll connect you to the right product or supplier with one quote.</p>
-          <div class="btn-row">
-            <a class="btn btn--primary" href="contact.html#quote">Get a quote</a>
-            <a class="btn btn--secondary btn--on-dark" href="https://wa.me/260979050042?text=Hi%2C%20I%27d%20like%20a%20quote" target="_blank" rel="noopener">
-              <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M17.47 14.38c-.3-.15-1.76-.87-2.03-.97-.27-.1-.47-.15-.67.15-.2.3-.77.97-.94 1.16-.17.2-.35.22-.64.08-.3-.15-1.26-.46-2.39-1.48-.88-.79-1.48-1.76-1.65-2.06-.17-.3-.02-.46.13-.6.13-.14.3-.35.45-.52.15-.18.2-.3.3-.5.1-.2.05-.37-.03-.52-.07-.15-.67-1.61-.92-2.21-.24-.58-.49-.5-.67-.51h-.57c-.2 0-.52.07-.79.37-.27.3-1.04 1.02-1.04 2.48s1.07 2.88 1.21 3.07c.15.2 2.1 3.2 5.08 4.49.71.31 1.26.49 1.7.63.71.22 1.36.19 1.87.12.57-.09 1.76-.72 2-1.41.25-.7.25-1.29.18-1.41-.08-.13-.28-.2-.57-.35m-5.42 7.4h-.01a9.87 9.87 0 0 1-5.03-1.38l-.36-.21-3.74.98 1-3.65-.24-.37a9.86 9.86 0 0 1-1.51-5.26c0-5.45 4.44-9.88 9.89-9.88 2.64 0 5.12 1.03 6.99 2.9a9.83 9.83 0 0 1 2.89 6.99c0 5.45-4.44 9.88-9.88 9.88m8.41-18.3A11.82 11.82 0 0 0 12.05 0C5.5 0 .16 5.34.16 11.89c0 2.1.55 4.14 1.59 5.95L.06 24l6.3-1.65a11.88 11.88 0 0 0 5.68 1.45h.01c6.55 0 11.89-5.34 11.89-11.89a11.82 11.82 0 0 0-3.48-8.41Z"/></svg>
-              WhatsApp us
-            </a>
+    <div id="home">
+      <!-- Hero -->
+      <section class="hero" aria-labelledby="hero-title">
+        <h1 id="hero-title" class="visually-hidden">Zed Supply: Everything Within Reach</h1>
+        <div class="container">
+          <!-- Advertising banner. Slides come from "banners" and live promotions in js/catalogue.js.
+               The slide below is what shows if JavaScript is off. -->
+          <div class="ads" id="ads" aria-roledescription="carousel" aria-label="Featured deals and adverts">
+            <div class="ads__slides" id="ads-slides">
+              <div class="ad ad--designed" role="group" aria-roledescription="slide" aria-label="1 of 1" style="--ad-a:#0A2A66;--ad-b:#0057AE">
+                <div class="ad__body">
+                  <span class="ad__label">Zambia's marketplace</span>
+                  <p class="ad__title">Everything Within Reach</p>
+                  <p class="ad__text">Shop products from Zambian sellers in one place, priced in Kwacha, with checkout on WhatsApp.</p>
+                  <a class="btn btn--primary" href="index.html#/deals">Shop today's deals</a>
+                </div>
+                <img class="ad__logo" src="assets/logo-mark.png" alt="" width="320" height="170">
+              </div>
+            </div>
+            <button class="ads__arrow ads__arrow--prev" type="button" aria-label="Previous slide" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg></button>
+            <button class="ads__arrow ads__arrow--next" type="button" aria-label="Next slide" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></button>
+            <div class="ads__bar" hidden>
+              <div class="ads__dots" id="ads-dots"></div>
+              <button class="ads__pause" type="button" aria-pressed="false" aria-label="Pause slideshow">
+                <svg class="i-pause" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 5h3v14H7zM14 5h3v14h-3z"/></svg>
+                <svg class="i-play" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
+              </button>
+            </div>
           </div>
         </div>
-        <picture>
-          <source srcset="assets/logo-mark.png" media="(min-width: 900px)">
-          <img class="hero__mark" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==" alt="" width="320" height="170">
-        </picture>
-      </div>
-    </section>
-
-    <!-- Trust strip -->
-    <section class="trust" aria-labelledby="trust-title">
-      <div class="container">
-        <h2 id="trust-title" class="visually-hidden">About Zed Supply at a glance</h2>
-        <ul class="trust__list">
-          <li class="trust__item">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
-            Based in Lusaka, Zambia
-          </li>
-          <li class="trust__item">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 11.5a8.4 8.4 0 0 1-12.4 7.4L3 21l2.1-5.6A8.5 8.5 0 1 1 21 11.5Z"/></svg>
-            Quotes on WhatsApp
-          </li>
-          <li class="trust__item">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="M22 4 12 14.01l-3-3"/></svg>
-            <span>Company reg. <span class="placeholder">[REG NUMBER]</span></span>
-          </li>
-          <!-- Replace each of these with a real client or partner logo:
-               <li class="trust__item trust__item--logo"><img src="assets/clients/name.png" alt="Client name logo" width="120" height="40" loading="lazy"></li> -->
-          <li class="trust__item trust__item--logo"><span class="placeholder">[CLIENT/PARTNER LOGO 1]</span></li>
-          <li class="trust__item trust__item--logo"><span class="placeholder">[CLIENT/PARTNER LOGO 2]</span></li>
-        </ul>
-      </div>
-    </section>
-
-    <!-- The problem we solve -->
-    <section class="section" aria-labelledby="problem-title">
-      <div class="container split">
-        <div>
-          <span class="eyebrow">The problem we solve</span>
-          <h2 id="problem-title">Buying shouldn't mean searching everywhere</h2>
-          <p>Buying often means checking multiple sellers, comparing prices manually and arranging fulfilment separately. Buyers may have to search different shops, social-media pages and suppliers before making a purchase.</p>
-          <p>For organisations, sourcing routine supplies can involve the same repeated search. Zed Supply is built to bring discovery, choice and ordering into one marketplace.</p>
+        <div class="container hero-tiles">
+          <a class="tile tile--browse" href="#departments">
+            <h2>Shop by category</h2>
+            <p>Phones, solar, fashion, home, office, farming and more.</p>
+            <span class="btn btn--light btn--sm">Browse categories</span>
+          </a>
+          <a class="tile tile--sell" href="index.html#/sell">
+            <h2>Sell on Zed Supply</h2>
+            <p>Open your store, list products and run your own promotions.</p>
+            <span class="btn btn--light btn--sm">Register as a seller</span>
+          </a>
+          <a class="tile tile--request" href="#request">
+            <h2>Can't find it? We'll source it.</h2>
+            <p>Tell us what you need and we'll find it from local suppliers.</p>
+            <span class="btn btn--light btn--sm">Make a request</span>
+          </a>
         </div>
-        <div class="compare">
-          <div class="compare__card">
-            <h3>The usual way</h3>
-            <ul>
-              <li>Contact several shops, pages and suppliers</li>
-              <li>Compare prices by hand</li>
-              <li>Arrange fulfilment separately</li>
-            </ul>
+      </section>
+
+      <!-- Value strip -->
+      <section class="section--tight" aria-labelledby="values-title">
+        <div class="container">
+          <h2 id="values-title" class="visually-hidden">Why shop with Zed Supply</h2>
+          <ul class="values">
+            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>Every price in Kwacha</li>
+            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 11.5a8.4 8.4 0 0 1-12.4 7.4L3 21l2.1-5.6A8.5 8.5 0 1 1 21 11.5Z"/></svg>Checkout and confirmation on WhatsApp</li>
+            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/><path d="m9 12 2 2 4-4"/></svg>Final price confirmed before you pay</li>
+            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>Based in Lusaka, Zambia</li>
+          </ul>
+        </div>
+      </section>
+
+      <!-- Departments -->
+      <section class="section" id="departments" aria-labelledby="dept-title">
+        <div class="container">
+          <div class="section-head"><h2 id="dept-title">Shop by category</h2><a href="index.html#/departments">See all</a></div>
+          <ul class="depts">
+            <li><a class="dept" href="index.html#/dept/tech"><span class="dept__icon" aria-hidden="true">📱</span>Phones &amp; Tech</a></li>
+            <li><a class="dept" href="index.html#/dept/solar"><span class="dept__icon" aria-hidden="true">☀️</span>Solar &amp; Power</a></li>
+            <li><a class="dept" href="index.html#/dept/fashion"><span class="dept__icon" aria-hidden="true">👗</span>Fashion &amp; Beauty</a></li>
+            <li><a class="dept" href="index.html#/dept/home"><span class="dept__icon" aria-hidden="true">🍳</span>Home &amp; Kitchen</a></li>
+            <li><a class="dept" href="index.html#/dept/business"><span class="dept__icon" aria-hidden="true">🏭</span>Business Equipment</a></li>
+            <li><a class="dept" href="index.html#/dept/office"><span class="dept__icon" aria-hidden="true">📎</span>Office &amp; School</a></li>
+            <li><a class="dept" href="index.html#/dept/agri"><span class="dept__icon" aria-hidden="true">🌾</span>Agriculture</a></li>
+            <li><a class="dept" href="index.html#/dept/auto"><span class="dept__icon" aria-hidden="true">🚗</span>Auto</a></li>
+            <li><a class="dept" href="index.html#/dept/hardware"><span class="dept__icon" aria-hidden="true">🔧</span>Tools &amp; Hardware</a></li>
+            <li><a class="dept" href="index.html#/dept/baby"><span class="dept__icon" aria-hidden="true">🧸</span>Baby &amp; Kids</a></li>
+            <li><a class="dept" href="index.html#/dept/health"><span class="dept__icon" aria-hidden="true">💪</span>Health &amp; Fitness</a></li>
+            <li><a class="dept" href="index.html#/dept/essentials"><span class="dept__icon" aria-hidden="true">🧺</span>Everyday Essentials</a></li>
+          </ul>
+        </div>
+      </section>
+
+      <!-- Today's deals -->
+      <section class="section section--alt" aria-labelledby="deals-title">
+        <div class="container">
+          <div class="section-head"><h2 id="deals-title">Today's deals</h2><a href="index.html#/deals">See all deals</a></div>
+          <p class="notice" data-sample-note>[SAMPLE] Products, prices, sellers and reviews on this site are examples while the marketplace is being set up.</p>
+          <ul class="row" id="home-deals"><li><noscript><p>Turn on JavaScript to see deals, or <a href="https://wa.me/260979050042?text=Hi%2C%20I%27d%20like%20a%20quote">ask us on WhatsApp</a>.</p></noscript></li></ul>
+        </div>
+      </section>
+
+      <!-- Seller promotions -->
+      <section class="section" aria-labelledby="promos-title">
+        <div class="container">
+          <div class="section-head"><h2 id="promos-title">Promotions from our sellers</h2><a href="index.html#/promotions">All promotions</a></div>
+          <p class="section-intro">Seasonal and store promotions, set up by Zed Supply sellers in their own Seller Centre.</p>
+          <ul class="promos" id="home-promos"></ul>
+        </div>
+      </section>
+
+      <!-- Featured products -->
+      <section class="section section--alt" aria-labelledby="featured-title">
+        <div class="container">
+          <div class="section-head"><h2 id="featured-title">Featured products</h2><a href="index.html#/search?q=">Browse all</a></div>
+          <ul class="grid" id="home-featured"></ul>
+        </div>
+      </section>
+
+      <!-- Recently viewed (shown once a customer has viewed products) -->
+      <section class="section" aria-labelledby="recent-title" id="home-recent-wrap" hidden>
+        <div class="container">
+          <div class="section-head"><h2 id="recent-title">Recently viewed</h2></div>
+          <ul class="row" id="home-recent"></ul>
+        </div>
+      </section>
+
+      <!-- Brand stores -->
+      <section class="section" aria-labelledby="brands-title">
+        <div class="container">
+          <div class="section-head"><h2 id="brands-title">Brand stores</h2><a href="index.html#/brands">All brands</a></div>
+          <ul class="brands" id="home-brands"></ul>
+        </div>
+      </section>
+
+      <!-- Shop the World + Business -->
+      <section class="section section--alt" aria-label="More ways to shop">
+        <div class="container duo">
+          <div class="band band--world">
+            <span class="eyebrow eyebrow--light">Shop the World</span>
+            <h2>Coming soon: shop from China and beyond</h2>
+            <p>We're putting supplier agreements in place so you can order from overseas marketplaces, with the full landed cost in Kwacha shown upfront.</p>
+            <a class="btn btn--light" href="index.html#/world">Find out more</a>
           </div>
-          <div class="compare__card compare__card--after">
-            <h3>With Zed Supply</h3>
-            <ul>
-              <li>One place to search, compare and order</li>
-              <li>Household, consumer and business purchases together</li>
-              <li>One contact from request to fulfilment</li>
-            </ul>
+          <div class="band" id="business">
+            <span class="eyebrow">Zed Supply for Business</span>
+            <h2>Office, business and institutional supplies</h2>
+            <p>For SMEs and organisations, sourcing routine supplies can mean the same search every time. Send us your list and we'll source it from one place.</p>
+            <div class="btn-row">
+              <a class="btn btn--dark" href="https://wa.me/260979050042?text=Hi%20Zed%20Supply%2C%20I%27d%20like%20a%20business%20supply%20quote%3A%20" data-wa-message="Hi Zed Supply, I'd like a business supply quote: " target="_blank" rel="noopener">Request a business quote</a>
+              <a class="btn btn--secondary" href="help.html#business">Learn more</a>
+            </div>
           </div>
         </div>
-      </div>
-    </section>
+      </section>
 
-    <!-- Services -->
-    <section class="section section--alt" aria-labelledby="services-title">
-      <div class="container">
-        <div class="section__intro">
-          <span class="eyebrow">What we offer</span>
-          <h2 id="services-title">One marketplace for home and business</h2>
-          <p>From everyday essentials to office and institutional supplies, tell us what you're looking for.</p>
+      <!-- Sell on Zed Supply -->
+      <section class="section sell-band" aria-labelledby="sell-title">
+        <div class="container duo duo--center">
+          <div>
+            <span class="eyebrow eyebrow--green">For sellers and suppliers</span>
+            <h2 id="sell-title">Grow your business on Zed Supply</h2>
+            <p>Zed Supply brings products, sellers and buyers together. Open a store and reach more customers.</p>
+            <div class="btn-row">
+              <a class="btn btn--primary" href="index.html#/sell">Register as a seller</a>
+              <a class="btn btn--ghost-light" href="index.html#/seller">Seller Centre login</a>
+            </div>
+          </div>
+          <ul class="ticks ticks--2">
+            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>Your own store page</li>
+            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>Run seasonal and store promotions</li>
+            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>A brand store for your products</li>
+            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>Orders confirmed on WhatsApp</li>
+          </ul>
         </div>
-        <ul class="cards cards--4">
-          <li>
-            <article class="card">
-              <div class="card__icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg></div>
-              <h3>Consumer products &amp; everyday essentials</h3>
-              <p>The everyday items your household needs, found and quoted through one contact.</p>
-              <a class="card__link" href="services.html#everyday">Learn more<span class="visually-hidden"> about everyday essentials</span> <span aria-hidden="true">→</span></a>
-            </article>
-          </li>
-          <li>
-            <article class="card">
-              <div class="card__icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg></div>
-              <h3>Electronics, home &amp; lifestyle</h3>
-              <p>Electronics, accessories and home and lifestyle products, without searching shop to shop.</p>
-              <a class="card__link" href="services.html#electronics">Learn more<span class="visually-hidden"> about electronics, home and lifestyle</span> <span aria-hidden="true">→</span></a>
-            </article>
-          </li>
-          <li>
-            <article class="card">
-              <div class="card__icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg></div>
-              <h3>Office, business &amp; institutional supplies</h3>
-              <p>Routine supplies for offices, SMEs and organisations, sourced from one place.</p>
-              <a class="card__link" href="services.html#business">Learn more<span class="visually-hidden"> about office and business supplies</span> <span aria-hidden="true">→</span></a>
-            </article>
-          </li>
-          <li>
-            <article class="card">
-              <div class="card__icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 9 4.5 4h15L21 9"/><path d="M4 9v11h16V9"/><path d="M3 9a3 3 0 0 0 6 0 3 3 0 0 0 6 0 3 3 0 0 0 6 0"/><path d="M10 20v-5h4v5"/></svg></div>
-              <h3>Seller &amp; supplier marketplace access</h3>
-              <p>For Zambian suppliers and businesses that want to reach more buyers.</p>
-              <a class="card__link" href="services.html#sellers">Learn more<span class="visually-hidden"> about seller and supplier access</span> <span aria-hidden="true">→</span></a>
-            </article>
-          </li>
-        </ul>
-      </div>
-    </section>
+      </section>
 
-    <!-- How we work -->
-    <section class="section" aria-labelledby="how-title">
-      <div class="container">
-        <div class="section__intro">
-          <span class="eyebrow">How we work</span>
-          <h2 id="how-title">From request to fulfilment</h2>
+      <!-- Request it -->
+      <section class="section" id="request" aria-labelledby="request-title">
+        <div class="container duo">
+          <div>
+            <span class="eyebrow">Request anything</span>
+            <h2 id="request-title">Can't find it? We'll source it.</h2>
+            <p>Buying often means checking multiple sellers, comparing prices by hand and arranging delivery separately. Tell us what you need and we'll connect you to the right product or supplier.</p>
+          </div>
+          <form class="form form--card" id="request-form">
+            <div class="field">
+              <label for="req-what">What are you looking for?</label>
+              <textarea id="req-what" required placeholder="Product, brand, size or model, and how many you need"></textarea>
+            </div>
+            <div class="field">
+              <label for="req-budget">Budget in Kwacha (optional)</label>
+              <input id="req-budget" type="text" inputmode="numeric" placeholder="e.g. K1,500">
+            </div>
+            <button class="btn btn--primary" type="submit">Send request on WhatsApp</button>
+          </form>
         </div>
-        <ol class="steps">
-          <li class="step">
-            <h3>Tell us what you need</h3>
-            <p>Find or request what you need through Zed Supply, on WhatsApp or with our quote form.</p>
-          </li>
-          <li class="step">
-            <h3>We find the right match</h3>
-            <p>We connect your order to the appropriate product or supplier and send you a quotation.</p>
-          </li>
-          <li class="step">
-            <h3>We see it through</h3>
-            <p>We support the transaction through to fulfilment, so you have one point of contact.</p>
-          </li>
-        </ol>
-      </div>
-    </section>
+      </section>
 
-    <!-- Testimonials: replace with real, verified quotes before launch, or delete this section -->
-    <section class="section section--alt" aria-labelledby="quotes-title">
-      <div class="container">
-        <div class="section__intro">
-          <span class="eyebrow">Customer stories</span>
-          <h2 id="quotes-title">What our customers say</h2>
+      <!-- How it works -->
+      <section class="section section--alt" aria-labelledby="how-title">
+        <div class="container">
+          <h2 id="how-title">How Zed Supply works</h2>
+          <ol class="steps">
+            <li class="step"><h3>Find or request it</h3><p>Search, shop by category or send us a request for what you need.</p></li>
+            <li class="step"><h3>Checkout on WhatsApp</h3><p>Your cart is sent to us as an itemised order. We confirm the final price and delivery.</p></li>
+            <li class="step"><h3>We see it through</h3><p>We connect your order to the right seller or supplier and support it through to fulfilment.</p></li>
+          </ol>
         </div>
-        <ul class="quotes">
-          <li>
-            <figure class="quote">
-              <blockquote><p><span class="placeholder">[TESTIMONIAL 1 - ADD REAL QUOTE]</span></p></blockquote>
-              <figcaption><span class="placeholder">[CUSTOMER NAME, ROLE / COMPANY, TOWN]</span></figcaption>
-            </figure>
-          </li>
-          <li>
-            <figure class="quote">
-              <blockquote><p><span class="placeholder">[TESTIMONIAL 2 - ADD REAL QUOTE]</span></p></blockquote>
-              <figcaption><span class="placeholder">[CUSTOMER NAME, ROLE / COMPANY, TOWN]</span></figcaption>
-            </figure>
-          </li>
-        </ul>
-      </div>
-    </section>
+      </section>
 
-    <!-- About teaser -->
-    <section class="section" aria-labelledby="about-title">
-      <div class="container split">
-        <div class="media" data-file="assets/photos/about-team.jpg">
-          <img src="assets/photos/about-team.jpg" alt="The Zed Supply team at work in Lusaka" width="1200" height="900" loading="lazy" decoding="async">
+      <!-- About -->
+      <section class="section" aria-labelledby="about-title">
+        <div class="container prose">
+          <h2 id="about-title">About Zed Supply</h2>
+          <p>Zed Supply is a Zambia-based e-commerce business building an online marketplace for everyday products, business supplies and other goods, for households, professionals, SMEs and organisations. We started with a simple idea: make buying and sourcing products easier.</p>
+          <a href="help.html#about">More about us</a>
         </div>
-        <div>
-          <span class="eyebrow">About us</span>
-          <h2 id="about-title">Built around how Zambia buys</h2>
-          <p>Zed Supply is a Zambia-based e-commerce business building an online marketplace for everyday products, business supplies and other goods.</p>
-          <p>We started with a simple idea: make buying and sourcing products easier. Customers shouldn't have to contact several suppliers just to find an item, compare prices or arrange a purchase.</p>
-          <a class="btn btn--secondary" href="about.html">More about us</a>
-        </div>
-      </div>
-    </section>
+      </section>
+    </div>
 
-    <!-- Final call to action -->
-    <section class="cta-band" aria-labelledby="cta-title">
-      <div class="container">
-        <h2 id="cta-title">Tell us what you need</h2>
-        <p>Send us your product or supply requirement on WhatsApp for a quotation.</p>
-        <div class="btn-row">
-          <a class="btn btn--primary" href="contact.html#quote">Get a quote</a>
-          <a class="btn btn--secondary btn--on-dark" href="https://wa.me/260979050042?text=Hi%2C%20I%27d%20like%20a%20quote" target="_blank" rel="noopener">WhatsApp us</a>
-        </div>
-      </div>
-    </section>
+    <div id="view" class="container view" hidden tabindex="-1"></div>
   </main>
 
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <!-- site-footer -->
+  <button class="back-top" type="button" data-back-top>Back to top</button>
   <footer class="site-footer">
     <div class="container footer-grid">
-      <div>
-        <a class="footer-logo" href="index.html"><img src="assets/logo-white.png" alt="Zed Supply, Everything Within Reach" width="320" height="176" loading="lazy" decoding="async"></a>
-        <p>One place to find, compare and order the products you need.</p>
+      <div class="footer-brand">
+        <a href="index.html"><img src="assets/logo-white.png" alt="Zed Supply, Everything Within Reach" width="320" height="176" loading="lazy" decoding="async"></a>
+        <p>Zambia's marketplace for everyday products, business supplies and more.</p>
+        <ul class="social">
+          <li><a href="https://wa.me/260979050042" target="_blank" rel="noopener" aria-label="Chat with Zed Supply on WhatsApp"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M17.47 14.38c-.3-.15-1.76-.87-2.03-.97-.27-.1-.47-.15-.67.15-.2.3-.77.97-.94 1.16-.17.2-.35.22-.64.08-.3-.15-1.26-.46-2.39-1.48-.88-.79-1.48-1.76-1.65-2.06-.17-.3-.02-.46.13-.6.13-.14.3-.35.45-.52.15-.18.2-.3.3-.5.1-.2.05-.37-.03-.52-.07-.15-.67-1.61-.92-2.21-.24-.58-.49-.5-.67-.51h-.57c-.2 0-.52.07-.79.37-.27.3-1.04 1.02-1.04 2.48s1.07 2.88 1.21 3.07c.15.2 2.1 3.2 5.08 4.49.71.31 1.26.49 1.7.63.71.22 1.36.19 1.87.12.57-.09 1.76-.72 2-1.41.25-.7.25-1.29.18-1.41-.08-.13-.28-.2-.57-.35m-5.42 7.4h-.01a9.87 9.87 0 0 1-5.03-1.38l-.36-.21-3.74.98 1-3.65-.24-.37a9.86 9.86 0 0 1-1.51-5.26c0-5.45 4.44-9.88 9.89-9.88 2.64 0 5.12 1.03 6.99 2.9a9.83 9.83 0 0 1 2.89 6.99c0 5.45-4.44 9.88-9.88 9.88m8.41-18.3A11.82 11.82 0 0 0 12.05 0C5.5 0 .16 5.34.16 11.89c0 2.1.55 4.14 1.59 5.95L.06 24l6.3-1.65a11.88 11.88 0 0 0 5.68 1.45h.01c6.55 0 11.89-5.34 11.89-11.89a11.82 11.82 0 0 0-3.48-8.41Z"/></svg></a></li>
+          <!-- Add Facebook, Instagram, LinkedIn or TikTok here when you have them:
+          <li><a href="https://www.facebook.com/YOUR_PAGE" target="_blank" rel="noopener" aria-label="Zed Supply on Facebook">…icon…</a></li> -->
+        </ul>
       </div>
-      <nav aria-label="Footer">
-        <h2>Explore</h2>
+      <nav aria-labelledby="f-shop">
+        <h2 id="f-shop">Shop</h2>
         <ul class="footer-list">
-          <li><a href="index.html">Home</a></li>
-          <li><a href="shop.html">Shop</a></li>
-          <li><a href="about.html">About us</a></li>
-          <li><a href="services.html">What we offer</a></li>
-          <li><a href="contact.html">Contact</a></li>
-          <li><a href="privacy.html">Privacy policy</a></li>
+          <li><a href="index.html#/departments">All categories</a></li>
+          <li><a href="index.html#/deals">Today's deals</a></li>
+          <li><a href="index.html#/promotions">Promotions</a></li>
+          <li><a href="index.html#/brands">Brand stores</a></li>
+          <li><a href="index.html#/world">Shop the World</a></li>
+        </ul>
+      </nav>
+      <nav aria-labelledby="f-sell">
+        <h2 id="f-sell">Sell</h2>
+        <ul class="footer-list">
+          <li><a href="index.html#/sell">Sell on Zed Supply</a></li>
+          <li><a href="index.html#/seller">Seller Centre</a></li>
+          <li><a href="index.html#/seller">Run a promotion</a></li>
+          <li><a href="help.html#selling">Seller help</a></li>
+        </ul>
+      </nav>
+      <nav aria-labelledby="f-help">
+        <h2 id="f-help">Help</h2>
+        <ul class="footer-list">
+          <li><a href="help.html">Help centre</a></li>
+          <li><a href="index.html#/track">Track an order</a></li>
+          <li><a href="help.html#delivery">Delivery</a></li>
+          <li><a href="help.html#returns">Returns</a></li>
+          <li><a href="help.html#contact">Contact us</a></li>
         </ul>
       </nav>
       <div>
-        <h2>Contact</h2>
+        <h2>Zed Supply</h2>
         <ul class="footer-list">
+          <li><a href="help.html#about">About us</a></li>
+          <li><a href="help.html#business">Zed Supply for Business</a></li>
           <li><a href="tel:+260979050042">+260 97 905 0042</a></li>
           <li><a href="mailto:expresszambezi@gmail.com">expresszambezi@gmail.com</a></li>
-          <li><span class="placeholder">[STREET ADDRESS]</span>, Lusaka, Zambia</li>
-          <li><span class="placeholder">[OPENING HOURS]</span></li>
-        </ul>
-      </div>
-      <div>
-        <h2>Follow us</h2>
-        <ul class="social">
-          <li><a href="https://wa.me/260979050042" target="_blank" rel="noopener" aria-label="Chat with Zed Supply on WhatsApp"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M17.47 14.38c-.3-.15-1.76-.87-2.03-.97-.27-.1-.47-.15-.67.15-.2.3-.77.97-.94 1.16-.17.2-.35.22-.64.08-.3-.15-1.26-.46-2.39-1.48-.88-.79-1.48-1.76-1.65-2.06-.17-.3-.02-.46.13-.6.13-.14.3-.35.45-.52.15-.18.2-.3.3-.5.1-.2.05-.37-.03-.52-.07-.15-.67-1.61-.92-2.21-.24-.58-.49-.5-.67-.51h-.57c-.2 0-.52.07-.79.37-.27.3-1.04 1.02-1.04 2.48s1.07 2.88 1.21 3.07c.15.2 2.1 3.2 5.08 4.49.71.31 1.26.49 1.7.63.71.22 1.36.19 1.87.12.57-.09 1.76-.72 2-1.41.25-.7.25-1.29.18-1.41-.08-.13-.28-.2-.57-.35m-5.42 7.4h-.01a9.87 9.87 0 0 1-5.03-1.38l-.36-.21-3.74.98 1-3.65-.24-.37a9.86 9.86 0 0 1-1.51-5.26c0-5.45 4.44-9.88 9.89-9.88 2.64 0 5.12 1.03 6.99 2.9a9.83 9.83 0 0 1 2.89 6.99c0 5.45-4.44 9.88-9.88 9.88m8.41-18.3A11.82 11.82 0 0 0 12.05 0C5.5 0 .16 5.34.16 11.89c0 2.1.55 4.14 1.59 5.95L.06 24l6.3-1.65a11.88 11.88 0 0 0 5.68 1.45h.01c6.55 0 11.89-5.34 11.89-11.89a11.82 11.82 0 0 0-3.48-8.41Z"/></svg></a></li>
-          <!-- Add your other profiles here when you have them, e.g.
-          <li><a href="https://www.facebook.com/YOUR_PAGE" target="_blank" rel="noopener" aria-label="Zed Supply on Facebook">…icon…</a></li>
-          <li><a href="https://www.instagram.com/YOUR_HANDLE" target="_blank" rel="noopener" aria-label="Zed Supply on Instagram">…icon…</a></li>
-          <li><a href="https://www.linkedin.com/company/YOUR_PAGE" target="_blank" rel="noopener" aria-label="Zed Supply on LinkedIn">…icon…</a></li> -->
+          <li><span class="placeholder">[STREET ADDRESS]</span>, Lusaka</li>
         </ul>
       </div>
     </div>
@@ -338,5 +490,6 @@
       <p><a href="privacy.html">Privacy policy</a></p>
     </div>
   </footer>
+  <!-- /site-footer -->
 </body>
 </html>
