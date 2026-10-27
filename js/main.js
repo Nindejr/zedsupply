@@ -522,9 +522,12 @@
      The gtag.js snippet is in the <head> of every page. These events use one
      document-level listener, so links added later (store views, banners) are
      covered too. Addresses are sent without their ?query part, so customers'
-     WhatsApp messages, names or locations never reach Google Analytics. */
+     WhatsApp messages, names or locations never reach Google Analytics.
+     The same call passes form_submit, whatsapp_click and phone_click to the
+     advertising tags in js/ad-tags.js, which send them only after consent. */
   function track(name, params) {
     if (typeof window.gtag === 'function') window.gtag('event', name, params || {});
+    if (window.ZSAds) window.ZSAds.track(name, params || {});
   }
   function cleanUrl(href) {
     try { var u = new URL(href, location.href); return u.protocol === 'tel:' || u.protocol === 'mailto:' ? u.protocol + u.pathname : u.origin + u.pathname; } catch (e) { return String(href).split('?')[0]; }
@@ -549,7 +552,8 @@
   }, true);
 
   /* ---------- Cookie consent (Google Consent Mode v2) ----------
-     Analytics and ad storage start as 'denied' (set in the <head> snippet).
+     Analytics and ad storage start as 'denied' (set in the <head> snippet), and
+     the advertising tags in js/ad-tags.js don't load at all until Accept.
      Accept updates them to 'granted'; the choice is kept in localStorage
      ('zs-consent') and can be changed from "Cookie settings" in the footer. */
   function consentChoice() { try { return localStorage.getItem('zs-consent'); } catch (e) { return null; } }
@@ -559,15 +563,18 @@
     if (typeof window.gtag === 'function') window.gtag('consent', 'update', { analytics_storage: v, ad_storage: v });
     // Microsoft Clarity: the <head> sets its starting state; this applies a new choice
     if (typeof window.clarity === 'function') window.clarity('consentv2', { ad_Storage: v, analytics_Storage: v });
+    // Meta Pixel, LinkedIn Insight Tag and Google Ads (js/ad-tags.js) load only on 'granted'
+    if (window.ZSAds) window.ZSAds.consent(v);
     if (v === 'denied') clearAnalyticsCookies();
   }
-  // Google stops using its cookies once consent is denied, but doesn't delete them; do that here
+  // The tags stop using their cookies once consent is denied, but don't delete them; do that here:
+  // Google Analytics (_ga), Meta (_fbp, _fbc), Google Ads (_gcl_) and LinkedIn (li_, _li_) cookies on this site
   function clearAnalyticsCookies() {
     var parts = location.hostname.split('.'), domains = [''];
     for (var i = 0; i < parts.length - 1; i++) domains.push('; domain=.' + parts.slice(i).join('.'));
     document.cookie.split(';').forEach(function (c) {
       var name = c.split('=')[0].trim();
-      if (/^_ga(_|$)/.test(name)) domains.forEach(function (d) { document.cookie = name + '=; Max-Age=0; path=/' + d; });
+      if (/^_ga(_|$)|^_fb[pc]$|^_gcl_|^_?li_/.test(name)) domains.forEach(function (d) { document.cookie = name + '=; Max-Age=0; path=/' + d; });
     });
   }
 
@@ -585,7 +592,7 @@
     box.className = 'consent';
     box.setAttribute('aria-labelledby', 'consent-title');
     box.innerHTML = '<div class="consent__inner"><div class="consent__text"><p id="consent-title" class="consent__title">Cookies on Zed Supply</p>' +
-      '<p>We\'d like to use Google Analytics and Microsoft Clarity cookies to understand how people use our site so we can improve it. They stay off unless you accept. ' +
+      '<p>We\'d like to use cookies from Google Analytics and Microsoft Clarity to understand how people use our site, and from Meta, LinkedIn and Google Ads to measure and improve our adverts. They stay off unless you accept. ' +
       '<a href="privacy.html#cookies">Read our privacy policy</a></p></div>' +
       '<div class="consent__actions"><button class="btn btn--primary btn--sm" type="button" data-consent="granted">Accept</button>' +
       '<button class="btn btn--secondary btn--sm" type="button" data-consent="denied">Decline</button></div></div>';
@@ -598,7 +605,7 @@
       setConsent(btn.getAttribute('data-consent'));
       var box = $('.consent');
       if (box) box.remove();
-      toast(btn.getAttribute('data-consent') === 'granted' ? 'Thanks. Analytics cookies are on.' : 'Analytics cookies are off.');
+      toast(btn.getAttribute('data-consent') === 'granted' ? 'Thanks. Analytics and advertising cookies are on.' : 'Analytics and advertising cookies are off.');
       return;
     }
     if (e.target.closest('[data-cookie-settings]')) showConsent();

@@ -4,26 +4,35 @@
   <meta charset="utf-8">
   <!-- Content Security Policy (PCI DSS 6.4.3). The browser loads only what is listed here and blocks everything else.
        default-src 'self' file:   anything not covered below may come only from this site (file: lets the site work when opened by double-clicking).
-       script-src                 our own scripts, Google Analytics (googletagmanager.com) and Microsoft Clarity (clarity.ms), plus the small
+       script-src                 our own scripts, Google Analytics (googletagmanager.com), Microsoft Clarity (clarity.ms) and, once
+                                  cookies are accepted, the Meta Pixel (connect.facebook.net), LinkedIn Insight Tag (snap.licdn.com)
+                                  and Google Ads (googleadservices.com, googleads.g.doubleclick.net, google.com), plus the small
                                   inline scripts in this head, each allowed by its sha256 hash.
        style-src                  our stylesheet and the Google Fonts stylesheet. 'unsafe-inline' allows the colours set in style="" attributes.
        font-src                   the font files from fonts.gstatic.com.
        img-src                    our images, data: and blob: images the site creates itself (such as promotion banners), and the tiny
-                                  measurement images Google Analytics and Clarity use.
-       frame-src                  only the Google Maps embed on the help page.
-       connect-src                where the page may send data: Formspree (contact and seller forms), Google Analytics and Clarity.
+                                  measurement images used by Google Analytics, Clarity, Meta, LinkedIn and Google Ads.
+       frame-src                  the Google Maps embed on the help page, and the hidden frames Google Ads uses to record conversions.
+       connect-src                where the page may send data: Formspree (contact and seller forms), Google Analytics, Clarity, Meta, LinkedIn and Google Ads.
        form-action                forms may submit only to this site or Formspree.
        base-uri, object-src       block two old tricks for hijacking links and loading plugins.
        upgrade-insecure-requests  any http:// address is fetched over https:// instead.
        WARNING: anything new from another website (a chat widget, an ad or social pixel, a CDN library, a YouTube video, a payment
        button) is silently blocked until its domain is added here, on all four pages. Editing an inline script in this head changes
        its hash: update the matching sha256 or it stops running (see Business/PCI-DSS.md). -->
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self' file:; script-src 'self' file: https://*.googletagmanager.com https://*.clarity.ms 'sha256-7nnX2oOzt7UowW1mEvREIsoin+PIvwJs3DopQMg2tVQ=' 'sha256-jVDEcytlIBASSTXX8UWMAW3fwym5+rzcwhDWKbgu4NQ=' 'sha256-HuzeagOWxw72t91+fcLW0a2epg2jV2lvbgvXlvSrhbg=' 'sha256-bMUqGRvrd7Oa5B3isZfKHogU7mYoQRtwns8KYhU30vw=' 'sha256-LObU1tdmcx/heQRtk57MQWwTslHx0RgWSMB828agqtk=' 'sha256-JXvATGpaUOztFQ6cJs+CQjDwUHLmwQQOh5eHJqip73E='; style-src 'self' file: 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' file: data: blob: https://*.google-analytics.com https://*.googletagmanager.com https://*.clarity.ms https://c.bing.com; frame-src https://www.google.com; connect-src https://formspree.io https://*.google-analytics.com https://*.analytics.google.com https://*.googletagmanager.com https://*.clarity.ms https://c.bing.com; form-action 'self' https://formspree.io; base-uri 'self'; object-src 'none'; upgrade-insecure-requests">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self' file:; script-src 'self' file: https://*.googletagmanager.com https://*.clarity.ms https://connect.facebook.net https://snap.licdn.com https://www.googleadservices.com https://googleads.g.doubleclick.net https://www.google.com 'sha256-7nnX2oOzt7UowW1mEvREIsoin+PIvwJs3DopQMg2tVQ=' 'sha256-jVDEcytlIBASSTXX8UWMAW3fwym5+rzcwhDWKbgu4NQ=' 'sha256-HuzeagOWxw72t91+fcLW0a2epg2jV2lvbgvXlvSrhbg=' 'sha256-bMUqGRvrd7Oa5B3isZfKHogU7mYoQRtwns8KYhU30vw=' 'sha256-LObU1tdmcx/heQRtk57MQWwTslHx0RgWSMB828agqtk=' 'sha256-JXvATGpaUOztFQ6cJs+CQjDwUHLmwQQOh5eHJqip73E='; style-src 'self' file: 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' file: data: blob: https://*.google-analytics.com https://*.googletagmanager.com https://*.clarity.ms https://c.bing.com https://www.facebook.com https://*.linkedin.com https://www.googleadservices.com https://googleads.g.doubleclick.net https://www.google.com https://www.google.co.zm https://pagead2.googlesyndication.com; frame-src https://www.google.com https://td.doubleclick.net https://www.googletagmanager.com; connect-src https://formspree.io https://*.google-analytics.com https://*.analytics.google.com https://*.googletagmanager.com https://*.clarity.ms https://c.bing.com https://www.facebook.com https://connect.facebook.net https://*.linkedin.com https://www.google.com https://www.google.co.zm https://googleads.g.doubleclick.net https://www.googleadservices.com https://pagead2.googlesyndication.com; form-action 'self' https://formspree.io; base-uri 'self'; object-src 'none'; upgrade-insecure-requests">
   <meta name="referrer" content="strict-origin-when-cross-origin">
   <!-- Google tag (gtag.js) for Google Analytics 4, with Consent Mode v2:
        everything is denied by default; js/main.js updates consent only if the visitor accepts. -->
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-E2MC1NELGE"></script>
   <script>window.dataLayer = window.dataLayer || []; function gtag(){dataLayer.push(arguments);} gtag('consent', 'default', { analytics_storage: 'denied', ad_storage: 'denied', ad_user_data: 'denied', ad_personalization: 'denied' }); try { if (localStorage.getItem('zs-consent') === 'granted') gtag('consent', 'update', { analytics_storage: 'granted', ad_storage: 'granted' }); } catch (e) {} gtag('js', new Date()); gtag('config', 'G-E2MC1NELGE');</script>
+  <!-- Advertising tags: Meta Pixel, LinkedIn Insight Tag and Google Ads conversions. js/ad-tags.js loads them only
+       after the visitor accepts cookies; Decline keeps them off. Set the IDs and conversion labels at the top of that file. -->
+  <script src="js/ad-tags.js" defer></script>
+  <!-- Meta Pixel noscript fallback, switched off on purpose: it is a plain image that would track visitors who have
+       JavaScript turned off before they could answer the cookie banner. To use it anyway, put your Pixel ID in the
+       line below and delete the comment markers around it. -->
+  <!-- <noscript><img height="1" width="1" style="display:none" alt="" src="https://www.facebook.com/tr?id=META_PIXEL_ID_HERE&amp;ev=PageView&amp;noscript=1"></noscript> -->
   <!-- Microsoft Clarity. Runs cookie-free until the visitor accepts cookies (the line after this
        snippet sets that; js/main.js applies later choices). Personal details are masked (data-clarity-mask). -->
   <script type="text/javascript">
@@ -255,7 +264,7 @@
       <div class="container">
         <span class="eyebrow">Legal</span>
         <h1 id="page-title">Privacy policy</h1>
-        <p>Last updated: <time datetime="2026-10-26">26 October 2026</time></p>
+        <p>Last updated: <time datetime="2026-10-27">27 October 2026</time></p>
       </div>
     </section>
 
@@ -307,7 +316,7 @@
         <h3>Payment card details</h3>
         <p>We do not collect, store or process payment card details on this website, by email or on WhatsApp, and we will never ask you for them. If a card number is typed into one of our forms, the website stops it from being sent. When online card payments are introduced, they will be handled entirely by a PCI DSS-compliant payment provider on its own secure page, and Zed Supply will not see or store your full card number or security code.</p>
         <h3>Information collected automatically</h3>
-        <p>This website uses Google Analytics and Microsoft Clarity only as described in <a href="#cookies">section 6</a>, and never for advertising. It has no advertising pixels. Our web host may record basic technical information, such as your IP address and browser type, in server logs to keep the site secure and working.</p>
+        <p>If you accept cookies, this website uses Google Analytics and Microsoft Clarity, and the advertising tags of Meta, LinkedIn and Google Ads, as described in <a href="#cookies">section 6</a>. If you decline, the advertising tags never load. Our web host may record basic technical information, such as your IP address and browser type, in server logs to keep the site secure and working.</p>
 
         <h2 id="use">3. How and why we use it</h2>
         <ul>
@@ -316,6 +325,7 @@
           <li>To assess and verify seller applications and set up seller accounts. We do this at your request, before entering into a contract with you.</li>
           <li>To keep business, tax and accounting records. This is required by law.</li>
           <li>To send you updates or offers, only if you have given your consent. You can withdraw consent at any time.</li>
+          <li>To measure how well our adverts on Facebook, Instagram, LinkedIn and Google work, and to show our adverts to people who have visited our website, only if you accept cookies. You can withdraw consent at any time with Cookie settings.</li>
         </ul>
         <p>We only collect what we need for these purposes and we do not sell your personal data.</p>
 
@@ -323,9 +333,10 @@
         <ul>
           <li><strong>Suppliers and sellers</strong> we connect your order to, only the details they need to quote for or fulfil it.</li>
           <li><strong>Formspree</strong>, which receives contact-form and seller-application submissions and forwards them to us by email.</li>
-          <li><strong>Google</strong>, which provides our email service, the fonts used on this site, the map on our contact page and, if you accept, Google Analytics.</li>
+          <li><strong>Google</strong>, which provides our email service, the fonts used on this site, the map on our contact page and, if you accept, Google Analytics and Google Ads.</li>
           <li><strong>Microsoft</strong>, which provides Microsoft Clarity (see <a href="#cookies">section 6</a>).</li>
-          <li><strong>WhatsApp (Meta)</strong>, if you choose to message us on WhatsApp.</li>
+          <li><strong>LinkedIn</strong> (owned by Microsoft), which provides the LinkedIn Insight Tag, if you accept (see <a href="#cookies">section 6</a>).</li>
+          <li><strong>Meta</strong> (the company behind Facebook, Instagram and WhatsApp), which provides WhatsApp, if you choose to message us there, and the Meta Pixel, if you accept (see <a href="#cookies">section 6</a>).</li>
           <li><strong>Mobile money providers</strong> (MTN, Airtel or Zamtel), which process your payment and share with us the details needed to confirm it, such as your name, number, amount and transaction reference.</li>
           <li><strong>GitHub</strong>, which hosts this website.</li>
           <li><strong>Authorities</strong>, where the law requires us to.</li>
@@ -337,12 +348,12 @@
 
         <h2 id="cookies">6. Cookies and third-party content</h2>
         <h3>Google Analytics (only if you accept)</h3>
-        <p>We use Google Analytics 4 to understand how people use our website, such as which pages are visited and whether people tap our WhatsApp, phone, email or other links, so we can improve it. When you first visit, a banner asks whether you accept analytics cookies.</p>
+        <p>We use Google Analytics 4 to understand how people use our website, such as which pages are visited and whether people tap our WhatsApp, phone, email or other links, so we can improve it. When you first visit, a banner asks whether you accept analytics and advertising cookies.</p>
         <ul>
           <li><strong>If you accept:</strong> Google Analytics sets cookies (named <code>_ga</code> and <code>_ga_…</code>) to recognise repeat visits, and collects information such as the pages you view, the links you tap, your approximate location (from your IP address), and your device and browser type.</li>
           <li><strong>If you decline, or before you choose:</strong> no analytics cookies are set. Google may still receive basic, cookieless signals that a page was viewed or a link was tapped, without anything that identifies your browser between visits.</li>
           <li>We never send Google your name, phone number, email address, delivery location, WhatsApp messages or what you type in our forms. Links are reported without their message text.</li>
-          <li>We do not use Google Analytics for advertising, and we have no advertising pixels on this site.</li>
+          <li>Google Analytics itself is not used for advertising. Google Ads, described below, is a separate tool.</li>
           <li>Your choice is saved in your browser. You can change it at any time with <button class="link-btn" type="button" data-cookie-settings>Cookie settings</button>, also found at the bottom of every page.</li>
         </ul>
         <h3>Microsoft Clarity (cookies only if you accept)</h3>
@@ -352,10 +363,20 @@
           <li><strong>If you decline, or before you choose:</strong> Clarity runs without cookies and cannot link your visits together.</li>
           <li>We mask personal details so they never appear in recordings: everything typed into our forms, your name, your delivery location, your cart summary and your orders.</li>
           <li>Clarity is provided by Microsoft, which may process this data outside Zambia.</li>
-          <li>The same <button class="link-btn" type="button" data-cookie-settings>Cookie settings</button> choice controls both Google Analytics and Microsoft Clarity.</li>
+          <li>The same <button class="link-btn" type="button" data-cookie-settings>Cookie settings</button> choice controls Google Analytics, Microsoft Clarity and the advertising tags below.</li>
+        </ul>
+        <h3>Advertising tags: Meta Pixel, LinkedIn Insight Tag and Google Ads (only if you accept)</h3>
+        <p>These tags let us measure the adverts we run on Facebook, Instagram, LinkedIn and Google. They tell each platform when a visitor views our pages, sends our contact form, or taps one of our WhatsApp or phone links, so we can see which adverts lead to enquiries. The platforms may also use this to show our adverts to people who have visited our website. <strong>Before you choose, or if you decline, none of these tags loads, no advertising cookies are set and nothing is sent to these companies.</strong></p>
+        <ul>
+          <li><strong>Meta Pixel</strong>, provided by Meta, the company behind Facebook, Instagram and WhatsApp. It records the pages you view and the three actions above, with your browser, device and IP address. It sets cookies named <code>_fbp</code> and, if you arrived from one of our Facebook or Instagram adverts, <code>_fbc</code>. If you use Facebook or Instagram, Meta may link this to your account. <a href="https://www.facebook.com/privacy/policy/">Meta Privacy Policy</a></li>
+          <li><strong>LinkedIn Insight Tag</strong>, provided by LinkedIn, which is owned by Microsoft. It records the pages you view and the three actions above, with your browser, device and IP address, and may link them to your LinkedIn account if you have one. It sets cookies such as <code>li_fat_id</code> on our site and its own cookies on linkedin.com. LinkedIn reports to us only in totals and does not tell us who you are. <a href="https://www.linkedin.com/legal/privacy-policy">LinkedIn Privacy Policy</a></li>
+          <li><strong>Google Ads</strong>, provided by Google. It records the pages you view and, if you came from one of our Google adverts, whether you then sent our contact form or tapped one of our WhatsApp or phone links. It sets cookies such as <code>_gcl_au</code> on our site, and Google may use its own cookies on google.com and doubleclick.net. <a href="https://policies.google.com/privacy">Google Privacy Policy</a></li>
+          <li>As with Google Analytics, we never send these companies your name, phone number, email address, delivery location, WhatsApp messages or what you type in our forms. They learn only that an action happened, for example that the contact form was sent.</li>
+          <li>Meta, LinkedIn and Google may process this data outside Zambia (see <a href="#transfers">section 5</a>).</li>
+          <li>Choosing Decline in <button class="link-btn" type="button" data-cookie-settings>Cookie settings</button> stops these tags straight away and deletes their cookies on our site. Cookies they have set on their own websites can be removed in your browser settings, and each platform lets you manage ad preferences in your account settings.</li>
         </ul>
         <h3>Other third-party content</h3>
-        <p>Apart from analytics cookies you have accepted, our own website does not set cookies. It uses your browser's local storage only for the on-device features described in section 2. Two pieces of third-party content may collect technical data when they load:</p>
+        <p>Apart from the analytics and advertising cookies you have accepted, our own website does not set cookies. It uses your browser's local storage only for the on-device features described in section 2. Two pieces of third-party content may collect technical data when they load:</p>
         <ul>
           <li><strong>Google Fonts</strong>, which loads our typefaces and receives your IP address.</li>
           <li><strong>Google Maps</strong>, embedded in the contact section of our help centre, which may set its own cookies.</li>

@@ -23,7 +23,7 @@
 
 - [Zed Supply homepage](https://SITE_URL/): the storefront, with shop categories, deals, seller promotions, brand stores, business supplies, product requests, selling on Zed Supply and how ordering works
 - [Help Centre](https://SITE_URL/help.html): ordering on WhatsApp, delivery, mobile money payments, payment safety, returns, accounts, selling, business supplies, FAQs, about Zed Supply and contact details
-- [Privacy policy](https://SITE_URL/privacy.html): what personal data Zed Supply collects, why, who it is shared with, cookies and analytics, and your rights under Zambia's Data Protection Act No. 3 of 2021
+- [Privacy policy](https://SITE_URL/privacy.html): what personal data Zed Supply collects, why, who it is shared with, cookies, analytics and advertising tags, and your rights under Zambia's Data Protection Act No. 3 of 2021
 
 ## Contact
 

@@ -4,26 +4,35 @@
   <meta charset="utf-8">
   <!-- Content Security Policy (PCI DSS 6.4.3). The browser loads only what is listed here and blocks everything else.
        default-src 'self' file:   anything not covered below may come only from this site (file: lets the site work when opened by double-clicking).
-       script-src                 our own scripts, Google Analytics (googletagmanager.com) and Microsoft Clarity (clarity.ms), plus the small
+       script-src                 our own scripts, Google Analytics (googletagmanager.com), Microsoft Clarity (clarity.ms) and, once
+                                  cookies are accepted, the Meta Pixel (connect.facebook.net), LinkedIn Insight Tag (snap.licdn.com)
+                                  and Google Ads (googleadservices.com, googleads.g.doubleclick.net, google.com), plus the small
                                   inline scripts in this head, each allowed by its sha256 hash.
        style-src                  our stylesheet and the Google Fonts stylesheet. 'unsafe-inline' allows the colours set in style="" attributes.
        font-src                   the font files from fonts.gstatic.com.
        img-src                    our images, data: and blob: images the site creates itself (such as promotion banners), and the tiny
-                                  measurement images Google Analytics and Clarity use.
-       frame-src                  only the Google Maps embed on the help page.
-       connect-src                where the page may send data: Formspree (contact and seller forms), Google Analytics and Clarity.
+                                  measurement images used by Google Analytics, Clarity, Meta, LinkedIn and Google Ads.
+       frame-src                  the Google Maps embed on the help page, and the hidden frames Google Ads uses to record conversions.
+       connect-src                where the page may send data: Formspree (contact and seller forms), Google Analytics, Clarity, Meta, LinkedIn and Google Ads.
        form-action                forms may submit only to this site or Formspree.
        base-uri, object-src       block two old tricks for hijacking links and loading plugins.
        upgrade-insecure-requests  any http:// address is fetched over https:// instead.
        WARNING: anything new from another website (a chat widget, an ad or social pixel, a CDN library, a YouTube video, a payment
        button) is silently blocked until its domain is added here, on all four pages. Editing an inline script in this head changes
        its hash: update the matching sha256 or it stops running (see Business/PCI-DSS.md). -->
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self' file:; script-src 'self' file: https://*.googletagmanager.com https://*.clarity.ms 'sha256-7nnX2oOzt7UowW1mEvREIsoin+PIvwJs3DopQMg2tVQ=' 'sha256-jVDEcytlIBASSTXX8UWMAW3fwym5+rzcwhDWKbgu4NQ=' 'sha256-HuzeagOWxw72t91+fcLW0a2epg2jV2lvbgvXlvSrhbg=' 'sha256-bMUqGRvrd7Oa5B3isZfKHogU7mYoQRtwns8KYhU30vw=' 'sha256-LObU1tdmcx/heQRtk57MQWwTslHx0RgWSMB828agqtk=' 'sha256-JXvATGpaUOztFQ6cJs+CQjDwUHLmwQQOh5eHJqip73E='; style-src 'self' file: 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' file: data: blob: https://*.google-analytics.com https://*.googletagmanager.com https://*.clarity.ms https://c.bing.com; frame-src https://www.google.com; connect-src https://formspree.io https://*.google-analytics.com https://*.analytics.google.com https://*.googletagmanager.com https://*.clarity.ms https://c.bing.com; form-action 'self' https://formspree.io; base-uri 'self'; object-src 'none'; upgrade-insecure-requests">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self' file:; script-src 'self' file: https://*.googletagmanager.com https://*.clarity.ms https://connect.facebook.net https://snap.licdn.com https://www.googleadservices.com https://googleads.g.doubleclick.net https://www.google.com 'sha256-7nnX2oOzt7UowW1mEvREIsoin+PIvwJs3DopQMg2tVQ=' 'sha256-jVDEcytlIBASSTXX8UWMAW3fwym5+rzcwhDWKbgu4NQ=' 'sha256-HuzeagOWxw72t91+fcLW0a2epg2jV2lvbgvXlvSrhbg=' 'sha256-bMUqGRvrd7Oa5B3isZfKHogU7mYoQRtwns8KYhU30vw=' 'sha256-LObU1tdmcx/heQRtk57MQWwTslHx0RgWSMB828agqtk=' 'sha256-JXvATGpaUOztFQ6cJs+CQjDwUHLmwQQOh5eHJqip73E='; style-src 'self' file: 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' file: data: blob: https://*.google-analytics.com https://*.googletagmanager.com https://*.clarity.ms https://c.bing.com https://www.facebook.com https://*.linkedin.com https://www.googleadservices.com https://googleads.g.doubleclick.net https://www.google.com https://www.google.co.zm https://pagead2.googlesyndication.com; frame-src https://www.google.com https://td.doubleclick.net https://www.googletagmanager.com; connect-src https://formspree.io https://*.google-analytics.com https://*.analytics.google.com https://*.googletagmanager.com https://*.clarity.ms https://c.bing.com https://www.facebook.com https://connect.facebook.net https://*.linkedin.com https://www.google.com https://www.google.co.zm https://googleads.g.doubleclick.net https://www.googleadservices.com https://pagead2.googlesyndication.com; form-action 'self' https://formspree.io; base-uri 'self'; object-src 'none'; upgrade-insecure-requests">
   <meta name="referrer" content="strict-origin-when-cross-origin">
   <!-- Google tag (gtag.js) for Google Analytics 4, with Consent Mode v2:
        everything is denied by default; js/main.js updates consent only if the visitor accepts. -->
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-E2MC1NELGE"></script>
   <script>window.dataLayer = window.dataLayer || []; function gtag(){dataLayer.push(arguments);} gtag('consent', 'default', { analytics_storage: 'denied', ad_storage: 'denied', ad_user_data: 'denied', ad_personalization: 'denied' }); try { if (localStorage.getItem('zs-consent') === 'granted') gtag('consent', 'update', { analytics_storage: 'granted', ad_storage: 'granted' }); } catch (e) {} gtag('js', new Date()); gtag('config', 'G-E2MC1NELGE');</script>
+  <!-- Advertising tags: Meta Pixel, LinkedIn Insight Tag and Google Ads conversions. js/ad-tags.js loads them only
+       after the visitor accepts cookies; Decline keeps them off. Set the IDs and conversion labels at the top of that file. -->
+  <script src="js/ad-tags.js" defer></script>
+  <!-- Meta Pixel noscript fallback, switched off on purpose: it is a plain image that would track visitors who have
+       JavaScript turned off before they could answer the cookie banner. To use it anyway, put your Pixel ID in the
+       line below and delete the comment markers around it. -->
+  <!-- <noscript><img height="1" width="1" style="display:none" alt="" src="https://www.facebook.com/tr?id=META_PIXEL_ID_HERE&amp;ev=PageView&amp;noscript=1"></noscript> -->
   <!-- Microsoft Clarity. Runs cookie-free until the visitor accepts cookies (the line after this
        snippet sets that; js/main.js applies later choices). Personal details are masked (data-clarity-mask). -->
   <script type="text/javascript">
