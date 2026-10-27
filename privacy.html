@@ -3,12 +3,23 @@
 <head>
   <meta charset="utf-8">
   <!-- Security policy (PCI DSS 6.4.3): only these sources may run on the page. If you change an inline <script>, update its sha256 hash here (see Business/PCI-DSS.md). -->
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self' file:; script-src 'self' file: https://*.googletagmanager.com 'sha256-7nnX2oOzt7UowW1mEvREIsoin+PIvwJs3DopQMg2tVQ=' 'sha256-jVDEcytlIBASSTXX8UWMAW3fwym5+rzcwhDWKbgu4NQ=' 'sha256-HuzeagOWxw72t91+fcLW0a2epg2jV2lvbgvXlvSrhbg='; style-src 'self' file: 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' file: data: blob: https://*.google-analytics.com https://*.googletagmanager.com; frame-src https://www.google.com; connect-src https://formspree.io https://*.google-analytics.com https://*.analytics.google.com https://*.googletagmanager.com; form-action 'self' https://formspree.io; base-uri 'self'; object-src 'none'">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self' file:; script-src 'self' file: https://*.googletagmanager.com https://*.clarity.ms 'sha256-7nnX2oOzt7UowW1mEvREIsoin+PIvwJs3DopQMg2tVQ=' 'sha256-jVDEcytlIBASSTXX8UWMAW3fwym5+rzcwhDWKbgu4NQ=' 'sha256-HuzeagOWxw72t91+fcLW0a2epg2jV2lvbgvXlvSrhbg=' 'sha256-bMUqGRvrd7Oa5B3isZfKHogU7mYoQRtwns8KYhU30vw=' 'sha256-LObU1tdmcx/heQRtk57MQWwTslHx0RgWSMB828agqtk=' 'sha256-JXvATGpaUOztFQ6cJs+CQjDwUHLmwQQOh5eHJqip73E='; style-src 'self' file: 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' file: data: blob: https://*.google-analytics.com https://*.googletagmanager.com https://*.clarity.ms https://c.bing.com; frame-src https://www.google.com; connect-src https://formspree.io https://*.google-analytics.com https://*.analytics.google.com https://*.googletagmanager.com https://*.clarity.ms https://c.bing.com; form-action 'self' https://formspree.io; base-uri 'self'; object-src 'none'">
   <meta name="referrer" content="strict-origin-when-cross-origin">
   <!-- Google tag (gtag.js) for Google Analytics 4, with Consent Mode v2:
        everything is denied by default; js/main.js updates consent only if the visitor accepts. -->
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-E2MC1NELGE"></script>
   <script>window.dataLayer = window.dataLayer || []; function gtag(){dataLayer.push(arguments);} gtag('consent', 'default', { analytics_storage: 'denied', ad_storage: 'denied', ad_user_data: 'denied', ad_personalization: 'denied' }); try { if (localStorage.getItem('zs-consent') === 'granted') gtag('consent', 'update', { analytics_storage: 'granted', ad_storage: 'granted' }); } catch (e) {} gtag('js', new Date()); gtag('config', 'G-E2MC1NELGE');</script>
+  <!-- Microsoft Clarity. Runs cookie-free until the visitor accepts cookies (the line after this
+       snippet sets that; js/main.js applies later choices). Personal details are masked (data-clarity-mask). -->
+  <script type="text/javascript">
+      (function(c,l,a,r,i,t,y){
+          c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
+          t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
+          y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
+      })(window, document, "clarity", "script", "z47hop4420");
+  </script>
+  <!-- Clarity starts cookie-free; only a saved "Accept" switches its cookies on (before Clarity loads). -->
+  <script>window.clarity('consentv2', (function () { try { return localStorage.getItem('zs-consent') === 'granted'; } catch (e) { return false; } })() ? { ad_Storage: 'granted', analytics_Storage: 'granted' } : { ad_Storage: 'denied', analytics_Storage: 'denied' });</script>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <script>document.documentElement.className = 'js'; try { if (localStorage.getItem('zs-datasaver') === 'true') document.documentElement.className += ' data-saver'; } catch (e) {} var zq = location.search; if ((new Date().getMonth() >= 9 && !/[?&]theme=off/.test(zq)) || /[?&]theme=zambia/.test(zq)) document.documentElement.className += ' theme-zambia';</script>
   <title>Privacy Policy | Zed Supply</title>
@@ -255,7 +266,7 @@
         <h3>Payment card details</h3>
         <p>We do not collect, store or process payment card details on this website, by email or on WhatsApp, and we will never ask you for them. If a card number is typed into one of our forms, the website stops it from being sent. When online card payments are introduced, they will be handled entirely by a PCI DSS-compliant payment provider on its own secure page, and Zed Supply will not see or store your full card number or security code.</p>
         <h3>Information collected automatically</h3>
-        <p>This website uses Google Analytics only as described in <a href="#cookies">section 6</a>, and never for advertising. It has no advertising or tracking pixels. Our web host may record basic technical information, such as your IP address and browser type, in server logs to keep the site secure and working.</p>
+        <p>This website uses Google Analytics and Microsoft Clarity only as described in <a href="#cookies">section 6</a>, and never for advertising. It has no advertising pixels. Our web host may record basic technical information, such as your IP address and browser type, in server logs to keep the site secure and working.</p>
 
         <h2 id="use">3. How and why we use it</h2>
         <ul>
@@ -272,6 +283,7 @@
           <li><strong>Suppliers and sellers</strong> we connect your order to, only the details they need to quote for or fulfil it.</li>
           <li><strong>Formspree</strong>, which receives contact-form and seller-application submissions and forwards them to us by email.</li>
           <li><strong>Google</strong>, which provides our email service, the fonts used on this site, the map on our contact page and, if you accept, Google Analytics.</li>
+          <li><strong>Microsoft</strong>, which provides Microsoft Clarity (see <a href="#cookies">section 6</a>).</li>
           <li><strong>WhatsApp (Meta)</strong>, if you choose to message us on WhatsApp.</li>
           <li><strong>Mobile money providers</strong> (MTN, Airtel or Zamtel), which process your payment and share with us the details needed to confirm it, such as your name, number, amount and transaction reference.</li>
           <li><strong>GitHub</strong>, which hosts this website.</li>
@@ -289,8 +301,17 @@
           <li><strong>If you accept:</strong> Google Analytics sets cookies (named <code>_ga</code> and <code>_ga_…</code>) to recognise repeat visits, and collects information such as the pages you view, the links you tap, your approximate location (from your IP address), and your device and browser type.</li>
           <li><strong>If you decline, or before you choose:</strong> no analytics cookies are set. Google may still receive basic, cookieless signals that a page was viewed or a link was tapped, without anything that identifies your browser between visits.</li>
           <li>We never send Google your name, phone number, email address, delivery location, WhatsApp messages or what you type in our forms. Links are reported without their message text.</li>
-          <li>We do not use Google Analytics for advertising, and we have no advertising or tracking pixels on this site.</li>
+          <li>We do not use Google Analytics for advertising, and we have no advertising pixels on this site.</li>
           <li>Your choice is saved in your browser. You can change it at any time with <button class="link-btn" type="button" data-cookie-settings>Cookie settings</button>, also found at the bottom of every page.</li>
+        </ul>
+        <h3>Microsoft Clarity (cookies only if you accept)</h3>
+        <p>We use Microsoft Clarity to see how people move around our pages, for example where they tap and how far they scroll, so we can find and fix things that are confusing. Clarity creates heatmaps and anonymised replays of visits.</p>
+        <ul>
+          <li><strong>If you accept:</strong> Clarity sets cookies (named <code>_clck</code> and <code>_clsk</code>) to link the pages of one visit and to recognise repeat visits, and records clicks, taps, scrolling and mouse movement, with your device type, browser and approximate location.</li>
+          <li><strong>If you decline, or before you choose:</strong> Clarity runs without cookies and cannot link your visits together.</li>
+          <li>We mask personal details so they never appear in recordings: everything typed into our forms, your name, your delivery location, your cart summary and your orders.</li>
+          <li>Clarity is provided by Microsoft, which may process this data outside Zambia.</li>
+          <li>The same <button class="link-btn" type="button" data-cookie-settings>Cookie settings</button> choice controls both Google Analytics and Microsoft Clarity.</li>
         </ul>
         <h3>Other third-party content</h3>
         <p>Apart from analytics cookies you have accepted, our own website does not set cookies. It uses your browser's local storage only for the on-device features described in section 2. Two pieces of third-party content may collect technical data when they load:</p>

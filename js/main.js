@@ -541,11 +541,29 @@
   function consentChoice() { try { return localStorage.getItem('zs-consent'); } catch (e) { return null; } }
   function setConsent(choice) {
     try { localStorage.setItem('zs-consent', choice); } catch (e) { /* storage blocked: applies to this page only */ }
-    if (typeof window.gtag === 'function') {
-      var v = choice === 'granted' ? 'granted' : 'denied';
-      window.gtag('consent', 'update', { analytics_storage: v, ad_storage: v });
-    }
+    var v = choice === 'granted' ? 'granted' : 'denied';
+    if (typeof window.gtag === 'function') window.gtag('consent', 'update', { analytics_storage: v, ad_storage: v });
+    // Microsoft Clarity: the <head> sets its starting state; this applies a new choice
+    if (typeof window.clarity === 'function') window.clarity('consentv2', { ad_Storage: v, analytics_Storage: v });
+    if (v === 'denied') clearAnalyticsCookies();
   }
+  // Google stops using its cookies once consent is denied, but doesn't delete them; do that here
+  function clearAnalyticsCookies() {
+    var parts = location.hostname.split('.'), domains = [''];
+    for (var i = 0; i < parts.length - 1; i++) domains.push('; domain=.' + parts.slice(i).join('.'));
+    document.cookie.split(';').forEach(function (c) {
+      var name = c.split('=')[0].trim();
+      if (/^_ga(_|$)/.test(name)) domains.forEach(function (d) { document.cookie = name + '=; Max-Age=0; path=/' + d; });
+    });
+  }
+
+  // Keep personal details out of Clarity session recordings: forms, the signed-in
+  // name, delivery location and order details are masked.
+  function maskPersonal(scope) {
+    $$('form, [data-greet], [data-location-label], [data-loc-summary], .deliver-box, .summary, .orders, .timeline', scope || document)
+      .forEach(function (el) { el.setAttribute('data-clarity-mask', 'true'); });
+  }
+  maskPersonal(document);
   function showConsent() {
     var old = $('.consent');
     if (old) old.remove();
@@ -553,7 +571,7 @@
     box.className = 'consent';
     box.setAttribute('aria-labelledby', 'consent-title');
     box.innerHTML = '<div class="consent__inner"><div class="consent__text"><h2 id="consent-title" class="consent__title">Cookies on Zed Supply</h2>' +
-      '<p>We\'d like to use Google Analytics cookies to understand how people use our site so we can improve it. They stay off unless you accept. ' +
+      '<p>We\'d like to use Google Analytics and Microsoft Clarity cookies to understand how people use our site so we can improve it. They stay off unless you accept. ' +
       '<a href="privacy.html#cookies">Read our privacy policy</a></p></div>' +
       '<div class="consent__actions"><button class="btn btn--primary btn--sm" type="button" data-consent="granted">Accept</button>' +
       '<button class="btn btn--secondary btn--sm" type="button" data-consent="denied">Decline</button></div></div>';
@@ -764,6 +782,7 @@
     home.hidden = true;
     view.hidden = false;
     view.innerHTML = html;
+    maskPersonal(view);
     saverArt(view);
     document.title = title + ' | Zed Supply';
     refreshLoc();
