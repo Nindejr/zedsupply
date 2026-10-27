@@ -1160,7 +1160,8 @@
         show(crumbs([['Seller Centre']]) + head('Seller Centre', 'Manage your store, products and promotions.') +
           '<div class="duo"><div class="band"><h2>Seller logins open soon</h2><p>We\'re verifying our first sellers now. Once your application is approved, you\'ll manage your store, products and promotions here.</p>' +
           '<a class="btn btn--primary" href="#/sell">Apply to sell</a></div>' +
-          '<div class="band"><h2>Already applied?</h2><p>We\'ll contact you on WhatsApp or email when your store is ready.</p>' + askBtn('Hi Zed Supply, I\'d like an update on my seller application.') + '</div></div>', 'Seller Centre');
+          '<div class="band"><h2>Already applied?</h2><p>We\'ll contact you on WhatsApp or email when your store is ready.</p>' + askBtn('Hi Zed Supply, I\'d like an update on my seller application.') + '</div></div>' +
+          '<div class="band duo--gap"><h2>Free stock planner</h2><p>Paste your stock list to see which items tie up your cash, what\'s about to run out and when to reorder. It works in your browser, so your list stays with you.</p><a class="btn btn--secondary" href="#/stock">Open the stock planner</a></div>', 'Seller Centre');
         return;
       }
       if (!s) {
@@ -1168,7 +1169,7 @@
           '<div class="duo"><form class="form form--card" id="seller-login"><h2>Seller login</h2><p class="notice">Prototype: choose a sample store to try the Seller Centre. Real seller logins come with full accounts.</p>' +
           '<div class="field"><label for="sl-store">Store</label><select id="sl-store">' + D.sellers.map(function (x) { return '<option value="' + x.id + '">' + esc(x.name) + '</option>'; }).join('') + '</select></div>' +
           '<button class="btn btn--primary" type="submit">Enter Seller Centre</button></form>' +
-          '<div class="band"><h2>Not selling yet?</h2><p>Apply to open your store on Zed Supply.</p><a class="btn btn--dark" href="#/sell">Register as a seller</a></div></div>', 'Seller Centre');
+          '<div class="band"><h2>Not selling yet?</h2><p>Apply to open your store on Zed Supply, or try our <a href="#/stock">free stock planner</a>.</p><a class="btn btn--dark" href="#/sell">Register as a seller</a></div></div>', 'Seller Centre');
         $('#seller-login').addEventListener('submit', function (e) { e.preventDefault(); store.set('seller', { id: $('#sl-store').value }); route(); });
         return;
       }
@@ -1177,7 +1178,7 @@
       var live = promos.filter(function (pr) { return promoStatus(pr) === 'live'; }).length;
       show(crumbs([['Seller Centre']]) +
         '<div class="store-hero" style="--brand-a:' + s.colours[0] + ';--brand-b:' + s.colours[1] + '"><h1>' + esc(s.name) + '</h1><p>Seller Centre' + (s.sample ? ' · sample store' : '') + verifiedHTML(s) + '</p></div>' +
-        '<ul class="tiles"><li><a href="#/store/' + s.id + '"><strong>' + mine.length + ' products</strong><span>View your store</span></a></li><li><a href="#sc-promos" data-jump="sc-promos"><strong>' + live + ' live</strong><span>Promotions running now</span></a></li><li><a href="#sc-new" data-jump="sc-new"><strong>New</strong><span>Create a promotion</span></a></li><li><a href="help.html#selling"><strong>Help</strong><span>Selling on Zed Supply</span></a></li></ul>' +
+        '<ul class="tiles tiles--5"><li><a href="#/store/' + s.id + '"><strong>' + mine.length + ' products</strong><span>View your store</span></a></li><li><a href="#sc-promos" data-jump="sc-promos"><strong>' + live + ' live</strong><span>Promotions running now</span></a></li><li><a href="#sc-new" data-jump="sc-new"><strong>New</strong><span>Create a promotion</span></a></li><li><a href="#/stock"><strong>Stock planner</strong><span>Reorder levels, overstock and forecasts</span></a></li><li><a href="help.html#selling"><strong>Help</strong><span>Selling on Zed Supply</span></a></li></ul>' +
         '<div class="duo duo--gap">' +
         '<section class="card" id="sc-promos" aria-labelledby="sc-p-title"><h2 id="sc-p-title">Your promotions</h2>' + (promos.length ? '<ul class="orders">' + promos.map(function (pr) {
           return '<li class="order-row"><span><strong>' + esc(pr.title) + '</strong><br><span class="pmeta">' + esc(season(pr.season).name) + ' · ' + (Number(pr.discount) || 0) + '% off · ' + niceDate(pr.starts) + ' to ' + niceDate(pr.ends) + (pr.image ? ' · with banner image' : '') + '</span></span><span><span class="status">' + promoStatus(pr) + '</span>' + (pr.demo ? ' <button class="link-btn" type="button" data-del-promo="' + esc(pr.id) + '">Delete<span class="visually-hidden"> ' + esc(pr.title) + '</span></button>' : '') + '</span></li>';
@@ -1226,6 +1227,24 @@
         if (del) { store.set('promos', store.get('promos', []).filter(function (x) { return x.id !== del.getAttribute('data-del-promo'); })); route(); }
         if (e.target.closest('#seller-out')) { store.set('seller', null); route(); }
       };
+    },
+
+    // Stock planner: js/stock-planner.js is fetched the first time this opens
+    stock: function () {
+      show(crumbs([['Seller Centre', '#/seller'], ['Stock planner']]) +
+        '<div class="sp-hero"><span class="eyebrow">For sellers</span><h1>Stock planner</h1><p>See which items tie up your cash, what\'s about to run out, when to reorder and what the coming months look like. Every figure shows its working.</p></div>' +
+        '<div id="sp-root" class="sp" data-clarity-mask="true"><p>Loading the planner…</p></div>', 'Stock planner');
+      var mount = function () {
+        var el = $('#sp-root');
+        if (!el) return;
+        if (!window.ZSStock) { el.innerHTML = '<p class="form-status is-error">The planner couldn\'t load. Check your connection and refresh the page.</p>'; return; }
+        window.ZSStock.mount(el, { esc: esc, store: store, toast: toast });
+      };
+      if (window.ZSStock) return mount();
+      var sp = document.createElement('script');
+      sp.src = 'js/stock-planner.js';
+      sp.onload = sp.onerror = mount;
+      document.head.appendChild(sp);
     },
 
     promotions: function (arg, q) {
