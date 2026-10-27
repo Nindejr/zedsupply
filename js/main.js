@@ -11,6 +11,19 @@
 (function () {
   'use strict';
 
+  // Clickjacking guard: browsers ignore X-Frame-Options and frame-ancestors in a <meta> tag and GitHub Pages
+  // can't send headers, so if another website shows this page inside a frame, swap it for a link out.
+  var framed;
+  try { framed = window.top !== window.self && window.top.location.origin !== location.origin; } catch (e) { framed = true; }
+  if (framed) {
+    var out = document.createElement('a');
+    out.href = location.href; out.target = '_top'; out.rel = 'noopener noreferrer';
+    out.textContent = 'Open Zed Supply in its own window';
+    document.body.textContent = '';
+    document.body.appendChild(out);
+    return;
+  }
+
   var demoOn = false;
   try {
     if (/[?&]demo=1\b/.test(location.search)) sessionStorage.setItem('zs-demo', '1');
@@ -417,14 +430,15 @@
       '</div></article></li>';
   }
   function cards(list) { return list.map(card).join(''); }
-  function promoCard(pr) {
+  function promoCard(pr, level) {
+    var h = level === 2 ? 'h2' : 'h3';
     var s = seller(pr.seller), se = season(pr.season), st = promoStatus(pr);
     var label = st === 'live' ? 'Live now · ends ' + niceDate(pr.ends) : (st === 'upcoming' ? 'Starts ' + niceDate(pr.starts) : 'Ended');
     var img = pr.image && !root.classList.contains('data-saver');
     return '<li><a class="promo' + (img ? ' promo--img' : '') + '" href="' + R + 'promo/' + esc(pr.id) + '" style="--promo-a:' + se.colours[0] + ';--promo-b:' + se.colours[1] + (img ? ';--promo-img:url(\'' + esc(pr.image) + '\')' : '') + '">' +
       '<span class="promo__status' + (st === 'live' ? ' promo__status--live' : '') + '">' + label + '</span>' +
-      '<span class="promo__off">' + pr.discount + '% off</span>' +
-      '<h3>' + esc(pr.title) + '</h3>' +
+      '<span class="promo__off">' + (Number(pr.discount) || 0) + '% off</span>' +
+      '<' + h + '>' + esc(pr.title) + '</' + h + '>' +
       '<p>' + esc(se.name) + (s ? ' · ' + esc(s.name) : '') + (pr.sample ? ' · Sample' : '') + (pr.demo ? ' · Demo' : '') + '</p>' +
       '<p class="promo__cta">View promotion →</p></a></li>';
   }
@@ -570,7 +584,7 @@
     var box = document.createElement('section');
     box.className = 'consent';
     box.setAttribute('aria-labelledby', 'consent-title');
-    box.innerHTML = '<div class="consent__inner"><div class="consent__text"><h2 id="consent-title" class="consent__title">Cookies on Zed Supply</h2>' +
+    box.innerHTML = '<div class="consent__inner"><div class="consent__text"><p id="consent-title" class="consent__title">Cookies on Zed Supply</p>' +
       '<p>We\'d like to use Google Analytics and Microsoft Clarity cookies to understand how people use our site so we can improve it. They stay off unless you accept. ' +
       '<a href="privacy.html#cookies">Read our privacy policy</a></p></div>' +
       '<div class="consent__actions"><button class="btn btn--primary btn--sm" type="button" data-consent="granted">Accept</button>' +
@@ -616,7 +630,7 @@
     var what = $('#req-what').value.trim(), budget = $('#req-budget').value.trim();
     if (!what) { $('#req-what').focus(); return; }
     track('whatsapp_click', { link_url: WA.split('?')[0], link_text: 'Request form: Send request on WhatsApp' });
-    window.open(waUrl('Hi Zed Supply, please source this for me:\n' + what + (budget ? '\nBudget: ' + budget : '')), '_blank', 'noopener');
+    window.open(waUrl('Hi Zed Supply, please source this for me:\n' + what + (budget ? '\nBudget: ' + budget : '')), '_blank', 'noopener,noreferrer');
   });
 
   /* ---------- Footer year, image fallbacks ---------- */
@@ -800,7 +814,7 @@
   }
   function head(title, sub) { return '<div class="view-head"><h1>' + title + '</h1>' + (sub ? '<p>' + sub + '</p>' : '') + '</div>'; }
   function empty(msg, cta) { return '<div class="empty"><img class="empty__art" src="assets/icons/empty.svg" alt="" width="64" height="64"><p>' + msg + '</p>' + (cta || '') + '</div>'; }
-  function askBtn(msg) { return '<a class="btn btn--primary" href="' + waUrl(msg) + '" data-wa-message="' + esc(msg) + '" target="_blank" rel="noopener">Ask on WhatsApp</a>'; }
+  function askBtn(msg) { return '<a class="btn btn--primary" href="' + waUrl(msg) + '" data-wa-message="' + esc(msg) + '" target="_blank" rel="noopener noreferrer">Ask on WhatsApp</a>'; }
   function ticks(list) { return '<ul class="ticks">' + list.map(function (t) { return '<li>' + icon(I.check) + t + '</li>'; }).join('') + '</ul>'; }
 
   /* Product listing with sort and filters: departments, search, deals, brands, stores, promotions */
@@ -898,7 +912,7 @@
             '<p class="pmeta"><button class="link-btn" type="button" data-open-location aria-haspopup="dialog"><span data-location-label>Deliver to: set location</span></button></p>' +
             '<div><label for="pdp-qty" class="pmeta">Quantity</label><div class="qty"><button type="button" data-step="-1" data-target="#pdp-qty" aria-label="Decrease quantity">−</button><input id="pdp-qty" type="number" min="1" max="99" value="1" inputmode="numeric"><button type="button" data-step="1" data-target="#pdp-qty" aria-label="Increase quantity">+</button></div></div>' +
             '<button class="btn btn--primary btn--block" type="button" data-add="' + p.id + '" data-qty-from="#pdp-qty">Add to cart</button>' +
-            '<a class="btn btn--secondary btn--block" id="buy-now" href="#" target="_blank" rel="noopener">Buy now on WhatsApp</a>' +
+            '<a class="btn btn--secondary btn--block" id="buy-now" href="#" target="_blank" rel="noopener noreferrer">Buy now on WhatsApp</a>' +
             '<p class="pmeta">The final price and delivery are confirmed on WhatsApp before you pay.</p>' +
             (payMethods().length ? '<div class="buybox__pay"><p class="pmeta">Pay with mobile money</p>' + payChipsHTML() + '</div>' : '') +
           '</aside>' +
@@ -911,7 +925,8 @@
             '<p class="hint">Prototype: your review is saved on this device only.</p><button class="btn btn--primary" type="submit">Post review</button></form>'
             : '<p><a class="btn btn--secondary" href="#/account">Sign in to write a review</a></p>') +
         '</div><div>' + revs.map(function (v) {
-          return '<div class="review"><span class="stars__icons" aria-hidden="true">' + starString(v.rating) + '</span><span class="visually-hidden">' + v.rating + ' out of 5</span> <strong>' + esc(v.name) + '</strong> <small>' + niceDate(v.date) + '</small><p>' + esc(v.text) + '</p></div>';
+          var stars = Math.min(5, Math.max(0, Number(v.rating) || 0));
+          return '<div class="review"><span class="stars__icons" aria-hidden="true">' + starString(stars) + '</span><span class="visually-hidden">' + stars + ' out of 5</span> <strong>' + esc(v.name) + '</strong> <small>' + niceDate(v.date) + '</small><p>' + esc(v.text) + '</p></div>';
         }).join('') + '</div></section>' +
         (related.length ? '<section class="section" aria-labelledby="rel-title"><h2 id="rel-title">More in ' + esc(d.name) + '</h2><ul class="row">' + cards(related) + '</ul></section>' : '');
       show(html, p.title);
@@ -945,7 +960,7 @@
       }
       var voucher = store.get('voucher', '');
       var sub = 0, save = 0, items = [];
-      lines.forEach(function (l) { var p = product(l.id), pr = priceOf(p); sub += pr.now * l.qty; if (pr.was) save += (pr.was - pr.now) * l.qty; items.push({ p: p, pr: pr, qty: l.qty }); });
+      lines.forEach(function (l) { var p = product(l.id), pr = priceOf(p), qty = Math.min(99, Math.max(1, parseInt(l.qty, 10) || 1)); sub += pr.now * qty; if (pr.was) save += (pr.was - pr.now) * qty; items.push({ p: p, pr: pr, qty: qty }); });
       var v = voucher ? (D.vouchers || []).filter(function (x) { return x.code === voucher; })[0] : null;
       var vOff = v && sub >= v.minSpend ? Math.round(sub * v.percent / 100) : 0;
       var total = sub - vOff;
@@ -974,7 +989,7 @@
           '<div class="deliver-box"><p class="deliver-box__label">Deliver to</p><p data-loc-summary>' + locSummaryHTML() + '</p><button class="link-btn" type="button" data-open-location aria-haspopup="dialog">Set or change delivery location</button></div>' +
           '<div class="field"><label for="co-note">Notes for your order (optional)</label><input id="co-note"></div>' +
           payChoiceHTML() +
-          '<a class="btn btn--primary btn--block" id="checkout" href="#" target="_blank" rel="noopener">Checkout on WhatsApp</a>' +
+          '<a class="btn btn--primary btn--block" id="checkout" href="#" target="_blank" rel="noopener noreferrer">Checkout on WhatsApp</a>' +
           '<p class="pmeta">We confirm the final price and delivery fee on WhatsApp, then send payment instructions. You approve the payment on your own phone. We never ask for your PIN.</p>' +
           '<button class="link-btn" type="button" id="clear-cart">Empty cart</button>' +
         '</aside></div>';
@@ -1080,7 +1095,7 @@
       var list = orders();
       show(crumbs([['My Account', '#/account'], ['Orders']]) + head('Your orders', 'Orders you\'ve sent from this device.') +
         (list.length ? '<ul class="orders">' + list.map(function (o) {
-          return '<li><a class="order-row" href="#/order/' + o.ref + '"><span><strong>' + o.ref + '</strong><br><span class="pmeta">' + niceDate(o.date) + ' · ' + o.items.length + (o.items.length === 1 ? ' product' : ' products') + '</span></span><span><span class="status">' + STATUS[o.status] + '</span><br><strong>' + kwacha(o.total) + '</strong></span></a></li>';
+          return '<li><a class="order-row" href="#/order/' + encodeURIComponent(o.ref) + '"><span><strong>' + esc(o.ref) + '</strong><br><span class="pmeta">' + niceDate(o.date) + ' · ' + o.items.length + (o.items.length === 1 ? ' product' : ' products') + '</span></span><span><span class="status">' + STATUS[o.status] + '</span><br><strong>' + kwacha(o.total) + '</strong></span></a></li>';
         }).join('') + '</ul>' : empty('No orders yet. When you check out on WhatsApp, your order appears here.', '<a class="btn btn--primary" href="#/deals">Start shopping</a>')) +
         '<p class="view-foot"><a href="#/track">Track an order by number</a></p>', 'Orders');
     },
@@ -1095,7 +1110,7 @@
         }).join('') + '</ol>' +
         (o.sample ? '<p class="pmeta">This is a demo order to show how tracking will look.</p>' : '<p class="pmeta">We update your order once it\'s confirmed on WhatsApp. Prototype: live tracking arrives with full accounts.</p>') +
         askBtn(msg) + '</div>' +
-        '<aside class="summary"><h2>Items</h2><ul class="lines">' + o.items.map(function (it) { var p = product(it.id); return '<li class="line line--plain"><div><a class="line__title" href="#/product/' + it.id + '">' + esc(p ? p.title : it.id) + '</a><p class="pmeta">Quantity ' + it.qty + ' · ' + kwacha(it.price * it.qty) + '</p></div></li>'; }).join('') + '</ul>' +
+        '<aside class="summary"><h2>Items</h2><ul class="lines">' + o.items.map(function (it) { var p = product(it.id); return '<li class="line line--plain"><div><a class="line__title" href="#/product/' + it.id + '">' + esc(p ? p.title : it.id) + '</a><p class="pmeta">Quantity ' + (parseInt(it.qty, 10) || 0) + ' · ' + kwacha(it.price * it.qty) + '</p></div></li>'; }).join('') + '</ul>' +
         '<dl class="totals"><div class="is-total"><dt>Total</dt><dd>' + kwacha(o.total) + '</dd></div></dl>' +
         (o.pay ? '<div class="deliver-box"><p class="deliver-box__label">Payment</p><p>' + esc(o.pay) + '</p></div>' : '') +
         '<div class="deliver-box"><p class="deliver-box__label">Deliver to</p><p>' + (o.deliverTo ? esc(o.deliverTo) : '<span class="pmeta">No location given. We\'ll ask on WhatsApp.</span>') + '</p></div></aside></div>', 'Order ' + o.ref);
@@ -1113,7 +1128,7 @@
     sell: function () {
       show(crumbs([['Sell on Zed Supply']]) +
         '<div class="store-hero" style="--brand-a:#0A2A66;--brand-b:#106B3A"><h1>Sell on Zed Supply</h1><p>Open your store, reach more customers and run your own promotions.</p></div>' +
-        '<ol class="steps"><li class="step"><h3>Apply</h3><p>Tell us about your business with the form below.</p></li><li class="step"><h3>Get verified</h3><p>We check your details and set up your seller account.</p></li><li class="step"><h3>List and promote</h3><p>Add products, set up your brand store and run seasonal promotions.</p></li></ol>' +
+        '<ol class="steps"><li class="step"><h2>Apply</h2><p>Tell us about your business with the form below.</p></li><li class="step"><h2>Get verified</h2><p>We check your details and set up your seller account.</p></li><li class="step"><h2>List and promote</h2><p>Add products, set up your brand store and run seasonal promotions.</p></li></ol>' +
         '<div class="duo duo--gap"><div class="band"><h2>Why sell with us</h2>' +
           ticks(['Your own store page and brand store', 'Run seasonal or your own promotions from your Seller Centre', 'Orders confirmed with you before delivery', 'Reach Zambian households, professionals, SMEs and organisations']) +
           '<p><strong>Fees:</strong> <span class="placeholder">[SELLER FEES OR COMMISSION]</span></p><p>Already registered? <a href="#/seller">Seller Centre login</a></p></div>' +
@@ -1158,7 +1173,7 @@
         '<ul class="tiles"><li><a href="#/store/' + s.id + '"><strong>' + mine.length + ' products</strong><span>View your store</span></a></li><li><a href="#sc-promos" data-jump="sc-promos"><strong>' + live + ' live</strong><span>Promotions running now</span></a></li><li><a href="#sc-new" data-jump="sc-new"><strong>New</strong><span>Create a promotion</span></a></li><li><a href="help.html#selling"><strong>Help</strong><span>Selling on Zed Supply</span></a></li></ul>' +
         '<div class="duo duo--gap">' +
         '<section class="card" id="sc-promos" aria-labelledby="sc-p-title"><h2 id="sc-p-title">Your promotions</h2>' + (promos.length ? '<ul class="orders">' + promos.map(function (pr) {
-          return '<li class="order-row"><span><strong>' + esc(pr.title) + '</strong><br><span class="pmeta">' + esc(season(pr.season).name) + ' · ' + pr.discount + '% off · ' + niceDate(pr.starts) + ' to ' + niceDate(pr.ends) + (pr.image ? ' · with banner image' : '') + '</span></span><span><span class="status">' + promoStatus(pr) + '</span>' + (pr.demo ? ' <button class="link-btn" type="button" data-del-promo="' + pr.id + '">Delete<span class="visually-hidden"> ' + esc(pr.title) + '</span></button>' : '') + '</span></li>';
+          return '<li class="order-row"><span><strong>' + esc(pr.title) + '</strong><br><span class="pmeta">' + esc(season(pr.season).name) + ' · ' + (Number(pr.discount) || 0) + '% off · ' + niceDate(pr.starts) + ' to ' + niceDate(pr.ends) + (pr.image ? ' · with banner image' : '') + '</span></span><span><span class="status">' + promoStatus(pr) + '</span>' + (pr.demo ? ' <button class="link-btn" type="button" data-del-promo="' + esc(pr.id) + '">Delete<span class="visually-hidden"> ' + esc(pr.title) + '</span></button>' : '') + '</span></li>';
         }).join('') + '</ul>' : '<p>No promotions yet.</p>') + '</section>' +
         '<form class="form form--card" id="sc-new" aria-labelledby="sc-n-title"><h2 id="sc-n-title">Create a promotion</h2>' +
           '<p class="notice">Prototype: promotions you create appear across the store in this browser only.</p>' +
@@ -1212,7 +1227,7 @@
       show(crumbs([['Promotions']]) + head('Promotions', 'Seasonal and store promotions from Zed Supply sellers.') +
         '<ul class="chips" aria-label="Filter by type"><li><a class="chip" href="#/promotions"' + (!f ? ' aria-current="page"' : '') + '>All</a></li>' +
         D.seasons.map(function (x) { return '<li><a class="chip" href="#/promotions?season=' + x.id + '"' + (f === x.id ? ' aria-current="page"' : '') + '>' + esc(x.name) + '</a></li>'; }).join('') + '</ul>' +
-        (list.length ? '<ul class="promos">' + list.map(promoCard).join('') + '</ul>' : empty('No promotions of this type right now.', '<a class="btn btn--secondary" href="#/promotions">See all promotions</a>')) +
+        (list.length ? '<ul class="promos">' + list.map(function (pr) { return promoCard(pr, 2); }).join('') + '</ul>' : empty('No promotions of this type right now.', '<a class="btn btn--secondary" href="#/promotions">See all promotions</a>')) +
         '<p class="view-foot">Are you a seller? <a href="#/seller">Create a promotion in your Seller Centre</a>.</p>', 'Promotions');
     },
 
@@ -1221,7 +1236,7 @@
       if (!pr) return views.notfound();
       var s = seller(pr.seller), se = season(pr.season), st = promoStatus(pr);
       listing({ title: esc(pr.title), crumbs: [['Promotions', '#/promotions'], [pr.title]], list: pr.products.map(product).filter(Boolean), docTitle: pr.title,
-        extra: '<div class="store-hero' + (pr.image && !root.classList.contains('data-saver') ? ' promo--img' : '') + '" style="--brand-a:' + se.colours[0] + ';--brand-b:' + se.colours[1] + (pr.image ? ';--promo-img:url(\'' + esc(pr.image) + '\')' : '') + '"><p class="promo__off">' + pr.discount + '% off</p><p>' + esc(se.name) + (s ? ' · by <a class="on-dark" href="#/store/' + s.id + '">' + esc(s.name) + '</a>' : '') + '</p><p>' +
+        extra: '<div class="store-hero' + (pr.image && !root.classList.contains('data-saver') ? ' promo--img' : '') + '" style="--brand-a:' + se.colours[0] + ';--brand-b:' + se.colours[1] + (pr.image ? ';--promo-img:url(\'' + esc(pr.image) + '\')' : '') + '"><p class="promo__off">' + (Number(pr.discount) || 0) + '% off</p><p>' + esc(se.name) + (s ? ' · by <a class="on-dark" href="#/store/' + s.id + '">' + esc(s.name) + '</a>' : '') + '</p><p>' +
           (st === 'live' ? 'Live now until ' + niceDate(pr.ends) : st === 'upcoming' ? 'Starts ' + niceDate(pr.starts) + '. Prices drop automatically when it begins.' : 'This promotion has ended.') + '</p>' + (pr.about ? '<p>' + esc(pr.about) + '</p>' : '') + '</div>' });
     },
 
@@ -1252,7 +1267,7 @@
           '<div class="band band--world band--big"><span class="eyebrow eyebrow--light">Shop the World</span><h1>Coming soon: shop from China and beyond</h1>' +
           '<p>We\'re putting supplier agreements in place first. When Shop the World opens, you\'ll be able to order from overseas marketplaces through Zed Supply as your local agent.</p>' +
           ticks(['The full landed cost in Kwacha shown upfront, including shipping and clearance', 'An estimated delivery time on every product', 'One local contact in Lusaka for your order']) +
-          '<a class="btn btn--light" href="#" data-wa-message="Hi Zed Supply, please let me know when Shop the World opens." target="_blank" rel="noopener">Tell me when it opens</a></div>' +
+          '<a class="btn btn--light" href="#" data-wa-message="Hi Zed Supply, please let me know when Shop the World opens." target="_blank" rel="noopener noreferrer">Tell me when it opens</a></div>' +
           '<p class="view-foot">Until then, <a href="#request">send us a request</a> and we\'ll source it locally.</p>', 'Shop the World');
         return;
       }

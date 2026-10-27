@@ -1,0 +1,38 @@
+# Zed Supply
+
+> Zed Supply ("Everything Within Reach") is a Zambia-based e-commerce business in Lusaka building an online marketplace for everyday products, business supplies and other goods. It serves Zambian households, professionals, SMEs and organisations that want a simpler way to shop or source products online, and intends to serve customers across Zambia. Prices are in Kwacha, checkout happens on WhatsApp, the final price and delivery are confirmed before the customer pays, and payment is by mobile money (MTN MoMo, Airtel Money or Zamtel Mobile Money).
+
+## Key facts
+
+- Location: Lusaka, Zambia
+- Service area: based in Lusaka; intends to serve customers across Zambia, with scope to expand beyond Zambia as the business grows
+- Status: launching. Sellers are joining Zed Supply now and the first deals are on their way
+- Shop categories: Phones, Tech & Smart Gadgets; Solar, Power & Energy; Fashion, Beauty & Hair; Home, Kitchen & Appliances; Small Business & Manufacturing Equipment; Office, School & Stationery; Agriculture & Farming; Auto Parts & Accessories; Building, Tools & Hardware; Baby, Kids & Toys; Health, Fitness & Personal Care; Everyday Essentials
+- Prices: shown in Zambian Kwacha (K / ZMW); the final price, including delivery, is confirmed on WhatsApp before payment
+- How ordering works: customers find a product or send a request, check out on WhatsApp with an itemised order, Zed Supply confirms the final price and delivery, then connects the order to the right seller or supplier and supports it through to fulfilment
+- Payment: MTN MoMo, Airtel Money or Zamtel Mobile Money, approved by the customer on their own phone. Zed Supply never asks for card numbers, card security codes or PINs
+- Services:
+  - Online shopping from Zambian sellers
+  - Product requests: customers describe what they need and Zed Supply looks for it from local suppliers
+  - Business supplies: product sourcing and supply enquiries for businesses and organisations, including office, business and institutional supplies
+  - Selling on Zed Supply: Zambian suppliers and businesses can apply to open a store, run seasonal or store promotions, and have a brand store
+- Not yet available: ordering from China or other countries ("Shop the World") while supplier agreements are put in place
+- Privacy: personal data is handled under Zambia's Data Protection Act No. 3 of 2021
+
+## Pages
+
+- [Zed Supply homepage](https://SITE_URL/): the storefront, with shop categories, deals, seller promotions, brand stores, business supplies, product requests, selling on Zed Supply and how ordering works
+- [Help Centre](https://SITE_URL/help.html): ordering on WhatsApp, delivery, mobile money payments, payment safety, returns, accounts, selling, business supplies, FAQs, about Zed Supply and contact details
+- [Privacy policy](https://SITE_URL/privacy.html): what personal data Zed Supply collects, why, who it is shared with, cookies and analytics, and your rights under Zambia's Data Protection Act No. 3 of 2021
+
+## Contact
+
+- Phone: +260 97 905 0042
+- WhatsApp: +260 97 905 0042 (https://wa.me/260979050042), the fastest way to reach Zed Supply
+- Email: expresszambezi@gmail.com
+- Address: Lusaka, Zambia
+- Facebook: https://www.facebook.com/profile.php?id=61594975557604
+
+## Optional
+
+- [Full text of every page](https://SITE_URL/llms-full.txt): the complete text of the homepage, Help Centre, privacy policy and error page in one file

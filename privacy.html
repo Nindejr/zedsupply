@@ -1,9 +1,24 @@
 <!doctype html>
-<html lang="en" class="no-js">
+<html lang="en-ZM" class="no-js">
 <head>
   <meta charset="utf-8">
-  <!-- Security policy (PCI DSS 6.4.3): only these sources may run on the page. If you change an inline <script>, update its sha256 hash here (see Business/PCI-DSS.md). -->
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self' file:; script-src 'self' file: https://*.googletagmanager.com https://*.clarity.ms 'sha256-7nnX2oOzt7UowW1mEvREIsoin+PIvwJs3DopQMg2tVQ=' 'sha256-jVDEcytlIBASSTXX8UWMAW3fwym5+rzcwhDWKbgu4NQ=' 'sha256-HuzeagOWxw72t91+fcLW0a2epg2jV2lvbgvXlvSrhbg=' 'sha256-bMUqGRvrd7Oa5B3isZfKHogU7mYoQRtwns8KYhU30vw=' 'sha256-LObU1tdmcx/heQRtk57MQWwTslHx0RgWSMB828agqtk=' 'sha256-JXvATGpaUOztFQ6cJs+CQjDwUHLmwQQOh5eHJqip73E='; style-src 'self' file: 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' file: data: blob: https://*.google-analytics.com https://*.googletagmanager.com https://*.clarity.ms https://c.bing.com; frame-src https://www.google.com; connect-src https://formspree.io https://*.google-analytics.com https://*.analytics.google.com https://*.googletagmanager.com https://*.clarity.ms https://c.bing.com; form-action 'self' https://formspree.io; base-uri 'self'; object-src 'none'">
+  <!-- Content Security Policy (PCI DSS 6.4.3). The browser loads only what is listed here and blocks everything else.
+       default-src 'self' file:   anything not covered below may come only from this site (file: lets the site work when opened by double-clicking).
+       script-src                 our own scripts, Google Analytics (googletagmanager.com) and Microsoft Clarity (clarity.ms), plus the small
+                                  inline scripts in this head, each allowed by its sha256 hash.
+       style-src                  our stylesheet and the Google Fonts stylesheet. 'unsafe-inline' allows the colours set in style="" attributes.
+       font-src                   the font files from fonts.gstatic.com.
+       img-src                    our images, data: and blob: images the site creates itself (such as promotion banners), and the tiny
+                                  measurement images Google Analytics and Clarity use.
+       frame-src                  only the Google Maps embed on the help page.
+       connect-src                where the page may send data: Formspree (contact and seller forms), Google Analytics and Clarity.
+       form-action                forms may submit only to this site or Formspree.
+       base-uri, object-src       block two old tricks for hijacking links and loading plugins.
+       upgrade-insecure-requests  any http:// address is fetched over https:// instead.
+       WARNING: anything new from another website (a chat widget, an ad or social pixel, a CDN library, a YouTube video, a payment
+       button) is silently blocked until its domain is added here, on all four pages. Editing an inline script in this head changes
+       its hash: update the matching sha256 or it stops running (see Business/PCI-DSS.md). -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self' file:; script-src 'self' file: https://*.googletagmanager.com https://*.clarity.ms 'sha256-7nnX2oOzt7UowW1mEvREIsoin+PIvwJs3DopQMg2tVQ=' 'sha256-jVDEcytlIBASSTXX8UWMAW3fwym5+rzcwhDWKbgu4NQ=' 'sha256-HuzeagOWxw72t91+fcLW0a2epg2jV2lvbgvXlvSrhbg=' 'sha256-bMUqGRvrd7Oa5B3isZfKHogU7mYoQRtwns8KYhU30vw=' 'sha256-LObU1tdmcx/heQRtk57MQWwTslHx0RgWSMB828agqtk=' 'sha256-JXvATGpaUOztFQ6cJs+CQjDwUHLmwQQOh5eHJqip73E='; style-src 'self' file: 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' file: data: blob: https://*.google-analytics.com https://*.googletagmanager.com https://*.clarity.ms https://c.bing.com; frame-src https://www.google.com; connect-src https://formspree.io https://*.google-analytics.com https://*.analytics.google.com https://*.googletagmanager.com https://*.clarity.ms https://c.bing.com; form-action 'self' https://formspree.io; base-uri 'self'; object-src 'none'; upgrade-insecure-requests">
   <meta name="referrer" content="strict-origin-when-cross-origin">
   <!-- Google tag (gtag.js) for Google Analytics 4, with Consent Mode v2:
        everything is denied by default; js/main.js updates consent only if the visitor accepts. -->
@@ -50,6 +65,32 @@
   <link rel="stylesheet" href="css/style.css">
   <script src="js/catalogue.js" defer></script>
   <script src="js/main.js" defer></script>
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    "@id": "https://SITE_URL/#organization",
+    "name": "Zed Supply",
+    "slogan": "Everything Within Reach",
+    "url": "https://SITE_URL/",
+    "logo": "https://SITE_URL/assets/apple-touch-icon.png",
+    "email": "expresszambezi@gmail.com",
+    "telephone": "+260979050042",
+    "contactPoint": [{ "@type": "ContactPoint", "telephone": "+260979050042", "email": "expresszambezi@gmail.com", "contactType": "customer service" }],
+    "sameAs": ["https://www.facebook.com/profile.php?id=61594975557604"]
+  }
+  </script>
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    "itemListElement": [
+      { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://SITE_URL/" },
+      { "@type": "ListItem", "position": 2, "name": "Privacy policy", "item": "https://SITE_URL/privacy.html" }
+    ]
+  }
+  </script>
 </head>
 <body>
   <a class="skip-link" href="#main">Skip to content</a>
@@ -128,18 +169,18 @@
     </div>
     <div class="drawer__body">
       <ul>
-        <li><a href="index.html#/dept/tech"><span class="emoji" aria-hidden="true"><img src="assets/icons/tech.svg" alt="" width="24" height="24"></span>Phones, Tech &amp; Smart Gadgets</a></li>
-        <li><a href="index.html#/dept/solar"><span class="emoji" aria-hidden="true"><img src="assets/icons/solar.svg" alt="" width="24" height="24"></span>Solar, Power &amp; Energy</a></li>
-        <li><a href="index.html#/dept/fashion"><span class="emoji" aria-hidden="true"><img src="assets/icons/fashion.svg" alt="" width="24" height="24"></span>Fashion, Beauty &amp; Hair</a></li>
-        <li><a href="index.html#/dept/home"><span class="emoji" aria-hidden="true"><img src="assets/icons/home.svg" alt="" width="24" height="24"></span>Home, Kitchen &amp; Appliances</a></li>
-        <li><a href="index.html#/dept/business"><span class="emoji" aria-hidden="true"><img src="assets/icons/business.svg" alt="" width="24" height="24"></span>Small Business &amp; Manufacturing</a></li>
-        <li><a href="index.html#/dept/office"><span class="emoji" aria-hidden="true"><img src="assets/icons/office.svg" alt="" width="24" height="24"></span>Office, School &amp; Stationery</a></li>
-        <li><a href="index.html#/dept/agri"><span class="emoji" aria-hidden="true"><img src="assets/icons/agri.svg" alt="" width="24" height="24"></span>Agriculture &amp; Farming</a></li>
-        <li><a href="index.html#/dept/auto"><span class="emoji" aria-hidden="true"><img src="assets/icons/auto.svg" alt="" width="24" height="24"></span>Auto Parts &amp; Accessories</a></li>
-        <li><a href="index.html#/dept/hardware"><span class="emoji" aria-hidden="true"><img src="assets/icons/hardware.svg" alt="" width="24" height="24"></span>Building, Tools &amp; Hardware</a></li>
-        <li><a href="index.html#/dept/baby"><span class="emoji" aria-hidden="true"><img src="assets/icons/baby.svg" alt="" width="24" height="24"></span>Baby, Kids &amp; Toys</a></li>
-        <li><a href="index.html#/dept/health"><span class="emoji" aria-hidden="true"><img src="assets/icons/health.svg" alt="" width="24" height="24"></span>Health, Fitness &amp; Personal Care</a></li>
-        <li><a href="index.html#/dept/essentials"><span class="emoji" aria-hidden="true"><img src="assets/icons/essentials.svg" alt="" width="24" height="24"></span>Everyday Essentials</a></li>
+        <li><a href="index.html#/dept/tech"><span class="emoji" aria-hidden="true"><img src="assets/icons/tech.svg" alt="" width="24" height="24" loading="lazy"></span>Phones, Tech &amp; Smart Gadgets</a></li>
+        <li><a href="index.html#/dept/solar"><span class="emoji" aria-hidden="true"><img src="assets/icons/solar.svg" alt="" width="24" height="24" loading="lazy"></span>Solar, Power &amp; Energy</a></li>
+        <li><a href="index.html#/dept/fashion"><span class="emoji" aria-hidden="true"><img src="assets/icons/fashion.svg" alt="" width="24" height="24" loading="lazy"></span>Fashion, Beauty &amp; Hair</a></li>
+        <li><a href="index.html#/dept/home"><span class="emoji" aria-hidden="true"><img src="assets/icons/home.svg" alt="" width="24" height="24" loading="lazy"></span>Home, Kitchen &amp; Appliances</a></li>
+        <li><a href="index.html#/dept/business"><span class="emoji" aria-hidden="true"><img src="assets/icons/business.svg" alt="" width="24" height="24" loading="lazy"></span>Small Business &amp; Manufacturing</a></li>
+        <li><a href="index.html#/dept/office"><span class="emoji" aria-hidden="true"><img src="assets/icons/office.svg" alt="" width="24" height="24" loading="lazy"></span>Office, School &amp; Stationery</a></li>
+        <li><a href="index.html#/dept/agri"><span class="emoji" aria-hidden="true"><img src="assets/icons/agri.svg" alt="" width="24" height="24" loading="lazy"></span>Agriculture &amp; Farming</a></li>
+        <li><a href="index.html#/dept/auto"><span class="emoji" aria-hidden="true"><img src="assets/icons/auto.svg" alt="" width="24" height="24" loading="lazy"></span>Auto Parts &amp; Accessories</a></li>
+        <li><a href="index.html#/dept/hardware"><span class="emoji" aria-hidden="true"><img src="assets/icons/hardware.svg" alt="" width="24" height="24" loading="lazy"></span>Building, Tools &amp; Hardware</a></li>
+        <li><a href="index.html#/dept/baby"><span class="emoji" aria-hidden="true"><img src="assets/icons/baby.svg" alt="" width="24" height="24" loading="lazy"></span>Baby, Kids &amp; Toys</a></li>
+        <li><a href="index.html#/dept/health"><span class="emoji" aria-hidden="true"><img src="assets/icons/health.svg" alt="" width="24" height="24" loading="lazy"></span>Health, Fitness &amp; Personal Care</a></li>
+        <li><a href="index.html#/dept/essentials"><span class="emoji" aria-hidden="true"><img src="assets/icons/essentials.svg" alt="" width="24" height="24" loading="lazy"></span>Everyday Essentials</a></li>
       </ul>
       <hr>
       <h2>Shop</h2>
@@ -361,9 +402,9 @@
         <a href="index.html"><img src="assets/brand/logo-original-3d-dark.webp" alt="Zed Supply, Everything Within Reach" width="379" height="96" loading="lazy" decoding="async"></a>
         <p>Zambia's marketplace for everyday products, business supplies and more.</p>
         <ul class="social">
-          <li><a href="https://wa.me/260979050042" target="_blank" rel="noopener" aria-label="Chat with Zed Supply on WhatsApp"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M17.47 14.38c-.3-.15-1.76-.87-2.03-.97-.27-.1-.47-.15-.67.15-.2.3-.77.97-.94 1.16-.17.2-.35.22-.64.08-.3-.15-1.26-.46-2.39-1.48-.88-.79-1.48-1.76-1.65-2.06-.17-.3-.02-.46.13-.6.13-.14.3-.35.45-.52.15-.18.2-.3.3-.5.1-.2.05-.37-.03-.52-.07-.15-.67-1.61-.92-2.21-.24-.58-.49-.5-.67-.51h-.57c-.2 0-.52.07-.79.37-.27.3-1.04 1.02-1.04 2.48s1.07 2.88 1.21 3.07c.15.2 2.1 3.2 5.08 4.49.71.31 1.26.49 1.7.63.71.22 1.36.19 1.87.12.57-.09 1.76-.72 2-1.41.25-.7.25-1.29.18-1.41-.08-.13-.28-.2-.57-.35m-5.42 7.4h-.01a9.87 9.87 0 0 1-5.03-1.38l-.36-.21-3.74.98 1-3.65-.24-.37a9.86 9.86 0 0 1-1.51-5.26c0-5.45 4.44-9.88 9.89-9.88 2.64 0 5.12 1.03 6.99 2.9a9.83 9.83 0 0 1 2.89 6.99c0 5.45-4.44 9.88-9.88 9.88m8.41-18.3A11.82 11.82 0 0 0 12.05 0C5.5 0 .16 5.34.16 11.89c0 2.1.55 4.14 1.59 5.95L.06 24l6.3-1.65a11.88 11.88 0 0 0 5.68 1.45h.01c6.55 0 11.89-5.34 11.89-11.89a11.82 11.82 0 0 0-3.48-8.41Z"/></svg></a></li>
-          <!-- Add Facebook, Instagram, LinkedIn or TikTok here when you have them:
-          <li><a href="https://www.facebook.com/YOUR_PAGE" target="_blank" rel="noopener" aria-label="Zed Supply on Facebook">…icon…</a></li> -->
+          <li><a href="https://wa.me/260979050042" target="_blank" rel="noopener noreferrer" aria-label="Chat with Zed Supply on WhatsApp"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M17.47 14.38c-.3-.15-1.76-.87-2.03-.97-.27-.1-.47-.15-.67.15-.2.3-.77.97-.94 1.16-.17.2-.35.22-.64.08-.3-.15-1.26-.46-2.39-1.48-.88-.79-1.48-1.76-1.65-2.06-.17-.3-.02-.46.13-.6.13-.14.3-.35.45-.52.15-.18.2-.3.3-.5.1-.2.05-.37-.03-.52-.07-.15-.67-1.61-.92-2.21-.24-.58-.49-.5-.67-.51h-.57c-.2 0-.52.07-.79.37-.27.3-1.04 1.02-1.04 2.48s1.07 2.88 1.21 3.07c.15.2 2.1 3.2 5.08 4.49.71.31 1.26.49 1.7.63.71.22 1.36.19 1.87.12.57-.09 1.76-.72 2-1.41.25-.7.25-1.29.18-1.41-.08-.13-.28-.2-.57-.35m-5.42 7.4h-.01a9.87 9.87 0 0 1-5.03-1.38l-.36-.21-3.74.98 1-3.65-.24-.37a9.86 9.86 0 0 1-1.51-5.26c0-5.45 4.44-9.88 9.89-9.88 2.64 0 5.12 1.03 6.99 2.9a9.83 9.83 0 0 1 2.89 6.99c0 5.45-4.44 9.88-9.88 9.88m8.41-18.3A11.82 11.82 0 0 0 12.05 0C5.5 0 .16 5.34.16 11.89c0 2.1.55 4.14 1.59 5.95L.06 24l6.3-1.65a11.88 11.88 0 0 0 5.68 1.45h.01c6.55 0 11.89-5.34 11.89-11.89a11.82 11.82 0 0 0-3.48-8.41Z"/></svg></a></li>
+          <li><a href="https://www.facebook.com/profile.php?id=61594975557604" target="_blank" rel="noopener noreferrer" aria-label="Zed Supply on Facebook"><svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M16 8.05C16 3.6 12.42 0 8 0S0 3.6 0 8.05c0 4.02 2.93 7.35 6.75 7.95v-5.62H4.72V8.05h2.03V6.27c0-2.01 1.2-3.13 3.02-3.13.88 0 1.8.16 1.8.16v1.98h-1.01c-1 0-1.31.62-1.31 1.26v1.51h2.22l-.35 2.33H9.25V16C13.07 15.4 16 12.07 16 8.05"/></svg></a></li>
+          <!-- Add Instagram, LinkedIn or TikTok here when you have them, and to sameAs in the head. -->
         </ul>
         <div class="footer-pay">
           <p class="footer-pay__label">Pay with mobile money</p>

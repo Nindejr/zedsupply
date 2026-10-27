@@ -1,5 +1,89 @@
+# Zed Supply robots.txt
+# Every crawler may read the whole site. The groups below name the major
+# search engines and AI crawlers explicitly, so it is clear they are welcome.
+
+# Default: all crawlers
 User-agent: *
 Allow: /
-Disallow: /404.html
+
+# ---------- Search engines ----------
+
+# Googlebot (Google): crawls pages for Google Search
+User-agent: Googlebot
+Allow: /
+
+# Bingbot (Microsoft): crawls pages for Bing, which also powers Copilot and DuckDuckGo results
+User-agent: Bingbot
+Allow: /
+
+# ---------- OpenAI ----------
+
+# GPTBot: collects public pages to train OpenAI's models
+User-agent: GPTBot
+Allow: /
+
+# OAI-SearchBot: indexes pages so they can appear in ChatGPT search results
+User-agent: OAI-SearchBot
+Allow: /
+
+# ChatGPT-User: fetches a page when a ChatGPT user asks about it or clicks a link
+User-agent: ChatGPT-User
+Allow: /
+
+# ---------- Anthropic ----------
+
+# ClaudeBot: collects public pages to train Anthropic's Claude models
+User-agent: ClaudeBot
+Allow: /
+
+# Claude-Web: Anthropic's older web agent name, kept for compatibility
+User-agent: Claude-Web
+Allow: /
+
+# Claude-SearchBot: indexes pages so they can appear in Claude's search answers
+User-agent: Claude-SearchBot
+Allow: /
+
+# Claude-User: fetches a page when a Claude user asks about it
+User-agent: Claude-User
+Allow: /
+
+# ---------- Perplexity ----------
+
+# PerplexityBot: indexes pages so they can be cited in Perplexity answers
+User-agent: PerplexityBot
+Allow: /
+
+# Perplexity-User: fetches a page when a Perplexity user asks about it
+User-agent: Perplexity-User
+Allow: /
+
+# ---------- Other AI crawlers ----------
+
+# Google-Extended (Google): lets Google use pages for Gemini and other AI models
+# (a permission token, not a separate crawler; it does not affect Google Search)
+User-agent: Google-Extended
+Allow: /
+
+# Applebot-Extended (Apple): lets Apple use pages to train Apple Intelligence
+# (a permission token; Applebot itself does the crawling for Siri and Spotlight)
+User-agent: Applebot-Extended
+Allow: /
+
+# CCBot (Common Crawl): builds the free public web archive many AI models are trained on
+User-agent: CCBot
+Allow: /
+
+# Bytespider (ByteDance): collects pages for ByteDance's AI models, such as Doubao
+User-agent: Bytespider
+Allow: /
+
+# Amazonbot (Amazon): crawls pages for Alexa answers and Amazon's AI services
+User-agent: Amazonbot
+Allow: /
+
+# meta-externalagent (Meta): collects pages to train Meta AI models
+User-agent: meta-externalagent
+Allow: /
 
 Sitemap: https://SITE_URL/sitemap.xml
