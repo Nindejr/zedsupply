@@ -76,6 +76,11 @@ window.ZS_CATALOGUE = {
     // ?theme=christmas (or easter, independence...); ?theme=off hides them all.
     // Swap image and imageMobile together to change that season's banner artwork.
     // Copy and buttons remain HTML; removing the paths uses the lightweight artwork.
+    // text (optional) replaces the banner's standard line for that season.
+    // caption (optional) replaces the small note under the button; captionUrl turns it into a
+    // link. Only link to a page you have opened and checked yourself.
+    // slides (optional): several banners for one period, shown one after the other at the
+    // start of the slideshow. Each takes image, imageMobile and optional title, text, caption.
     festive: {
       enabled: true,
       independenceYear: 1964,
@@ -84,7 +89,10 @@ window.ZS_CATALOGUE = {
         { id: 'valentines', start: '02-01', end: '02-14', day: '02-14', image: 'assets/banners/seasons/valentines-wide.webp', imageMobile: 'assets/banners/seasons/valentines-mobile.webp' },
         { id: 'easter', rule: 'easter', image: 'assets/banners/seasons/easter-wide.webp', imageMobile: 'assets/banners/seasons/easter-mobile.webp' },
         { id: 'farmers', rule: 'farmers', image: 'assets/banners/seasons/farmers-wide.webp', imageMobile: 'assets/banners/seasons/farmers-mobile.webp' },
-        { id: 'independence', start: '10-01', end: '10-31', day: '10-24', image: 'assets/banners/seasons/independence-wide.webp', imageMobile: 'assets/banners/seasons/independence-mobile.webp' },
+        { id: 'independence', start: '10-01', end: '10-31', day: '10-24', slides: [
+          { image: 'assets/banners/seasons/freedom-statue-wide.webp', imageMobile: 'assets/banners/seasons/freedom-statue-mobile.webp', text: 'Honouring our freedom fighters. Celebrating the Zambia we build together.', caption: 'Illustration inspired by the Freedom Statue, Lusaka · Honouring Zambia\'s freedom fighters' },
+          { image: 'assets/banners/seasons/independence-wide.webp', imageMobile: 'assets/banners/seasons/independence-mobile.webp', title: 'Proudly Zambian. Proudly local.' }
+        ] },
         { id: 'blackfriday', rule: 'blackfriday', image: 'assets/banners/seasons/blackfriday-wide.webp', imageMobile: 'assets/banners/seasons/blackfriday-mobile.webp' },
         { id: 'christmas', start: '12-01', end: '01-01', day: '12-25', image: 'assets/banners/seasons/christmas-wide.webp', imageMobile: 'assets/banners/seasons/christmas-mobile.webp' } // runs to New Year's Day
       ]

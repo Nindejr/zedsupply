@@ -1018,11 +1018,15 @@
     var list = (D.banners || []).concat(promos);
     if (fest) {
       var cc = festiveCopy(fest), fl = festiveLink(fest.id), deals = festiveDeals(fest.id);
-      var artwork = byId(FEST.periods || [], fest.id) || {};
-      list.unshift({ id: 'festive', zambia: zambia, label: season(fest.id).name + ' ' + (fest.key || fest.start).getFullYear(), title: cc.lead,
-        text: cc.line + (deals ? ' Shop seller celebration deals.' : ' Shop local and support Zambian sellers.'),
-        cta: deals ? 'Shop ' + fl.text : fl.text, link: fl.href, colours: season(fest.id).colours,
-        photo: true, curated: !!artwork.image, image: artwork.image || '', imageMobile: artwork.imageMobile || '', art: seasonalArt(fest.id) });
+      // A period can show several banners one after the other (slides: [...]), or just its own image
+      var period = byId(FEST.periods || [], fest.id) || {};
+      var arts = period.slides && period.slides.length ? period.slides : [period];
+      var defText = cc.line + (deals ? ' Shop seller celebration deals.' : ' Shop local and support Zambian sellers.');
+      list.unshift.apply(list, arts.map(function (a, i) {
+        return { id: 'festive-' + i, zambia: zambia, label: season(fest.id).name + ' ' + (fest.key || fest.start).getFullYear(), title: a.title || cc.lead,
+          text: a.text || defText, cta: deals ? 'Shop ' + fl.text : fl.text, link: fl.href, colours: season(fest.id).colours,
+          photo: true, curated: !!a.image, image: a.image || '', imageMobile: a.imageMobile || '', caption: a.caption || '', captionUrl: a.captionUrl || '', art: seasonalArt(fest.id) };
+      }));
     }
     return list;
   }
@@ -1065,7 +1069,7 @@
         return byId(D.departments, id) ? '<li><a href="' + R + 'dept/' + esc(id) + '">' + esc(DEPT_SHORT[id] || dept(id).name) + '</a></li>' : '';
       }).join('') + '</ul>' : '') +
       '<a class="btn btn--primary" href="' + link + '">' + esc(b.cta || 'Shop now') + '</a>' +
-      (b.curated ? '<small class="ad__illustration">Illustrative collection · availability confirmed on WhatsApp</small>' : '') + '</div>' + art + sample + '</div>';
+      (b.curated ? '<small class="ad__illustration">' + (b.caption ? (b.captionUrl ? '<a href="' + esc(b.captionUrl) + '" target="_blank" rel="noopener noreferrer">' + esc(b.caption) + '</a>' : esc(b.caption)) : 'Illustrative collection · availability confirmed on WhatsApp') + '</small>' : '') + '</div>' + art + sample + '</div>';
   }
   function stopAds() { if (ads.timer) clearInterval(ads.timer); ads.timer = null; }
   function playAds() { stopAds(); if (!ads.paused && !ads.hover && $$('.ad', adsWrap).length > 1 && !home.hidden) ads.timer = setInterval(function () { goAd(ads.i + 1); }, 6000); }

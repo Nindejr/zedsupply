@@ -1447,6 +1447,8 @@ main .section .pcard .pmedia, .pcard .pmedia { background: rgb(235 243 251 / .45
 .ad--curated .ad__body > * { max-width: 100%; }
 .ad--curated .ad__title { font-size: clamp(1.5rem, 3vw, 3rem); }
 .ad__illustration { color: #D7E4F5; font-size: .72rem; line-height: 1.35; }
+.ad__illustration a { color: #FFE5A3; text-decoration-color: rgb(255 229 163 / .55); }
+.ad__illustration a:hover { text-decoration-thickness: 2px; }
 .ad--curated.ad--zambia::after { display: none; }
 @media (max-width: 599.98px) {
   .ads--curated { width: 100%; max-width: 100%; min-width: 0; min-height: 420px; aspect-ratio: 1 / 1; }
