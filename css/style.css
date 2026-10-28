@@ -563,6 +563,31 @@ a.tile { text-decoration: none; }
 .line__price { font-weight: 700; font-family: var(--font-heading); font-size: 1.1rem; color: var(--color-heading); }
 .summary { position: sticky; top: 130px; padding: 1.25rem; border: 1px solid var(--color-border); border-radius: var(--radius); background: var(--color-surface); display: grid; gap: 0.85rem; }
 .summary h2 { font-size: 1.2rem; margin: 0; }
+/* Checkout: subtotal bar, seller groups and numbered steps (Delivery, Payment, Review and send) */
+.cart-top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.75rem 1rem; margin-bottom: 1rem; padding: 0.85rem 1.1rem; border-radius: var(--radius); background: var(--panel-glass); box-shadow: var(--float-shadow); border-top: 2px solid rgb(226 169 58 / 0.65); }
+.cart-top p { margin: 0; font-size: 1.05rem; }
+.cart-top strong { font-size: 1.25rem; color: var(--color-heading); }
+@media (min-width: 900px) { .cart-top .btn { display: none; } }
+.cart__split { margin: 0 0 0.75rem; }
+.cart-group + .cart-group { margin-top: 1.25rem; }
+.cart-group__head { margin: 0 0 0.35rem; font-size: 0.9rem; font-weight: 700; color: var(--color-heading); }
+#checkout-steps { position: static; }
+#checkout-steps:focus { outline: none; }
+.co-step { display: grid; gap: 0.75rem; padding-top: 0.9rem; border-top: 1px solid var(--color-border); }
+.co-step h3 { display: flex; align-items: center; gap: 0.55rem; margin: 0; font-size: 1.05rem; }
+.co-step__n { display: inline-grid; place-items: center; width: 1.6rem; height: 1.6rem; border-radius: 50%; background: var(--gold-gloss); color: #3A2600; font-size: 0.85rem; font-weight: 700; box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.6); }
+.co-step .pmeta { margin: 0; }
+.co-step .form-status[hidden] { display: none; }
+.totals .is-vat { font-size: 0.85rem; color: var(--color-muted); }
+.ship-estimate { margin: 0; color: var(--color-accent-ink); font-weight: 600; }
+.co-when { border: 0; padding: 0; margin: 0; min-width: 0; }
+.co-when .field-row { gap: 0.6rem; }
+.co-gift { display: grid; gap: 0.6rem; padding: 0.75rem; border-radius: var(--radius-sm); border: 1px solid rgb(226 169 58 / 0.55); background: var(--panel-glass); }
+.co-gift[hidden] { display: none; }
+.co-cancel { margin: 0.75rem 0; padding: 0.75rem 1rem; border: 1px solid var(--color-border); border-radius: var(--radius-sm); background: var(--panel-glass); }
+.co-cancel summary { cursor: pointer; font-weight: 700; color: var(--color-heading); }
+.co-cancel[open] { display: grid; gap: 0.6rem; }
+.co-cancel .hint { margin: 0; }
 .totals { margin: 0; display: grid; gap: 0.3rem; }
 .totals div { display: flex; justify-content: space-between; gap: 1rem; }
 .totals dt { color: var(--color-muted); }

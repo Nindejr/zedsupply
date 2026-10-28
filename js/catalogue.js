@@ -37,6 +37,45 @@ window.ZS_CATALOGUE = {
     tracking: { param: 'ref', value: '[TRACKING_CODE]' },
 
     deliveryText: 'Lusaka delivery: [__] days',  // shown on every local product
+
+    // ---- VAT ----
+    // Zambia's standard VAT rate is 16%. Only a business registered for VAT with ZRA may charge
+    // it: set registered: true and the TPIN once Zed Supply is registered. included: true means
+    // listed prices already include VAT (usual for shops), so totals show "Includes VAT".
+    // A seller who isn't VAT-registered can set vatRegistered: false on their seller entry, and
+    // their items are left out of the VAT figure.
+    vat: { rate: 16, included: true, registered: true, tpin: '[TPIN]' },
+
+    // ---- Delivery days and times ----
+    // Buyers pick a preferred day and time at checkout; it's confirmed on WhatsApp.
+    // estimates: typical delivery time by distance, shown at checkout once filled in ('' hides it).
+    // leadDays: the earliest day a buyer can pick, counted from today. closedDays: 0 = Sunday … 6 = Saturday.
+    delivery: {
+      enabled: true,
+      estimates: { town: '', country: '', world: '' },      // e.g. '1–2 working days'
+      leadDays: 1, daysAhead: 14, closedDays: [0],
+      slots: [
+        { id: 'morning', label: 'Morning (08:00–12:00)' },
+        { id: 'afternoon', label: 'Afternoon (12:00–17:00)' },
+        { id: 'evening', label: 'Evening (17:00–19:00)' }
+      ]
+    },
+
+    // ---- Orders: gifts, cancelling, saved addresses, complaints ----
+    // gifts: a gift message and "leave prices out of the parcel" at checkout.
+    // cancel.untilStatus: buyers can ask to cancel until this step (0 sent, 1 confirmed, 2 packed).
+    // addresses: an address book in My Account, chosen from at checkout. Saved on the buyer's
+    //   device for now; sync: true once accounts are on the server (db/migrations/006).
+    // complaints.replyDays: working days we promise to reply to a complaint within.
+    //   sellerDashboard: true once sellers sign in on the server and can answer complaints themselves.
+    // returns: the interim returns policy in the help centre. Review it with legal advice.
+    orderOptions: {
+      gifts: true,
+      cancel: { enabled: true, untilStatus: 1 },
+      addresses: { enabled: true, max: 10, sync: false },
+      complaints: { enabled: true, replyDays: 2, sellerDashboard: false },
+      returns: { changeOfMindDays: 7, faultyDays: 7, refundDays: 14 }
+    },
     whatsapp: '260979050042',
 
     // ---- How customers can pay ----

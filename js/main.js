@@ -411,7 +411,8 @@
     }
     var c = cart(), line = null, key = lineKey({ id: id, opt: opt });
     for (var i = 0; i < c.length; i++) if (lineKey(c[i]) === key) line = c[i];
-    if (line) line.qty = Math.min(99, line.qty + qty); else c.push(opt ? { id: id, qty: qty, opt: opt } : { id: id, qty: qty });
+    // seen: the price per item when added, so the cart can say if it has changed since
+    if (line) line.qty = Math.min(99, line.qty + qty); else { line = opt ? { id: id, qty: qty, opt: opt } : { id: id, qty: qty }; line.seen = lineQuote(p, opt).q.each; c.push(line); }
     setCart(c);
     return true;
   }
@@ -476,6 +477,7 @@
   function refreshLoc() {
     $$('[data-location-label]').forEach(function (el) { el.textContent = loc ? 'Deliver to: ' + locShort() : 'Deliver to: set location'; });
     $$('[data-loc-summary]').forEach(function (el) { el.innerHTML = locSummaryHTML(); });
+    var locErr = $('#co-loc-err'); if (locErr && loc) locErr.hidden = true;
     // Pre-fill the help centre contact form, unless the customer has typed their own
     var cf = $('#contact-location');
     if (cf && (!cf.value || cf.getAttribute('data-auto'))) { cf.value = locFull(); cf.setAttribute('data-auto', '1'); }
@@ -644,6 +646,60 @@
       }).join('') + '</ul>';
     }).join('');
   }
+  /* ---------- VAT ----------
+     settings.vat in catalogue.js. With included: true (shop prices include VAT) the VAT inside
+     the total is total × rate ÷ (100 + rate); otherwise it's added on top. Items from a seller
+     with vatRegistered: false are left out. Shown only once Zed Supply is VAT-registered. */
+  var VAT = S.vat || {};
+  function vatActive() { return !!(VAT.registered && Number(VAT.rate) > 0); }
+  // items: [{ p, each, qty }]; total: the amount after any voucher
+  function vatFor(items, total) {
+    if (!vatActive()) return 0;
+    var sub = 0, taxable = 0;
+    items.forEach(function (it) { var s = seller(it.p.seller), v = it.each * it.qty; sub += v; if (!(s && s.vatRegistered === false)) taxable += v; });
+    if (!sub || !taxable) return 0;
+    var base = total * taxable / sub, r = Number(VAT.rate);
+    return Math.round((VAT.included === false ? base * r / 100 : base * r / (100 + r)) * 100) / 100;
+  }
+  function vatRowHTML(vat) {
+    return vat ? '<div class="is-vat"><dt>' + (VAT.included === false ? 'VAT (' + VAT.rate + '%)' : 'Includes VAT (' + VAT.rate + '%)') + '</dt><dd>' + kwacha(vat) + '</dd></div>' : '';
+  }
+
+  /* ---------- Delivery days and times (settings.delivery) ---------- */
+  var DELIVERY = S.delivery || {};
+  var DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  var MONTHS3 = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  // The days a buyer can ask for: from leadDays ahead, for daysAhead days, skipping closed days
+  function deliveryDays() {
+    var out = [], closed = DELIVERY.closedDays || [], d0 = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    for (var i = Number(DELIVERY.leadDays) || 1; out.length < (Number(DELIVERY.daysAhead) || 14) && i < 60; i++) {
+      var d = shift(d0, i);
+      if (closed.indexOf(d.getDay()) === -1) out.push({ iso: d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()), label: DAYS[d.getDay()] + ' ' + d.getDate() + ' ' + MONTHS3[d.getMonth()] });
+    }
+    return out;
+  }
+  function slotLabel(id) { var s = (DELIVERY.slots || []).filter(function (x) { return x.id === id; })[0]; return s ? s.label : ''; }
+  function dayLabel(iso) { var d = deliveryDays().filter(function (x) { return x.iso === iso; })[0]; return d ? d.label : niceDate(iso); }
+
+  /* ---------- Saved addresses (settings.orderOptions.addresses) ----------
+     An address book on this device for now; the same fields as user_addresses in db/migrations/006. */
+  var OPTS = S.orderOptions || {};
+  function addressesOn() { return !!(OPTS.addresses && OPTS.addresses.enabled); }
+  function addresses() { return store.get('addresses', []); }
+  function addressLine(a) { return [a.landmark, a.area, a.town].filter(Boolean).join(', '); }
+
+  /* ---------- Complaints (settings.orderOptions.complaints) ---------- */
+  var COMPLAINT_TYPES = [
+    ['not-received', 'Item not received'], ['damaged', 'Arrived damaged'], ['wrong', 'Wrong item, size or colour'],
+    ['not-described', 'Not as described or pictured'], ['faulty', 'Faulty or stopped working'], ['missing', 'Missing parts or accessories'],
+    ['refund', 'Return or refund problem'], ['conduct', 'Seller\'s behaviour or communication'], ['misleading', 'Misleading listing or price'],
+    ['unsafe', 'Suspected counterfeit or unsafe product'], ['delivery', 'Delivery or courier problem'], ['other', 'Something else']
+  ];
+  var COMPLAINT_WANTS = [['refund', 'A refund'], ['replace', 'A replacement'], ['repair', 'A repair'], ['return', 'To return it'], ['fix', 'The seller to put it right'], ['inform', 'Just to let you know']];
+  function complaintsOn() { return !!(OPTS.complaints && OPTS.complaints.enabled); }
+  function complaints() { return store.get('complaints', []); }
+  var COMPLAINT_STATUS = { sent: 'Sent on WhatsApp', review: 'Being looked into', seller: 'Waiting for the seller', resolved: 'Resolved', closed: 'Closed' };
+
   /* ---------- Courier options (js/couriers.js) ----------
      Every ZICTA-licensed postal and courier operator, plus profiles of well-known couriers.
      Buyers choose where the parcel is going, then a courier (or let Zed Supply arrange it);
@@ -745,10 +801,11 @@
       var id = 'co-ship-' + (value || 'zs');
       return '<div class="pay-option"><input type="radio" name="co-ship" id="' + id + '" value="' + esc(value) + '"' + (shipChoice === value ? ' checked' : '') + '><label for="' + id + '">' + esc(label) + (sub ? '<small>' + esc(sub) + '</small>' : '') + '</label></div>';
     };
-    return '<fieldset class="field pay-choice" id="ship-choice"><legend>Delivery</legend>' +
+    return '<fieldset class="field pay-choice" id="ship-choice"><legend>Courier</legend>' +
       '<div class="ship-scope" role="radiogroup" aria-label="Where is it going?">' + Object.keys(SCOPES).map(function (s) {
         return '<label class="chip ship-scope__opt"><input type="radio" name="co-scope" value="' + s + '"' + (s === shipScope ? ' checked' : '') + '> ' + esc(SCOPES[s]) + '</label>';
       }).join('') + '</div>' +
+      (DELIVERY.estimates && DELIVERY.estimates[shipScope] ? '<p class="pmeta ship-estimate">Usually delivered in ' + esc(DELIVERY.estimates[shipScope]) + '.</p>' : '') +
       opt('', 'Zed Supply arranges it', 'We confirm the courier and fee on WhatsApp') +
       top.map(function (c) { return opt(c.id, c.name, c.unlicensed ? 'Licence not confirmed' : ''); }).join('') +
       (rest.length ? '<div class="field"><label for="co-ship-more">Or choose another courier (' + rest.length + ')</label><select id="co-ship-more"><option value="">Choose a courier…</option>' +
@@ -778,6 +835,11 @@
   // data-pay-heading follows what's on offer: "Pay with mobile money" or "Ways to pay".
   $$('[data-pay-methods]').forEach(function (el) { if (payMethods().length) el.innerHTML = el.getAttribute('data-pay-methods') === 'guide' ? payGuideHTML() : payChipsHTML(); });
   $$('[data-pay-heading]').forEach(function (el) { if (payMethods().length) el.textContent = payHeading(); });
+  // Help centre policies: day counts come from settings.orderOptions (returns, complaints)
+  $$('[data-policy]').forEach(function (el) {
+    var k = el.getAttribute('data-policy'), v = (OPTS.returns || {})[k] != null ? OPTS.returns[k] : (OPTS.complaints || {})[k];
+    if (v != null) el.textContent = v;
+  });
 
   // App store buttons (footer): each becomes a link once its address is set in settings.apps
   var APPS = S.apps || {};
@@ -1576,6 +1638,21 @@
   }
   var STATUS = ['Order sent on WhatsApp', 'Confirmed by Zed Supply', 'Packed by the seller', 'Out for delivery', 'Delivered'];
   function orders() { return store.get('orders', []); }
+  var CANCEL_REASONS = ['I ordered by mistake', 'I found a better price', 'Delivery would take too long', 'I need to change the items or address', 'I no longer need it', 'Another reason'];
+  // Order page: ask to cancel until the order is packed (settings.orderOptions.cancel); after that,
+  // the seller may still stop it, or the buyer can return it under the returns policy
+  function cancelHTML(o) {
+    var c = OPTS.cancel || {};
+    if (!c.enabled || o.sample || o.status >= 4) return '';
+    if (o.cancel) return '<div class="notice" role="status"><p><strong>Cancellation requested</strong> on ' + niceDate(o.cancel.date) + ' (' + esc(o.cancel.reason) + '). We\'ll confirm on WhatsApp. If you\'ve already paid, we refund you the same way you paid.</p></div>';
+    if (o.status > (c.untilStatus == null ? 1 : c.untilStatus)) {
+      return '<p class="pmeta">This order is already packed. <a href="' + waUrl('Hi Zed Supply, can my order ' + o.ref + ' still be cancelled?') + '" target="_blank" rel="noopener noreferrer">Ask us about cancelling</a>; if it can\'t be stopped, you can <a href="help.html#returns">return it</a> once it arrives.</p>';
+    }
+    return '<details class="co-cancel"><summary>Cancel this order</summary><div class="field"><label for="cx-reason">Why are you cancelling?</label><select id="cx-reason">' +
+      CANCEL_REASONS.map(function (r) { return '<option>' + esc(r) + '</option>'; }).join('') + '</select></div>' +
+      '<a class="btn btn--secondary btn--sm" id="cx-send" href="#" target="_blank" rel="noopener noreferrer">Send cancellation request on WhatsApp</a>' +
+      '<p class="hint">Free until the seller packs your order. If you\'ve already paid, we refund you the same way you paid.</p></details>';
+  }
   function findOrder(ref) {
     ref = String(ref || '').trim().toUpperCase();
     var o = orders().filter(function (x) { return x.ref === ref; })[0];
@@ -1696,6 +1773,7 @@
             '<h2 class="h3">About this product</h2><p>' + (p.description ? esc(p.description) : '<span class="placeholder">[PRODUCT DESCRIPTION: add a description field in catalogue.js]</span>') + '</p>' +
             specsHTML(p) +
             '<p class="pmeta">Category: <a href="#/dept/' + p.category + '">' + esc(d.name) + '</a> · Product ID ' + esc(p.id) + '<span data-sku>' + (v0 ? ' · SKU ' + esc(v0.sku) : '') + '</span></p>' +
+            (complaintsOn() && p.source !== 'china' ? '<p class="pmeta"><a href="#/complaint?product=' + encodeURIComponent(p.id) + '&type=misleading">Report a problem with this listing</a></p>' : '') +
           '</div>' +
           '<aside class="buybox" aria-label="Buy this product">' +
             '<div data-price-box>' + priceHTML(pr) + '</div><p class="pmeta" id="pdp-total" aria-live="polite"></p><div data-stock>' + stockHTML(p, v0) + '</div>' +
@@ -1878,55 +1956,141 @@
       var v = voucher ? (D.vouchers || []).filter(function (x) { return x.code === voucher; })[0] : null;
       var vOff = v && sub >= v.minSpend ? Math.round(sub * v.percent / 100) : 0;
       var total = sub - vOff;
-      var html = crumbs([['Cart']]) + head('Your cart', items.length + (items.length === 1 ? ' product' : ' products')) +
-        '<div class="cart"><div><ul class="lines">' + items.map(function (it, i) {
-          var s = seller(it.p.seller);
-          return '<li class="line"><a class="pmedia" href="#/product/' + it.p.id + '" tabindex="-1" aria-hidden="true">' + media(it.p) + '</a><div>' +
-            '<a class="line__title" href="#/product/' + it.p.id + '">' + esc(it.p.title) + '</a>' +
-            '<p class="pmeta">' + (s ? 'Sold by ' + esc(s.name) + ' ' : '') + (it.pr.promo && !it.commit ? '<span class="badge">' + esc(it.pr.promo.title) + '</span>' : '') + '</p>' +
-            (it.label ? '<p class="pmeta line__opts">' + esc(it.label) + (it.commit ? ' <span class="badge">Pending seller</span>' : '') + '</p>' : '') +
-            '<p class="line__price">' + kwacha(it.each * it.qty) + (it.qty > 1 ? ' <small class="pmeta">(' + kwacha(it.each) + ' each)</small>' : '') + '</p>' +
-            '<div class="line__actions"><div class="qty"><button type="button" data-step="-1" data-target="#cq' + i + '" aria-label="Decrease quantity of ' + esc(it.p.title) + '">−</button>' +
-            '<input id="cq' + i + '" type="number" min="1" max="99" value="' + it.qty + '" data-cart-qty="' + esc(it.key) + '" aria-label="Quantity of ' + esc(it.p.title) + '"><button type="button" data-step="1" data-target="#cq' + i + '" aria-label="Increase quantity of ' + esc(it.p.title) + '">+</button></div>' +
-            '<button class="link-btn" type="button" data-remove="' + esc(it.key) + '">Remove<span class="visually-hidden"> ' + esc(it.p.title) + '</span></button><button class="link-btn" type="button" data-save="' + esc(it.key) + '">Save for later<span class="visually-hidden">: ' + esc(it.p.title) + '</span></button></div>' +
-          '</div></li>';
-        }).join('') + '</ul>' + savedHTML +
-        '</div><aside class="summary" aria-labelledby="sum-title"><h2 id="sum-title">Order summary</h2>' +
-          '<dl class="totals"><div><dt>Subtotal</dt><dd>' + kwacha(sub) + '</dd></div>' +
-          (save ? '<div class="is-save"><dt>You save</dt><dd>' + kwacha(save) + '</dd></div>' : '') +
-          (vOff ? '<div class="is-save"><dt>Voucher ' + esc(v.code) + '</dt><dd>−' + kwacha(vOff) + '</dd></div>' : '') +
-          '<div><dt>Delivery</dt><dd>Confirmed on WhatsApp</dd></div>' +
-          '<div class="is-total"><dt>Estimated total</dt><dd>' + kwacha(total) + '</dd></div></dl>' +
-          '<form class="voucher" id="voucher-form"><label for="voucher" class="visually-hidden">Voucher code</label><input id="voucher" placeholder="Voucher code" value="' + esc(voucher) + '" autocapitalize="characters"><button class="btn btn--secondary btn--sm" type="submit">Apply</button></form>' +
-          (voucher && !v ? '<p class="form-status is-error">That voucher code isn\'t valid.</p>' : '') +
-          (v && !vOff ? '<p class="form-status is-error">' + esc(v.code) + ' needs a minimum spend of ' + kwacha(v.minSpend) + '.</p>' : '') +
-          '<div class="field"><label for="co-name">Your name</label><input id="co-name" autocomplete="name" value="' + esc(u.name || '') + '"></div>' +
-          '<div class="deliver-box"><p class="deliver-box__label">Deliver to</p><p data-loc-summary>' + locSummaryHTML() + '</p><button class="link-btn" type="button" data-open-location aria-haspopup="dialog">Set or change delivery location</button></div>' +
-          '<div class="field"><label for="co-note">Notes for your order (optional)</label><input id="co-note"></div>' +
-          '<div id="ship-wrap">' + shipChoiceHTML() + '</div>' +
-          payChoiceHTML() +
-          '<a class="btn btn--primary btn--block" id="checkout" href="#" target="_blank" rel="noopener noreferrer">Checkout on WhatsApp</a>' +
-          '<p class="pmeta">We confirm the final price and delivery fee on WhatsApp, then send payment instructions. You approve the payment on your own phone. We never ask for your PIN.</p>' +
+      // VAT is usually inside the price (shown as "Includes VAT"); if settings add it on top, the total grows
+      var vat = vatFor(items, total);
+      if (VAT.included === false) total += vat;
+      var book = addressesOn() ? addresses() : [];
+      var days = DELIVERY.enabled ? deliveryDays() : [];
+      var units = items.reduce(function (n, it) { return n + it.qty; }, 0), unitsText = units + (units === 1 ? ' item' : ' items');
+      // Price changes since each item was added, as Amazon flags them. Shown once, then the new price is remembered.
+      var changes = lines.map(function (l, i) { var it = items[i]; return l.seen != null && Math.abs(l.seen - it.each) >= 0.01 ? { it: it, was: l.seen } : null; }).filter(Boolean);
+      if (changes.length) setCart(lines.map(function (l, i) { l.seen = items[i].each; return l; }));
+      // Items grouped by seller: each seller packs and sends its own parcel
+      var groups = [];
+      items.forEach(function (it, i) {
+        var sid = it.p.seller || '', g = groups.filter(function (x) { return x.sid === sid; })[0];
+        if (!g) { g = { sid: sid, s: seller(sid), list: [] }; groups.push(g); }
+        g.list.push({ it: it, i: i });
+      });
+      var lineHTML = function (it, i) {
+        var v = variantOf(it.p, it.opt);
+        return '<li class="line"><a class="pmedia" href="#/product/' + it.p.id + '" tabindex="-1" aria-hidden="true">' + media(it.p) + '</a><div>' +
+          '<a class="line__title" href="#/product/' + it.p.id + '">' + esc(it.p.title) + '</a>' +
+          (it.pr.promo && !it.commit ? '<p class="pmeta"><span class="badge">' + esc(it.pr.promo.title) + '</span></p>' : '') +
+          (it.label ? '<p class="pmeta line__opts">' + esc(it.label) + (it.commit ? ' <span class="badge">Pending seller</span>' : '') + '</p>' : '') +
+          stockHTML(it.p, v) +
+          '<p class="line__price">' + kwacha(it.each * it.qty) + (it.qty > 1 ? ' <small class="pmeta">(' + kwacha(it.each) + ' each)</small>' : '') + '</p>' +
+          '<div class="line__actions"><div class="qty"><button type="button" data-step="-1" data-target="#cq' + i + '" aria-label="Decrease quantity of ' + esc(it.p.title) + '">−</button>' +
+          '<input id="cq' + i + '" type="number" min="1" max="99" value="' + it.qty + '" data-cart-qty="' + esc(it.key) + '" aria-label="Quantity of ' + esc(it.p.title) + '"><button type="button" data-step="1" data-target="#cq' + i + '" aria-label="Increase quantity of ' + esc(it.p.title) + '">+</button></div>' +
+          '<button class="link-btn" type="button" data-remove="' + esc(it.key) + '">Remove<span class="visually-hidden"> ' + esc(it.p.title) + '</span></button><button class="link-btn" type="button" data-save="' + esc(it.key) + '">Save for later<span class="visually-hidden">: ' + esc(it.p.title) + '</span></button></div>' +
+        '</div></li>';
+      };
+      var step = function (n, title, body) { return '<section class="co-step" aria-labelledby="co-step-' + n + '"><h3 id="co-step-' + n + '"><span class="co-step__n" aria-hidden="true">' + n + '</span>' + title + '</h3>' + body + '</section>'; };
+      var html = crumbs([['Cart']]) + head('Your cart') +
+        // Subtotal and the way to checkout first, so phones don't have to scroll past every item
+        '<div class="cart-top"><p><span>Subtotal (' + unitsText + '):</span> <strong>' + kwacha(sub) + '</strong></p><a class="btn btn--primary" href="#checkout-steps" data-jump="checkout-steps">Proceed to checkout</a></div>' +
+        (changes.length ? '<div class="notice" role="status"><p><strong>Prices have changed since you added ' + (changes.length === 1 ? 'this item' : 'these items') + ':</strong></p><ul>' + changes.map(function (c) {
+          return '<li>' + esc(c.it.p.title) + (c.it.label ? ' (' + esc(c.it.label) + ')' : '') + ': ' + (c.it.each < c.was ? 'down' : 'up') + ' from ' + kwacha(c.was) + ' to ' + kwacha(c.it.each) + ' each.</li>';
+        }).join('') + '</ul></div>' : '') +
+        '<div class="cart"><div>' +
+          (groups.length > 1 ? '<p class="pmeta cart__split">Your items come from ' + groups.length + ' sellers, so they may arrive in separate parcels. We confirm delivery for each on WhatsApp.</p>' : '') +
+          groups.map(function (g) {
+            return '<section class="cart-group" aria-label="' + esc(g.s ? 'Sold by ' + g.s.name : 'Zed Supply') + '"><p class="cart-group__head">' + (g.s ? 'Sold and sent by <a href="#/store/' + esc(g.s.id) + '">' + esc(g.s.name) + '</a>' + verifiedHTML(g.s) : 'Sourced by Zed Supply') + '</p>' +
+              '<ul class="lines">' + g.list.map(function (x) { return lineHTML(x.it, x.i); }).join('') + '</ul></section>';
+          }).join('') + savedHTML +
+        '</div><aside class="summary" id="checkout-steps" aria-labelledby="sum-title" tabindex="-1"><h2 id="sum-title">Checkout</h2>' +
+          step(1, 'Delivery',
+            '<div class="field"><label for="co-name">Your name *</label><input id="co-name" autocomplete="name" required aria-describedby="co-name-err" value="' + esc(u.name || '') + '"><p class="form-status is-error" id="co-name-err" hidden></p></div>' +
+            (book.length ? '<div class="field"><label for="co-address">Saved address</label><select id="co-address"><option value="">Choose a saved address…</option>' + book.map(function (a) { return '<option value="' + esc(a.id) + '">' + esc(a.label + ': ' + addressLine(a)) + '</option>'; }).join('') + '</select><p class="hint"><a href="#/addresses">Manage addresses</a></p></div>' : '') +
+            '<div class="deliver-box" id="co-loc-box"><p class="deliver-box__label">Deliver to *</p><p data-loc-summary>' + locSummaryHTML() + '</p><button class="link-btn" type="button" data-open-location aria-haspopup="dialog">Set or change delivery location</button>' +
+              (addressesOn() ? ' · <button class="link-btn" type="button" id="co-save-address">Save to my addresses</button>' : '') + '<p class="form-status is-error" id="co-loc-err" hidden></p></div>' +
+            '<div id="ship-wrap">' + shipChoiceHTML() + '</div>' +
+            (days.length ? '<fieldset class="field co-when"><legend>Preferred delivery day and time</legend><div class="field-row">' +
+              '<div class="field"><label for="co-day">Day</label><select id="co-day"><option value="">Any day</option>' + days.map(function (d) { return '<option value="' + d.iso + '">' + esc(d.label) + '</option>'; }).join('') + '</select></div>' +
+              '<div class="field"><label for="co-slot">Time</label><select id="co-slot"><option value="">Any time</option>' + (DELIVERY.slots || []).map(function (s) { return '<option value="' + esc(s.id) + '">' + esc(s.label) + '</option>'; }).join('') + '</select></div></div>' +
+              '<p class="hint">A preference, not a booking: we confirm the day and time with you and the seller on WhatsApp.</p></fieldset>' : '') +
+            (OPTS.gifts ? '<div class="check"><input type="checkbox" id="co-gift"><label for="co-gift">This order is a gift</label></div>' +
+              '<div class="co-gift" id="co-gift-box" hidden><div class="field"><label for="co-gift-msg">Gift message (optional)</label><textarea id="co-gift-msg" maxlength="250" rows="3" placeholder="e.g. Happy birthday, Mum!"></textarea></div>' +
+              '<div class="check"><input type="checkbox" id="co-gift-noprice" checked><label for="co-gift-noprice">Leave prices out of the parcel</label></div></div>' : '') +
+            '<div class="field"><label for="co-note">Notes for your order (optional)</label><input id="co-note" placeholder="e.g. Call when you reach the gate"></div>') +
+          step(2, 'Payment',
+            payChoiceHTML() +
+            '<form class="voucher" id="voucher-form"><label for="voucher" class="visually-hidden">Voucher code</label><input id="voucher" placeholder="Voucher code" value="' + esc(voucher) + '" autocapitalize="characters"><button class="btn btn--secondary btn--sm" type="submit">Apply</button></form>' +
+            (voucher && !v ? '<p class="form-status is-error">That voucher code isn\'t valid.</p>' : '') +
+            (v && !vOff ? '<p class="form-status is-error">' + esc(v.code) + ' needs a minimum spend of ' + kwacha(v.minSpend) + '.</p>' : '')) +
+          step(3, 'Review and send',
+            '<dl class="totals"><div><dt>Items (' + units + ')</dt><dd>' + kwacha(sub) + '</dd></div>' +
+            (save ? '<div class="is-save"><dt>You save</dt><dd>' + kwacha(save) + '</dd></div>' : '') +
+            (vOff ? '<div class="is-save"><dt>Voucher ' + esc(v.code) + '</dt><dd>−' + kwacha(vOff) + '</dd></div>' : '') +
+            (VAT.included === false ? vatRowHTML(vat) : '') +
+            '<div><dt>Delivery</dt><dd>Confirmed on WhatsApp</dd></div>' +
+            '<div class="is-total"><dt>Estimated total</dt><dd>' + kwacha(total) + '</dd></div>' + (VAT.included === false ? '' : vatRowHTML(vat)) + '</dl>' +
+            '<a class="btn btn--primary btn--block" id="checkout" href="#" target="_blank" rel="noopener noreferrer">Send order on WhatsApp</a>' +
+            '<p class="pmeta">Your order reaches us when you press Send in WhatsApp. We confirm the final price and delivery fee there, then send payment instructions. We never ask for your PIN.</p>' +
+            '<p class="pmeta">By sending your order you agree to our <a href="privacy.html">privacy policy</a> and <a href="help.html#returns">returns and buyer protection</a>.</p>') +
           '<button class="link-btn" type="button" id="clear-cart">Empty cart</button>' +
         '</aside></div>';
       show(html, 'Cart');
 
       var ref = 'ZS-' + Date.now().toString(36).toUpperCase().slice(-6);
       var co = $('#checkout');
+      var chosenAddress = null;
+      var when = function () { return { day: $('#co-day') ? $('#co-day').value : '', slot: $('#co-slot') ? $('#co-slot').value : '' }; };
+      var gift = function () {
+        var on = !!($('#co-gift') && $('#co-gift').checked);
+        return { on: on, message: on ? cleanText($('#co-gift-msg').value, 250) : '', noPrice: on && $('#co-gift-noprice').checked };
+      };
       var buildMsg = function () {
         var m = 'Hi Zed Supply, I\'d like to place an order (ref ' + ref + '):\n' +
           items.map(function (it, i) { return (i + 1) + '. ' + it.p.title + ' (' + it.p.id + (it.sku ? ', SKU ' + it.sku : '') + ')' + (it.label ? ' [' + it.label + ']' : '') + ' x ' + it.qty + ' = ' + kwacha(it.each * it.qty) + (it.commit ? ' (my offer, pending the seller)' : ''); }).join('\n') +
-          (vOff ? '\nVoucher ' + v.code + ': -' + kwacha(vOff) : '') + '\nEstimated total: ' + kwacha(total);
-        var nm = $('#co-name').value.trim(), note = $('#co-note').value.trim();
+          (vOff ? '\nVoucher ' + v.code + ': -' + kwacha(vOff) : '') + '\nEstimated total: ' + kwacha(total) +
+          (vat ? (VAT.included === false ? ' (with VAT ' + VAT.rate + '%: ' + kwacha(vat) + ')' : ' (includes VAT ' + VAT.rate + '%: ' + kwacha(vat) + ')') : '');
+        var nm = $('#co-name').value.trim(), note = $('#co-note').value.trim(), w = when();
         if (nm) m += '\nName: ' + nm;
+        if (chosenAddress && chosenAddress.phone) m += '\nRecipient phone: ' + chosenAddress.phone;
+        if (chosenAddress && chosenAddress.instructions) m += '\nDelivery instructions: ' + chosenAddress.instructions;
         if (note) m += '\nNotes: ' + note;
         if (COURIERS.length) m += '\nDelivery: ' + shipSummary();
+        if (w.day || w.slot) m += '\nPreferred delivery: ' + [w.day ? dayLabel(w.day) : 'any day', w.slot ? slotLabel(w.slot) : 'any time'].join(', ');
+        var g = gift();
+        if (g.on) m += '\nGift: yes' + (g.noPrice ? ', leave prices out of the parcel' : '') + (g.message ? '\nGift message: ' + g.message : '');
         if (payChoice) { var pm = payByName(payChoice); m += '\nPayment: ' + payChoice + (pm && PAY_ASK[payKind(pm)] ? ' (' + PAY_ASK[payKind(pm)] + ')' : ''); }
         return m;
       };
       // data-wa-message lets refreshLoc() update the link when the delivery location changes
       var syncCo = function () { var m = buildMsg(); co.setAttribute('data-wa-message', m); co.href = waUrl(m); };
       ['co-name', 'co-note'].forEach(function (id) { $('#' + id).addEventListener('input', syncCo); });
+      $('#co-name').addEventListener('input', function () { if (this.value.trim()) { $('#co-name-err').hidden = true; this.removeAttribute('aria-invalid'); } });
+      ['co-day', 'co-slot', 'co-gift-noprice'].forEach(function (id) { var el = $('#' + id); if (el) el.addEventListener('change', syncCo); });
+      var giftMsg = $('#co-gift-msg'); if (giftMsg) giftMsg.addEventListener('input', syncCo);
+      var giftBox = $('#co-gift');
+      if (giftBox) giftBox.addEventListener('change', function () { $('#co-gift-box').hidden = !giftBox.checked; if (giftBox.checked) $('#co-gift-msg').focus(); syncCo(); });
+      // A saved address fills in where to deliver (and the name, if empty)
+      var addrSel = $('#co-address');
+      if (addrSel) addrSel.addEventListener('change', function () {
+        chosenAddress = addresses().filter(function (a) { return a.id === addrSel.value; })[0] || null;
+        if (chosenAddress) {
+          saveLoc({ town: chosenAddress.town, area: chosenAddress.area, landmark: chosenAddress.landmark, remember: !!(loc && loc.remember) });
+          if (!$('#co-name').value.trim() && chosenAddress.recipient) { $('#co-name').value = chosenAddress.recipient; $('#co-name').dispatchEvent(new Event('input')); }
+        }
+        syncCo();
+      });
+      if (addrSel) {
+        // Show which saved address is in use; with no location yet, start from the default one
+        var book2 = addresses(), match = loc && book2.filter(function (a) { return a.town === loc.town && a.area === loc.area && a.landmark === loc.landmark; })[0];
+        var start = match || (!loc && book2.filter(function (a) { return a.isDefault; })[0]);
+        if (start) { addrSel.value = start.id; if (match) { chosenAddress = match; } else addrSel.dispatchEvent(new Event('change')); }
+      }
+      var saveAddr = $('#co-save-address');
+      if (saveAddr) saveAddr.addEventListener('click', function () {
+        if (!loc) { openLocation(); return; }
+        var list = addresses(), max = (OPTS.addresses && OPTS.addresses.max) || 10;
+        if (list.some(function (a) { return a.town === loc.town && a.area === loc.area && a.landmark === loc.landmark; })) { toast('That address is already saved. <a href="#/addresses">Manage addresses</a>'); return; }
+        if (list.length >= max) { toast('You have ' + max + ' saved addresses. Remove one first. <a href="#/addresses">Manage addresses</a>'); return; }
+        list.push({ id: 'A' + Date.now().toString(36), label: list.length ? 'Address ' + (list.length + 1) : 'Home', recipient: $('#co-name').value.trim(), phone: '', town: loc.town, area: loc.area, landmark: loc.landmark, instructions: '', isDefault: !list.length });
+        store.set('addresses', list);
+        toast('Address saved. <a href="#/addresses">Name or edit it</a>');
+      });
       $$('input[name="co-pay"]', view).forEach(function (r) { r.addEventListener('change', function () { payChoice = r.value; syncCo(); }); });
       // Delivery: changing "where is it going?" redraws the courier list for that distance
       var shipWrap = $('#ship-wrap');
@@ -1956,9 +2120,20 @@
           return reserved[key] > current.stock;
         });
         if (unavailable) { e.preventDefault(); toast('A variation is unavailable or its quantity exceeds stock. Update your cart before checkout.'); return; }
-        if (hasCardNumber($('#co-name').value + ' ' + $('#co-note').value)) { e.preventDefault(); toast(esc(CARD_WARNING)); $('#co-note').focus(); return; }
+        if (hasCardNumber($('#co-name').value + ' ' + $('#co-note').value + ' ' + gift().message)) { e.preventDefault(); toast(esc(CARD_WARNING)); $('#co-note').focus(); return; }
+        // Like an address on Amazon: a name and a delivery location are needed before the order goes
+        var nameEl = $('#co-name'), nameErr = $('#co-name-err'), locErr = $('#co-loc-err');
+        var noName = !nameEl.value.trim(), noLoc = !loc;
+        nameErr.hidden = !noName; nameErr.textContent = noName ? 'Enter your name.' : '';
+        nameEl.setAttribute('aria-invalid', String(noName));
+        locErr.hidden = !noLoc; locErr.textContent = noLoc ? 'Set where to deliver, so we can quote the delivery fee.' : '';
+        if (noName || noLoc) {
+          e.preventDefault();
+          if (noName) nameEl.focus(); else $('#co-loc-box [data-open-location]').focus();
+          return;
+        }
         var list = orders();
-        list.unshift({ ref: ref, date: today, items: items.map(function (it) { return it.opt ? { id: it.p.id, qty: it.qty, price: it.each, opt: it.opt, label: it.label } : { id: it.p.id, qty: it.qty, price: it.each }; }), total: total, status: 0, deliverTo: locFull(), pay: payChoice, ship: COURIERS.length ? shipSummary() : '', shipId: shipChoice });
+        list.unshift({ ref: ref, date: today, items: items.map(function (it) { return it.opt ? { id: it.p.id, qty: it.qty, price: it.each, opt: it.opt, label: it.label } : { id: it.p.id, qty: it.qty, price: it.each }; }), total: total, status: 0, deliverTo: locFull(), pay: payChoice, ship: COURIERS.length ? shipSummary() : '', shipId: shipChoice, message: co.getAttribute('data-wa-message'), vat: vat, when: when(), gift: gift().on ? gift() : null, addressId: chosenAddress ? chosenAddress.id : '' });
         store.set('orders', list);
         setCart([]);
         store.set('voucher', '');
@@ -2012,6 +2187,8 @@
           tile('#/cart', 'Cart', cart().length + ' products in your cart') +
           tile('#/track', 'Track an order', 'Enter an order number') +
           tile('help.html#returns', 'Returns', 'How returns work') +
+          (addressesOn() ? tile('#/addresses', 'Addresses', addresses().length + ' saved · choose at checkout') : '') +
+          (complaintsOn() ? tile('#/complaints', 'Complaints', complaints().length + ' sent · make or follow up') : '') +
           tile('#/seller', 'Seller Centre', 'Manage your store') +
           tile('help.html', 'Help centre', 'Answers and contact') +
           tile('#/promotions', 'Promotions', 'Deals from sellers') +
@@ -2045,7 +2222,7 @@
         (toRate.length ? '<section class="card rate-prompt" aria-labelledby="rate-title"><h2 id="rate-title">Rate your purchases</h2><p class="pmeta">Share your experience to help other buyers. Reviews are saved on this device.</p><ul class="rate-list">' +
           toRate.slice(0, 6).map(function (p) { return '<li><span>' + esc(p.title) + '</span><a class="btn btn--secondary btn--sm" href="#/product/' + encodeURIComponent(p.id) + '?review=1">Rate<span class="visually-hidden"> ' + esc(p.title) + '</span></a></li>'; }).join('') + '</ul></section>' : '') +
         (list.length ? '<ul class="orders">' + list.map(function (o) {
-          return '<li><a class="order-row" href="#/order/' + encodeURIComponent(o.ref) + '"><span><strong>' + esc(o.ref) + '</strong><br><span class="pmeta">' + niceDate(o.date) + ' · ' + o.items.length + (o.items.length === 1 ? ' product' : ' products') + '</span></span><span><span class="status">' + STATUS[o.status] + '</span><br><strong>' + kwacha(o.total) + '</strong></span></a></li>';
+          return '<li><a class="order-row" href="#/order/' + encodeURIComponent(o.ref) + '"><span><strong>' + esc(o.ref) + '</strong><br><span class="pmeta">' + niceDate(o.date) + ' · ' + o.items.length + (o.items.length === 1 ? ' product' : ' products') + '</span></span><span><span class="status">' + (o.cancel ? 'Cancellation requested' : STATUS[o.status]) + '</span><br><strong>' + kwacha(o.total) + '</strong></span></a></li>';
         }).join('') + '</ul>' : empty('No orders yet. When you check out on WhatsApp, your order appears here.', '<a class="btn btn--primary" href="#/deals">Start shopping</a>')) +
         '<p class="view-foot"><a href="#/track">Track an order by number</a></p>', 'Orders');
     },
@@ -2059,13 +2236,43 @@
           return '<li class="' + (i < o.status ? 'is-done' : (i === o.status ? 'is-done is-current' : '')) + '">' + s + (i === o.status ? ' <span class="visually-hidden">(current status)</span>' : '') + '</li>';
         }).join('') + '</ol>' +
         (o.sample ? '<p class="pmeta">This is a demo order to show how tracking will look.</p>' : '<p class="pmeta">We update your order once it\'s confirmed on WhatsApp. Prototype: live tracking arrives with full accounts.</p>') +
-        askBtn(msg) + '</div>' +
+        // Until we confirm it, the order may not have been sent: WhatsApp opened, but Send wasn't pressed
+        (!o.sample && !o.status && !o.cancel && o.message ? '<div class="notice" role="status"><p><strong>Didn\'t press Send?</strong> Your order reaches us only when the WhatsApp message is sent.</p><a class="btn btn--secondary btn--sm" href="' + waUrl(o.message) + '" data-wa-message="' + esc(o.message) + '" target="_blank" rel="noopener noreferrer">Open WhatsApp again</a></div>' : '') +
+        cancelHTML(o) +
+        '<div class="btn-row">' + askBtn(msg) + (o.sample ? '' : '<button class="btn btn--secondary" type="button" id="buy-again">Buy again</button>') +
+          (complaintsOn() && !o.sample ? '<a class="btn btn--secondary" href="#/complaint?order=' + encodeURIComponent(o.ref) + '">' + (o.status >= 4 ? 'Return or report a problem' : 'Report a problem') + '</a>' : '') + '</div></div>' +
         '<aside class="summary"><h2>Items</h2><ul class="lines">' + o.items.map(function (it) { var p = product(it.id); return '<li class="line line--plain"><div><a class="line__title" href="#/product/' + it.id + '">' + esc(p ? p.title : it.id) + '</a><p class="pmeta">' + (it.label ? esc(it.label) + ' · ' : '') + 'Quantity ' + (parseInt(it.qty, 10) || 0) + ' · ' + kwacha(it.price * it.qty) + '</p>' +
           (p && !o.sample ? '<a class="link-btn" href="#/product/' + encodeURIComponent(it.id) + '?review=1">' + (((store.get('reviews', {})[it.id]) || []).some(function (v) { return v.mine; }) ? 'Edit your review' : 'Rate this item') + '<span class="visually-hidden">: ' + esc(p.title) + '</span></a>' : '') + '</div></li>'; }).join('') + '</ul>' +
-        '<dl class="totals"><div class="is-total"><dt>Total</dt><dd>' + kwacha(o.total) + '</dd></div></dl>' +
+        '<dl class="totals"><div class="is-total"><dt>Total</dt><dd>' + kwacha(o.total) + '</dd></div>' + (o.vat ? vatRowHTML(o.vat) : '') + '</dl>' +
         (o.ship ? '<div class="deliver-box"><p class="deliver-box__label">Delivery</p><p>' + esc(o.ship) + '</p></div>' : '') +
+        (o.when && (o.when.day || o.when.slot) ? '<div class="deliver-box"><p class="deliver-box__label">Preferred delivery</p><p>' + esc([o.when.day ? dayLabel(o.when.day) : 'Any day', o.when.slot ? slotLabel(o.when.slot) : 'any time'].join(', ')) + '</p></div>' : '') +
+        (o.gift ? '<div class="deliver-box"><p class="deliver-box__label">Gift</p><p>' + (o.gift.message ? '“' + esc(o.gift.message) + '”' : 'Yes') + (o.gift.noPrice ? '<br><span class="pmeta">Prices left out of the parcel</span>' : '') + '</p></div>' : '') +
         (o.pay ? '<div class="deliver-box"><p class="deliver-box__label">Payment</p><p>' + esc(o.pay) + '</p></div>' : '') +
         '<div class="deliver-box"><p class="deliver-box__label">Deliver to</p><p>' + (o.deliverTo ? esc(o.deliverTo) : '<span class="pmeta">No location given. We\'ll ask on WhatsApp.</span>') + '</p></div></aside></div>', 'Order ' + o.ref);
+      // Cancellation request: the message follows the chosen reason; sending it marks the order
+      var cxSend = $('#cx-send'), cxReason = $('#cx-reason');
+      if (cxSend) {
+        var cxMsg = function () { return 'Hi Zed Supply, please cancel my order ' + o.ref + '. Reason: ' + cxReason.value + '.'; };
+        var cxSync = function () { cxSend.setAttribute('data-wa-message', cxMsg()); cxSend.href = waUrl(cxMsg()); };
+        cxReason.addEventListener('change', cxSync); cxSync();
+        cxSend.addEventListener('click', function () {
+          var list = orders();
+          list.forEach(function (x) { if (x.ref === o.ref) x.cancel = { date: today, reason: cxReason.value, status: 'requested' }; });
+          store.set('orders', list);
+          setTimeout(route, 400);
+        });
+      }
+      var again = $('#buy-again');
+      if (again) again.addEventListener('click', function () {
+        // Same items and options at today's prices; an earlier offer price isn't reused
+        var added = 0, skipped = 0;
+        o.items.forEach(function (it) {
+          var opt = it.opt ? JSON.parse(JSON.stringify(it.opt)) : undefined;
+          if (opt) { delete opt.commit; if (!Object.keys(opt).length) opt = undefined; }
+          if (product(it.id) && addToCart(it.id, Math.max(1, parseInt(it.qty, 10) || 1), opt)) added++; else skipped++;
+        });
+        toast(added ? 'Added ' + added + (added === 1 ? ' item' : ' items') + ' to your cart' + (skipped ? '; ' + skipped + ' no longer available' : '') + '. <a href="#/cart">View cart</a>' : 'These items are no longer available.');
+      });
     },
 
     track: function (arg, q, missing) {
@@ -2075,6 +2282,128 @@
         '<button class="btn btn--primary" type="submit">Track order</button>' + (D.demoOrder ? '<p class="hint">Try the demo order: <button class="link-btn" type="button" id="tr-demo">' + esc(D.demoOrder.ref) + '</button></p>' : '') + '</form>', 'Track order');
       $('#track-form').addEventListener('submit', function (e) { e.preventDefault(); location.hash = '#/order/' + encodeURIComponent($('#tr-ref').value.trim().toUpperCase()); });
       if ($('#tr-demo')) $('#tr-demo').addEventListener('click', function () { location.hash = '#/order/' + D.demoOrder.ref; });
+    },
+
+    /* Saved addresses (#/addresses). Kept on this device until accounts move to the server
+       (settings.orderOptions.addresses.sync, db/migrations/006 user_addresses). */
+    addresses: function (arg, q) {
+      if (!addressesOn()) return views.notfound();
+      var list = addresses(), max = (OPTS.addresses && OPTS.addresses.max) || 10;
+      var editing = q && q.get('edit') ? list.filter(function (a) { return a.id === q.get('edit'); })[0] : null;
+      var a = editing || { label: list.length ? '' : 'Home', recipient: (user() || {}).name || '', phone: (user() || {}).phone || '', town: '', area: '', landmark: '', instructions: '' };
+      var f = function (id, label, input, hint) { return '<div class="field"><label for="ad-' + id + '">' + label + '</label>' + input + (hint ? '<p class="hint">' + hint + '</p>' : '') + '</div>'; };
+      show(crumbs([['My Account', '#/account'], ['Addresses']]) + head('Your addresses', 'Choose one at checkout instead of typing it each time.') +
+        '<p class="notice">Saved on this device only for now. Your addresses will follow you to other devices once secure accounts launch.</p>' +
+        '<div class="duo duo--gap"><section class="card" aria-labelledby="ad-list-title"><h2 id="ad-list-title">Saved addresses (' + list.length + ' of ' + max + ')</h2>' +
+          (list.length ? '<ul class="orders">' + list.map(function (x) {
+            return '<li class="order-row"><span><strong>' + esc(x.label) + '</strong>' + (x.isDefault ? ' <span class="badge">Default</span>' : '') + '<br><span class="pmeta">' + esc([x.recipient, addressLine(x), x.phone].filter(Boolean).join(' · ')) + '</span>' +
+              (x.instructions ? '<br><span class="pmeta">' + esc(x.instructions) + '</span>' : '') + '</span>' +
+              '<span class="btn-row"><button class="link-btn" type="button" data-use-address="' + esc(x.id) + '">Deliver here</button><a class="link-btn" href="#/addresses?edit=' + encodeURIComponent(x.id) + '">Edit<span class="visually-hidden"> ' + esc(x.label) + '</span></a>' +
+              (x.isDefault ? '' : '<button class="link-btn" type="button" data-default-address="' + esc(x.id) + '">Make default</button>') +
+              '<button class="link-btn" type="button" data-del-address="' + esc(x.id) + '">Remove<span class="visually-hidden"> ' + esc(x.label) + '</span></button></span></li>';
+          }).join('') + '</ul>' : '<p>No saved addresses yet.</p>') + '</section>' +
+        '<form class="form form--card" id="ad-form" novalidate><h2>' + (editing ? 'Edit ' + esc(editing.label) : 'Add an address') + '</h2>' +
+          f('label', 'Name for this address *', '<input id="ad-label" list="ad-labels" maxlength="30" required value="' + esc(a.label) + '"><datalist id="ad-labels"><option value="Home"><option value="Work"><option value="Shop"><option value="Family"></datalist>', 'For example Home, Work or Mum\'s house.') +
+          '<div class="field-row">' + f('recipient', 'Who receives it', '<input id="ad-recipient" autocomplete="name" maxlength="60" value="' + esc(a.recipient) + '">') +
+          f('phone', 'Their phone number', '<input id="ad-phone" type="tel" autocomplete="tel" maxlength="20" value="' + esc(a.phone) + '">', 'For the rider. Shared only in orders you send.') + '</div>' +
+          '<div class="field-row">' + f('town', 'Town or city *', '<input id="ad-town" list="zm-towns" autocomplete="address-level2" maxlength="60" required value="' + esc(a.town) + '">') +
+          f('area', 'Area or neighbourhood', '<input id="ad-area" autocomplete="address-level3" maxlength="60" value="' + esc(a.area) + '">') + '</div>' +
+          f('landmark', 'Street, house number or landmark', '<input id="ad-landmark" autocomplete="street-address" maxlength="100" value="' + esc(a.landmark) + '">') +
+          f('instructions', 'Delivery instructions', '<input id="ad-instructions" maxlength="160" placeholder="e.g. Blue gate, call on arrival" value="' + esc(a.instructions) + '">') +
+          '<div class="check"><input type="checkbox" id="ad-default"' + (a.isDefault || !list.length ? ' checked' : '') + '><label for="ad-default">Use as my default delivery address</label></div>' +
+          '<p class="form-status" role="status" tabindex="-1"></p><div class="btn-row"><button class="btn btn--primary" type="submit">' + (editing ? 'Save changes' : 'Save address') + '</button>' + (editing ? '<a class="btn btn--secondary" href="#/addresses">Cancel</a>' : '') + '</div></form></div>', 'Addresses');
+      var form = $('#ad-form'), st = $('.form-status', form);
+      form.addEventListener('submit', function (e) {
+        e.preventDefault();
+        var val = function (id, n) { return cleanText($('#ad-' + id).value, n); };
+        var rec = { id: editing ? editing.id : 'A' + Date.now().toString(36), label: val('label', 30), recipient: val('recipient', 60), phone: val('phone', 20), town: val('town', 60), area: val('area', 60), landmark: val('landmark', 100), instructions: val('instructions', 160), isDefault: $('#ad-default').checked };
+        var fail = function (m, id) { st.className = 'form-status is-error'; st.textContent = m; $('#ad-' + id).focus(); };
+        if (!rec.label) return fail('Give this address a name, such as Home.', 'label');
+        if (!rec.town) return fail('Enter the town or city.', 'town');
+        if (hasCardNumber(rec.instructions + ' ' + rec.landmark)) return fail(CARD_WARNING, 'instructions');
+        if (!editing && list.length >= max) return fail('You can save up to ' + max + ' addresses. Remove one first.', 'label');
+        var next = list.filter(function (x) { return x.id !== rec.id; }).map(function (x) { if (rec.isDefault) x.isDefault = false; return x; });
+        next.push(rec);
+        if (!next.some(function (x) { return x.isDefault; })) next[0].isDefault = true;
+        store.set('addresses', next);
+        toast(editing ? 'Address updated' : 'Address saved');
+        location.hash = '#/addresses';
+        if (!editing) route();
+      });
+      view.onclick = function (e) {
+        var use = e.target.closest('[data-use-address]'), def = e.target.closest('[data-default-address]'), del = e.target.closest('[data-del-address]');
+        if (use) { var x = list.filter(function (y) { return y.id === use.getAttribute('data-use-address'); })[0]; if (x) { saveLoc({ town: x.town, area: x.area, landmark: x.landmark, remember: !!(loc && loc.remember) }); toast('Delivering to ' + esc(x.label) + '. <a href="#/cart">Go to cart</a>'); } }
+        if (def) { store.set('addresses', list.map(function (y) { y.isDefault = y.id === def.getAttribute('data-default-address'); return y; })); route(); }
+        if (del) { var left = list.filter(function (y) { return y.id !== del.getAttribute('data-del-address'); }); if (left.length && !left.some(function (y) { return y.isDefault; })) left[0].isDefault = true; store.set('addresses', left); toast('Address removed'); route(); }
+      };
+    },
+
+    /* Complaints (#/complaint) about an order, a listing, a seller or delivery. Sent to Zed Supply
+       on WhatsApp now; kept on this device so the buyer can follow up (#/complaints). With seller
+       accounts on the server, sellers reply in the Seller Centre (db/migrations/006 complaints). */
+    complaint: function (arg, q) {
+      if (!complaintsOn()) return views.notfound();
+      var u = user() || {}, my = orders().filter(function (o) { return !o.sample; });
+      var qOrder = q ? q.get('order') || '' : '', qProduct = q ? q.get('product') || '' : '', qSeller = q ? q.get('seller') || '' : '';
+      var o = qOrder ? findOrder(qOrder) : null, p = qProduct ? product(qProduct) : null;
+      // The seller follows from the product, or from the order when everything came from one seller
+      var orderSellers = o ? o.items.map(function (it) { var x = product(it.id); return x ? x.seller : ''; }).filter(function (s, i, all) { return s && all.indexOf(s) === i; }) : [];
+      var sid = qSeller || (p ? p.seller : orderSellers.length === 1 ? orderSellers[0] : '');
+      var replyDays = (OPTS.complaints && OPTS.complaints.replyDays) || 2;
+      var radio = function (name, list, cur) { return list.map(function (x) { return '<div class="pay-option"><input type="radio" name="' + name + '" id="' + name + '-' + x[0] + '" value="' + x[0] + '"' + (x[0] === cur ? ' checked' : '') + '><label for="' + name + '-' + x[0] + '">' + esc(x[1]) + '</label></div>'; }).join(''); };
+      show(crumbs([['Help', 'help.html#complaints'], ['Make a complaint']]) + head('Make a complaint', 'Tell us what went wrong. We reply within ' + replyDays + ' working days, and work with the seller to put it right.') +
+        '<div class="duo duo--gap"><form class="form form--card" id="cp-form" novalidate>' +
+          '<div class="field-row"><div class="field"><label for="cp-order">Order</label><select id="cp-order"><option value="">Not about an order</option>' + my.map(function (x) { return '<option value="' + esc(x.ref) + '"' + (x.ref === qOrder ? ' selected' : '') + '>' + esc(x.ref + ' · ' + niceDate(x.date)) + '</option>'; }).join('') + '</select></div>' +
+          '<div class="field"><label for="cp-seller">Seller</label><select id="cp-seller"><option value="">Not sure, or not about a seller</option>' + D.sellers.map(function (s) { return '<option value="' + esc(s.id) + '"' + (s.id === sid ? ' selected' : '') + '>' + esc(s.name) + '</option>'; }).join('') + '</select></div></div>' +
+          (p ? '<p class="pmeta">About the listing: <a href="#/product/' + esc(p.id) + '">' + esc(p.title) + '</a> (' + esc(p.id) + ')</p>' : '') +
+          '<fieldset class="field pay-choice"><legend>What went wrong? *</legend>' + radio('cp-type', COMPLAINT_TYPES, q ? q.get('type') || '' : '') + '</fieldset>' +
+          '<div class="field"><label for="cp-text">What happened? *</label><textarea id="cp-text" maxlength="1000" rows="5" placeholder="Include dates, what you were told, and what you received."></textarea><p class="hint">Have photos? Send them in WhatsApp after this message. Never include card numbers or PINs.</p></div>' +
+          '<fieldset class="field pay-choice"><legend>What would you like? *</legend>' + radio('cp-want', COMPLAINT_WANTS, '') + '</fieldset>' +
+          '<div class="field-row"><div class="field"><label for="cp-name">Your name *</label><input id="cp-name" autocomplete="name" value="' + esc(u.name || '') + '"></div>' +
+          '<div class="field"><label for="cp-phone">Phone or WhatsApp</label><input id="cp-phone" type="tel" autocomplete="tel" value="' + esc(u.phone || '') + '"></div></div>' +
+          '<div class="check"><input type="checkbox" id="cp-share" checked><label for="cp-share">Zed Supply may share my complaint and order details with the seller to resolve it</label></div>' +
+          '<p class="form-status" role="status" tabindex="-1"></p>' +
+          '<a class="btn btn--primary" id="cp-send" href="#" target="_blank" rel="noopener noreferrer">Send complaint on WhatsApp</a></form>' +
+        '<aside class="band"><h2>What happens next</h2><ol class="steps-list"><li>We acknowledge your complaint and give you its reference.</li><li>We reply within ' + replyDays + ' working days, after checking with the seller.</li><li>We agree a fix with you: a replacement, repair, refund or return, under our <a href="help.html#returns">returns policy</a>.</li><li>Not happy with the outcome? Ask us to review it. You can also contact the Competition and Consumer Protection Commission (CCPC).</li></ol>' +
+          '<p><a href="#/complaints">Your complaints</a> · <a href="help.html#complaints">How complaints work</a></p></aside></div>', 'Make a complaint');
+      var ref = 'ZC-' + Date.now().toString(36).toUpperCase().slice(-6), send = $('#cp-send'), st = $('.form-status', $('#cp-form'));
+      var pick = function (name) { var r = $('input[name="' + name + '"]:checked'); return r ? r.value : ''; };
+      var label = function (list, id) { var x = list.filter(function (y) { return y[0] === id; })[0]; return x ? x[1] : ''; };
+      var data = function () {
+        var s = seller($('#cp-seller').value);
+        return { ref: ref, date: today, order: $('#cp-order').value, seller: s ? s.id : '', sellerName: s ? s.name : '', product: p ? p.id : '', type: pick('cp-type'), want: pick('cp-want'),
+          text: $('#cp-text').value.trim().slice(0, 1000), name: cleanText($('#cp-name').value, 60), phone: cleanText($('#cp-phone').value, 20), share: $('#cp-share').checked, status: 'sent' };
+      };
+      var message = function (c) {
+        return 'Hi Zed Supply, I\'d like to make a complaint (ref ' + c.ref + ').' +
+          (c.order ? '\nOrder: ' + c.order : '') + (c.sellerName ? '\nSeller: ' + c.sellerName : '') + (p ? '\nListing: ' + p.title + ' (' + p.id + ')' : '') +
+          '\nProblem: ' + label(COMPLAINT_TYPES, c.type) + '\nWhat happened: ' + c.text + '\nI\'d like: ' + label(COMPLAINT_WANTS, c.want) +
+          '\nName: ' + c.name + (c.phone ? '\nPhone: ' + c.phone : '') + (c.share ? '' : '\nPlease don\'t share my details with the seller.');
+      };
+      var sync = function () { var m = message(data()); send.setAttribute('data-wa-message', m); send.href = waUrl(m); };
+      $('#cp-form').addEventListener('input', sync); $('#cp-form').addEventListener('change', sync); sync();
+      send.addEventListener('click', function (e) {
+        var c = data(), fail = function (m, el) { e.preventDefault(); st.className = 'form-status is-error'; st.textContent = m; (el || st).focus(); };
+        if (!c.type) return fail('Choose what went wrong.', $('input[name="cp-type"]'));
+        if (c.text.length < 10) return fail('Tell us what happened, in a sentence or two.', $('#cp-text'));
+        if (!c.want) return fail('Choose what you would like.', $('input[name="cp-want"]'));
+        if (!c.name) return fail('Enter your name.', $('#cp-name'));
+        if (hasCardNumber(c.text)) return fail(CARD_WARNING, $('#cp-text'));
+        store.set('complaints', [c].concat(complaints()));
+        setTimeout(function () { location.hash = '#/complaints'; }, 400);
+      });
+    },
+
+    complaints: function () {
+      if (!complaintsOn()) return views.notfound();
+      var list = complaints();
+      show(crumbs([['My Account', '#/account'], ['Complaints']]) + head('Your complaints', 'Complaints sent from this device. We reply on WhatsApp.') +
+        (list.length ? '<ul class="orders">' + list.map(function (c) {
+          var t = COMPLAINT_TYPES.filter(function (x) { return x[0] === c.type; })[0];
+          return '<li class="order-row"><span><strong>' + esc(c.ref) + '</strong> · ' + esc(t ? t[1] : 'Complaint') + '<br><span class="pmeta">' + niceDate(c.date) + (c.order ? ' · order ' + esc(c.order) : '') + (c.sellerName ? ' · ' + esc(c.sellerName) : '') + '</span></span>' +
+            '<span><span class="status">' + esc(COMPLAINT_STATUS[c.status] || c.status) + '</span><br><a href="' + waUrl('Hi Zed Supply, I\'d like an update on my complaint ' + c.ref + '.') + '" target="_blank" rel="noopener noreferrer">Ask for an update<span class="visually-hidden"> on ' + esc(c.ref) + '</span></a></span></li>';
+        }).join('') + '</ul>' : empty('No complaints. We hope it stays that way.', '<a class="btn btn--secondary" href="#/complaint">Make a complaint</a>')) +
+        '<p class="pmeta">Prototype: the status here updates once complaints are handled through secure accounts. Until then, we keep you updated on WhatsApp.</p>', 'Complaints');
     },
 
     sell: function () {
@@ -2136,6 +2465,15 @@
             return '<li class="order-row"><span><a href="#/product/' + esc(p.id) + '"><strong>' + esc(p.title) + '</strong></a><br><span class="pmeta">' + esc(p.id) + ' · ' + bits.join(' · ') + (listingsApi.get(p.id) ? ' · edited in this browser' : '') + '</span></span>' +
               '<a class="link-btn" href="#/listing/' + encodeURIComponent(p.id) + '">Edit<span class="visually-hidden"> ' + esc(p.title) + '</span></a></li>';
           }).join('') + '</ul>' : '<p>No products yet.</p>') + '</section>' +
+        (complaintsOn() ? (function () {
+          // Until sellers sign in on the server (orderOptions.complaints.sellerDashboard), Zed Supply passes
+          // complaints on by WhatsApp. This prototype lists those made on this device about the store.
+          var mineC = complaints().filter(function (c) { return c.seller === s.id && c.share; }), days = (OPTS.complaints && OPTS.complaints.replyDays) || 2;
+          return '<section class="card sc-products" id="sc-complaints" aria-labelledby="sc-cp-title"><h2 id="sc-cp-title">Complaints about your store</h2>' +
+            '<p class="pmeta">When a buyer complains, Zed Supply contacts you on WhatsApp with the reference. Reply within ' + days + ' working days with your side and how you\'ll put it right: a replacement, repair, refund or return, under the <a href="help.html#returns">returns policy</a>. Complaints that are upheld again and again can lead to your store being paused.</p>' +
+            (OPTS.complaints && OPTS.complaints.sellerDashboard ? '' : '<p class="notice">You\'ll be able to read and answer complaints here once seller accounts move to our secure server.</p>') +
+            (mineC.length ? '<ul class="orders">' + mineC.map(function (c) { var t = COMPLAINT_TYPES.filter(function (x) { return x[0] === c.type; })[0]; return '<li class="order-row"><span><strong>' + esc(c.ref) + '</strong> · ' + esc(t ? t[1] : '') + '<br><span class="pmeta">' + niceDate(c.date) + (c.order ? ' · order ' + esc(c.order) : '') + ' · prototype, from this device</span></span><span class="status">' + esc(COMPLAINT_STATUS[c.status] || c.status) + '</span></li>'; }).join('') + '</ul>' : '') + '</section>';
+        })() : '') +
         '<div class="duo duo--gap">' +
         '<section class="card" id="sc-promos" aria-labelledby="sc-p-title"><h2 id="sc-p-title">Your promotions</h2>' + (promos.length ? '<ul class="orders">' + promos.map(function (pr) {
           return '<li class="order-row"><span><strong>' + esc(pr.title) + '</strong><br><span class="pmeta">' + esc(season(pr.season).name) + ' · ' + (Number(pr.discount) || 0) + '% off · ' + niceDate(pr.starts) + ' to ' + niceDate(pr.ends) + (pr.image ? ' · with banner image' : '') + '</span></span><span><span class="status">' + promoStatus(pr) + '</span>' + (pr.demo ? ' <button class="link-btn" type="button" data-del-promo="' + esc(pr.id) + '">Delete<span class="visually-hidden"> ' + esc(pr.title) + '</span></button>' : '') + '</span></li>';
@@ -2592,7 +2930,8 @@
       var promos = sortPromos(allPromos().filter(function (pr) { return pr.seller === id && promoStatus(pr) !== 'ended'; }));
       listing({ title: esc(s.name), crumbs: [['Stores'], [s.name]], list: products.filter(function (p) { return p.seller === id; }), docTitle: s.name,
         extra: '<div class="store-hero" style="--brand-a:' + s.colours[0] + ';--brand-b:' + s.colours[1] + '"><p>' + esc(s.city) + verifiedHTML(s) + '</p><p>' + esc(s.about) + '</p>' + identityArt(s) + '</div>' +
-          (promos.length ? '<h2>Promotions</h2><ul class="promos promos--gap">' + promos.map(promoCard).join('') + '</ul>' : '') });
+          (promos.length ? '<h2>Promotions</h2><ul class="promos promos--gap">' + promos.map(promoCard).join('') + '</ul>' : '') +
+          (complaintsOn() ? '<p class="pmeta"><a href="#/complaint?seller=' + encodeURIComponent(s.id) + '">Report a problem with this seller</a></p>' : '') });
     },
 
     world: function () {
@@ -2627,6 +2966,9 @@
   // "Saved for later" items in the cart: adding one to the cart removes it from the saved list
   function bindSaved() {
     view.onclick = function (e) {
+      // "Proceed to checkout" scrolls to the checkout steps without changing the page address
+      var jump = e.target.closest('[data-jump]');
+      if (jump) { e.preventDefault(); var to = $('#' + jump.getAttribute('data-jump')); if (to) { to.scrollIntoView(); to.focus({ preventScroll: true }); } return; }
       var rm = e.target.closest('[data-remove]'), sv = e.target.closest('[data-save]'), ad = e.target.closest('[data-add]');
       if (rm || sv) {
         var key = (rm || sv).getAttribute(rm ? 'data-remove' : 'data-save'), id = key.split('|')[0];

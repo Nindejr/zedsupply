@@ -60,6 +60,22 @@ Buyer commitment controls let a buyer propose an amount within the seller's perm
 
 Reviews support integer ratings from 1 to 5, a headline/body, average/count and star distribution. Readers can filter by exact stars, keywords and verified status where verified records exist, and sort reviews. Filters do not change the overall summary. New browser feedback is explicitly unverified. Production verified badges require a delivered purchase linked to the authenticated buyer; browser storage cannot supply that proof.
 
+## Checkout and after-sales
+
+Every option is built now, so none needs adding later. What can work in the browser works today; what needs shared accounts is stored in the same shape as the server tables (migration 006) and switched on in `settings` when the server is ready.
+
+| Option | Today | Needs the server for | Switch |
+| --- | --- | --- | --- |
+| VAT | "Includes VAT (16%)" in totals, the WhatsApp order and the order page; sellers not VAT-registered are left out | Tax invoices with the TPIN | `settings.vat` |
+| Delivery day and time | Preferred day (skipping closed days) and time slot at checkout; delivery estimates by distance once filled in | Booking real slots with couriers | `settings.delivery` |
+| Saved addresses | Address book in My Account; default chosen at checkout; recipient phone and instructions sent with the order | Addresses on every device | `orderOptions.addresses` (`sync`) |
+| Gifts | Gift message and "leave prices out of the parcel" | — | `orderOptions.gifts` |
+| Cancellation | Request with a reason from the order page until it's packed; later, "ask us" or return | Automatic status and refunds | `orderOptions.cancel` |
+| Returns | Interim policy in the help centre; "Return or report a problem" on delivered orders | Return tracking and refunds | `orderOptions.returns` |
+| Complaints | Form (order, seller, listing or delivery), "Report" links on products and stores, buyer's complaint list, seller panel in the Seller Centre | Seller replies and live status | `orderOptions.complaints` (`sellerDashboard`) |
+
+Complaints follow a set process: a ZC- reference, the seller told (unless the buyer asks us not to), a reply within the set working days, a review on request, and the CCPC, ZICTA (couriers) or the payment provider as outside routes. Upheld complaints count against a seller and can lead to warnings, removed listings or a paused store.
+
 ## Data and backend requirements
 
 `js/products.js` centralizes validation, measurement normalization, option matrices, stock matching and prices. Browser data uses `attributes` for condition, condition notes, features, manufacturer, age groups and specifications; `options.extra` for custom axes; and flat custom selections on variant rows.
