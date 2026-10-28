@@ -51,6 +51,14 @@
     D.banners = (D.banners || []).slice(0, 2).concat(X.banners || [], (D.banners || []).slice(2));
     if (!D.demoOrder) D.demoOrder = X.demoOrder;
     S.isSample = true;
+    // Sample sales are [this month, last month], so the demo's trending and top picks never go stale
+    var mk = function (d) { return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2); }, n0 = new Date();
+    D.products.forEach(function (p) {
+      if (!p.demoSales) return;
+      p.sales = {};
+      p.sales[mk(n0)] = p.demoSales[0];
+      p.sales[mk(new Date(n0.getFullYear(), n0.getMonth() - 1, 1))] = p.demoSales[1];
+    });
   }
   var china = !!S.chinaOrdering;
   var onIndex = !!document.getElementById('view');
@@ -105,32 +113,111 @@
     shield: '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/><path d="m9 12 2 2 4-4"/>'
   };
 
-  /* ---------- Zambia Independence celebration theme ----------
-     On automatically each year between celebration.start and .end (month-day),
-     off from 1 January. ?theme=zambia or ?theme=off previews it on any date. */
-  var CEL = S.celebration || { enabled: true, start: '10-01', end: '12-31', independenceDay: '10-24', independenceYear: 1964 };
-  var monthDay = pad(now.getMonth() + 1) + '-' + pad(now.getDate());
-  var themeParam = (location.search.match(/[?&]theme=(zambia|off)\b/) || [])[1];
-  var zambia = themeParam ? themeParam === 'zambia' : (CEL.enabled !== false && monthDay >= CEL.start && monthDay <= CEL.end);
-  root.classList.toggle('theme-zambia', zambia);
-  function independenceDeals() { return allPromos().some(function (pr) { return pr.season === 'independence' && promoStatus(pr) !== 'ended'; }); }
-  function ordinal(n) { var s = ['th', 'st', 'nd', 'rd'], v = n % 100; return n + (s[(v - 20) % 10] || s[v] || s[0]); }
-  var indYears = now.getFullYear() - (CEL.independenceYear || 1964);
-  function celebrationCopy() {
-    var parts = (CEL.independenceDay || '10-24').split('-'), day = new Date(now.getFullYear(), Number(parts[0]) - 1, Number(parts[1]));
-    var days = Math.round((day - new Date(now.getFullYear(), now.getMonth(), now.getDate())) / 86400000);
-    if (days > 1) return { lead: days + ' days to Independence Day', line: 'Zambia celebrates ' + indYears + ' years of independence on 24 October.' };
-    if (days === 1) return { lead: 'Tomorrow is Independence Day', line: 'Zambia celebrates ' + indYears + ' years of independence on 24 October.' };
-    if (days === 0) return { lead: 'Happy ' + ordinal(indYears) + ' Independence Day, Zambia!', line: 'Celebrating ' + indYears + ' years since 24 October 1964.' };
-    return { lead: 'Celebrating ' + indYears + ' years of independence', line: 'Thank you for shopping Zambian this festive season.' };
+  /* ---------- Festive periods (dates in js/catalogue.js, settings.festive) ----------
+     One period at a time gets the bar above the header and the first homepage banner
+     slide. Moveable dates are worked out for each year, and periods never overlap:
+     one that would start before the previous one ends waits until it has ended.
+     ?theme=<id> previews a period on any date (?theme=zambia is Independence);
+     ?theme=off hides them. */
+  var FEST = S.festive || { enabled: true, independenceYear: 1964, periods: [{ id: 'independence', start: '10-01', end: '10-31' }] };
+  var DAY = 86400000;
+  var today0 = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  function dayOf(y, m, d) { return new Date(y, m, d); }
+  function shift(d, n) { return dayOf(d.getFullYear(), d.getMonth(), d.getDate() + n); }
+  function fromMonthDay(y, s) { var p = String(s).split('-'); return dayOf(y, Number(p[0]) - 1, Number(p[1])); }
+  function nthWeekday(y, month, weekday, n) { var d = dayOf(y, month, 1); return shift(d, (weekday - d.getDay() + 7) % 7 + (n - 1) * 7); }
+  function easterSunday(y) {
+    // Anonymous Gregorian algorithm (Meeus/Jones/Butcher)
+    var a = y % 19, b = Math.floor(y / 100), c = y % 100, d = Math.floor(b / 4), e = b % 4, f = Math.floor((b + 8) / 25), g = Math.floor((b - f + 1) / 3);
+    var h = (19 * a + b - d - g + 15) % 30, i = Math.floor(c / 4), k = c % 4, l = (32 + 2 * e + 2 * i - h - k) % 7, m = Math.floor((a + 11 * h + 22 * l) / 451);
+    return dayOf(y, Math.floor((h + l - 7 * m + 114) / 31) - 1, ((h + l - 7 * m + 114) % 31) + 1);
   }
-  if (zambia) {
-    var cc = celebrationCopy(), bar = document.createElement('div');
-    bar.className = 'zm-bar';
+  // The dates of one period in year y. key is the day the copy counts down to.
+  function festiveWindow(p, y) {
+    if (p.rule === 'easter') { var es = easterSunday(y); return { start: shift(es, -13), end: shift(es, 1), key: shift(es, -2) }; }        // two weeks before, to Easter Monday
+    if (p.rule === 'blackfriday') { var bf = shift(nthWeekday(y, 10, 4, 4), 1); return { start: shift(bf, -4), end: shift(bf, 3), key: bf }; }  // Monday to Cyber Monday
+    if (p.rule === 'farmers') { var fd = nthWeekday(y, 7, 1, 1); return { start: shift(fd, -7), end: fd, key: fd }; }                       // the week before Farmers' Day
+    var start = fromMonthDay(y, p.start), end = fromMonthDay(y, p.end);
+    if (end < start) end = fromMonthDay(y + 1, p.end);   // runs into the new year (Christmas to New Year's Day)
+    return { start: start, end: end, key: p.day ? fromMonthDay(y, p.day) : null };
+  }
+  function festiveCalendar(y) {
+    var list = [];
+    (FEST.periods || []).forEach(function (p) {
+      if (p.enabled === false) return;
+      [y - 1, y].forEach(function (yr) { var w = festiveWindow(p, yr); w.id = p.id; list.push(w); });
+    });
+    list.sort(function (a, b) { return a.start - b.start; });
+    var out = [], lastEnd = null;
+    list.forEach(function (w) {
+      if (lastEnd && w.start <= lastEnd) w.start = shift(lastEnd, 1);
+      if (w.start <= w.end) { out.push(w); lastEnd = w.end; }
+    });
+    return out;
+  }
+  var themeParam = (location.search.match(/[?&]theme=([a-z]+)\b/) || [])[1];
+  if (themeParam === 'zambia') themeParam = 'independence';
+  var fest = null;
+  if (themeParam && themeParam !== 'off') {
+    festiveCalendar(now.getFullYear()).forEach(function (w) { if (w.id === themeParam && (!fest || w.start.getFullYear() === now.getFullYear())) fest = w; });
+  } else if (!themeParam && FEST.enabled !== false) {
+    festiveCalendar(now.getFullYear()).forEach(function (w) { if (w.start <= today0 && today0 <= w.end) fest = w; });
+  }
+  var zambia = !!fest && fest.id === 'independence';
+  root.classList.toggle('theme-zambia', zambia);
+
+  function ordinal(n) { var s = ['th', 'st', 'nd', 'rd'], v = n % 100; return n + (s[(v - 20) % 10] || s[v] || s[0]); }
+  function longDate(d) { return ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][d.getDay()] + ' ' + d.getDate() + ' ' + ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'][d.getMonth()]; }
+  function festiveDeals(id) { return allPromos().some(function (pr) { return pr.season === id && promoStatus(pr) === 'live'; }); }
+  // Bar wording for each period. lead is bold; days counts down to the period's key day.
+  function festiveCopy(w) {
+    var days = w.key ? Math.round((w.key - today0) / DAY) : null;
+    var count = function (n, name) { return n === 1 ? name + ' is tomorrow' : n + ' days to ' + name; };
+    if (w.id === 'independence') {
+      var yrs = w.key.getFullYear() - (FEST.independenceYear || 1964);
+      if (days > 0) return { lead: count(days, 'Independence Day'), line: 'Zambia celebrates ' + yrs + ' years of independence on 24 October.' };
+      if (days === 0) return { lead: 'Happy ' + ordinal(yrs) + ' Independence Day, Zambia!', line: 'Celebrating ' + yrs + ' years since 24 October 1964.' };
+      return { lead: 'Celebrating ' + yrs + ' years of independence', line: 'Thank you for shopping Zambian this Independence month.' };
+    }
+    if (w.id === 'christmas') {
+      var next = w.key.getFullYear() + 1;
+      if (days > 0) return { lead: count(days, 'Christmas'), line: 'Gifts, treats and festive essentials from Zambian sellers.' };
+      if (days === 0) return { lead: 'Merry Christmas from Zed Supply!', line: 'Thank you for shopping with Zambian sellers this year.' };
+      return { lead: today0.getMonth() === 0 ? 'Happy New Year!' : 'Happy holidays from Zed Supply', line: 'Wishing you a happy and prosperous ' + next + '.' };
+    }
+    if (w.id === 'easter') {
+      if (days > 0) return { lead: 'Easter weekend: ' + longDate(w.key) + ' to ' + longDate(w.end), line: 'Get ready for family get-togethers with Zambian sellers.' };
+      return { lead: 'Happy Easter from Zed Supply', line: 'Wishing you a peaceful Easter weekend.' };
+    }
+    if (w.id === 'valentines') {
+      if (days > 0) return { lead: count(days, 'Valentine\'s Day'), line: 'Gifts for someone special from Zambian sellers.' };
+      return { lead: 'Happy Valentine\'s Day', line: 'Gifts for someone special from Zambian sellers.' };
+    }
+    if (w.id === 'farmers') return { lead: days > 0 ? 'Farmers\' Day is ' + longDate(w.key) : 'Happy Farmers\' Day', line: 'Celebrating Zambia\'s farmers: seed, tools and farm equipment from local suppliers.' };
+    if (w.id === 'blackfriday') return { lead: days > 0 ? 'Black Friday is ' + longDate(w.key) : days === 0 ? 'It\'s Black Friday' : 'Black Friday weekend', line: 'Look out for seller deals all week, through to Cyber Monday.' };
+    if (w.id === 'school') return { lead: 'Back to school', line: 'Stationery, bags and school essentials for the new term.' };
+    return { lead: season(w.id).name, line: '' };
+  }
+  // Where the bar and banner link: the period's promotions when sellers run any, otherwise a fitting page
+  var FEST_LINKS = {
+    independence: ['Independence', '#/departments', 'Shop local'], christmas: ['Christmas', '#/departments', 'Shop gifts'],
+    easter: ['Easter', '#/departments', 'Shop now'], valentines: ['Valentine\'s', '#/departments', 'Find a gift'],
+    farmers: ['Farmers\' Day', '#/dept/agri', 'Shop farming'], blackfriday: ['Black Friday', '#/deals', 'Today\'s deals'],
+    school: ['Back-to-school', '#/dept/office', 'Shop school supplies']
+  };
+  function festiveLink(id) {
+    var l = FEST_LINKS[id] || [season(id).name, '#/departments', 'Shop now'];
+    return festiveDeals(id) ? { href: '#/promotions?season=' + id, text: l[0] + ' deals' } : { href: l[1], text: l[2] };
+  }
+  if (fest) {
+    var fc = festiveCopy(fest), fl = festiveLink(fest.id), fs = season(fest.id), bar = document.createElement('div');
+    bar.className = 'fest-bar fest-bar--' + fest.id;
     bar.setAttribute('role', 'note');
-    bar.innerHTML = '<div class="container zm-bar__inner"><img class="zm-bar__flag" src="assets/brand/zambia-flag.svg" alt="Flag of Zambia" width="34" height="23">' +
-      '<p><strong>' + esc(cc.lead) + '</strong> ' + esc(cc.line) + '</p>' +
-      (independenceDeals() ? '<a href="' + R + 'promotions?season=independence">Independence deals</a>' : '<a href="' + R + 'departments">Shop local</a>') + '</div>';
+    bar.style.setProperty('--fest-a', fs.colours[0]);
+    bar.style.setProperty('--fest-b', fs.colours[1]);
+    bar.innerHTML = '<div class="container fest-bar__inner">' +
+      (zambia ? '<img class="fest-bar__flag" src="assets/brand/zambia-flag.svg" alt="Flag of Zambia" width="28" height="19">' : '<span class="fest-bar__mark" aria-hidden="true"></span>') +
+      '<p><strong>' + esc(fc.lead) + '</strong> ' + esc(fc.line) + '</p><a href="' + R + fl.href.slice(2) + '">' + esc(fl.text) + '</a></div>';
     var skipLink = $('.skip-link');
     if (skipLink) skipLink.parentNode.insertBefore(bar, skipLink.nextSibling);
   }
@@ -157,12 +244,26 @@
     var fee = charge(S.fee, item + ship + clear);
     return { item: item, shipping: ship, clearance: clear, fee: fee, total: Math.ceil(item + ship + clear + fee) };
   }
-  function priceOf(p) {
-    if (p.source === 'china') return { now: chinaCost(p.priceCNY, p.weightKg, 1).total, was: 0, off: 0, promo: null };
-    var base = p.priceZMW, promo = livePromoFor(p), nowP = base, was = p.wasZMW || 0;
-    if (promo) { nowP = Math.round(base * (1 - promo.discount / 100)); was = Math.max(was, base); }
-    return { now: nowP, was: was > nowP ? was : 0, off: was > nowP ? Math.round((1 - nowP / was) * 100) : 0, promo: promo };
+  /* Deals: a seller lowers the price of one product, with a reason and an optional end
+     date. From catalogue.js (deal: { price, reason, ends }) or made in the Seller Centre
+     (saved in this browser in the prototype). The lowest live price wins. */
+  var DEAL_REASONS = { reduced: 'Price drop', clearance: 'Clearance', limited: 'Limited stock', bundle: 'Bundle offer', seasonal: 'Seasonal deal' };
+  function dealFor(p) {
+    var best = null;
+    (p.deal ? [p.deal] : []).concat(store.get('deals', []).filter(function (d) { return d.product === p.id; })).forEach(function (d) {
+      var price = Number(d.price);
+      if (price > 0 && price < p.priceZMW && (!d.starts || d.starts <= today) && (!d.ends || d.ends >= today) && (!best || price < best.price)) best = { price: price, reason: d.reason, ends: d.ends || '', id: d.id };
+    });
+    return best;
   }
+  function priceOf(p) {
+    if (p.source === 'china') return { now: chinaCost(p.priceCNY, p.weightKg, 1).total, was: 0, off: 0, promo: null, deal: null };
+    var base = p.priceZMW, promo = livePromoFor(p), deal = dealFor(p), nowP = base, was = p.wasZMW || 0;
+    if (promo) { nowP = Math.round(base * (1 - promo.discount / 100)); was = Math.max(was, base); }
+    if (deal && deal.price < nowP) { nowP = deal.price; promo = null; was = Math.max(was, base); } else deal = null;
+    return { now: nowP, was: was > nowP ? was : 0, off: was > nowP ? Math.round((1 - nowP / was) * 100) : 0, promo: promo, deal: deal };
+  }
+  function onDeal(p) { var pr = priceOf(p); return !!(pr.was || pr.promo || pr.deal); }
   function reviewsFor(p) { return (p.reviews || []).concat((store.get('reviews', {})[p.id]) || []); }
   function ratingOf(p) {
     var r = reviewsFor(p);
@@ -172,6 +273,105 @@
   function searchText(p) {
     var b = brand(p.brand), s = seller(p.seller);
     return [p.title, p.tags, dept(p.category).name, b ? b.name : '', s ? s.name : ''].join(' ').toLowerCase();
+  }
+
+  /* ---------- Trending and top picks ----------
+     Scores come from what buyers do. Until shared accounts arrive (Phase 2) there are two sources:
+       1. sales in catalogue.js: units sold per month, e.g. sales: { '2026-10': 14, '2026-09': 9 },
+          recorded by Zed Supply from orders confirmed on WhatsApp;
+       2. activity on this device: products ordered, in the cart, saved and viewed.
+     Reviews add to a product's score; a live deal or a listing under 30 days old adds a small boost,
+     but only to products buyers are already showing interest in. */
+  var W = { sold: 5, ordered: 3, cart: 2, wish: 1.5, viewed: 1, review: 2, deal: 1.5, fresh: 1 };
+  function monthKey(d) { return d.getFullYear() + '-' + pad(d.getMonth() + 1); }
+  var thisMonth = monthKey(now), lastMonth = monthKey(new Date(now.getFullYear(), now.getMonth() - 1, 1));
+  function monthName(key) { var p = key.split('-'); return ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'][Number(p[1]) - 1]; }
+  function localActivity() {
+    var a = {}, get = function (id) { return a[id] || (a[id] = { months: {}, cart: 0, wish: 0, viewed: 0 }); };
+    store.get('orders', []).forEach(function (o) {
+      var key = String(o.date || '').slice(0, 7);
+      (o.items || []).forEach(function (it) { var m = get(it.id).months; m[key] = (m[key] || 0) + (parseInt(it.qty, 10) || 1); });
+    });
+    store.get('cart', []).forEach(function (l) { get(l.id).cart = 1; });
+    store.get('wish', []).forEach(function (id) { get(id).wish = 1; });
+    store.get('recent', []).forEach(function (id) { get(id).viewed = 1; });
+    return a;
+  }
+  function trendScore(p, act) {
+    var s = p.sales || {}, a = act[p.id] || { months: {} }, r = ratingOf(p);
+    var demand = W.sold * ((s[thisMonth] || 0) + 0.5 * (s[lastMonth] || 0)) +
+      W.ordered * ((a.months[thisMonth] || 0) + 0.5 * (a.months[lastMonth] || 0)) +
+      W.cart * (a.cart || 0) + W.wish * (a.wish || 0) + W.viewed * (a.viewed || 0) +
+      (r ? W.review * (r.avg / 5) * Math.log(1 + r.count) : 0);
+    if (!demand) return 0;
+    var fresh = p.added && (now - new Date(p.added + 'T00:00:00')) / 86400000 <= 30;
+    return demand + (onDeal(p) ? W.deal : 0) + (fresh ? W.fresh : 0);
+  }
+  function monthScore(p, key, act) {
+    var a = act[p.id] || { months: {} };
+    var revs = reviewsFor(p).filter(function (v) { return String(v.date).slice(0, 7) === key; });
+    return W.sold * (((p.sales || {})[key]) || 0) + W.ordered * (a.months[key] || 0) +
+      W.review * revs.reduce(function (t, v) { return t + (Number(v.rating) || 0) / 5; }, 0);
+  }
+  // Ranked trending products, grouped by category, busiest category first
+  function trendingGroups() {
+    var act = localActivity(), groups = {};
+    localProducts.forEach(function (p) {
+      var s = trendScore(p, act);
+      if (s > 0) (groups[p.category] = groups[p.category] || []).push({ p: p, s: s });
+    });
+    return Object.keys(groups).map(function (id) {
+      var list = groups[id].sort(function (a, b) { return b.s - a.s; });
+      return { id: id, top: list[0].s, items: list.map(function (x) { return x.p; }) };
+    }).sort(function (a, b) { return b.top - a.top; });
+  }
+  function topPicks(key) {
+    var act = localActivity();
+    return localProducts.map(function (p) { return { p: p, s: monthScore(p, key, act) }; })
+      .filter(function (x) { return x.s > 0; }).sort(function (a, b) { return b.s - a.s; }).map(function (x) { return x.p; });
+  }
+
+  /* ---------- Similar products from different sellers ----------
+     Products with the same match key in catalogue.js (match: 'solar-lantern') are the same
+     item from different sellers. Otherwise, products in the same category whose titles and
+     tags share enough words count as similar. */
+  function words(p) {
+    var stop = { with: 1, and: 1, for: 1, the: 1, of: 1, in: 1, set: 1, pieces: 1 };
+    return (p.title + ' ' + (p.tags || '')).toLowerCase().replace(/[^a-z0-9 ]+/g, ' ').split(/\s+/).filter(function (w) { return w.length > 2 && !stop[w]; });
+  }
+  function likeness(a, b) {
+    var wa = words(a), wb = words(b), shared = wa.filter(function (w) { return wb.indexOf(w) !== -1; }).length;
+    return shared / Math.max(1, Math.min(wa.length, wb.length));
+  }
+  function sameItem(p) { return p.match ? localProducts.filter(function (x) { return x.id !== p.id && x.match === p.match; }) : []; }
+  function similarTo(p, max) {
+    var same = sameItem(p);
+    var near = localProducts.filter(function (x) { return x.id !== p.id && x.category === p.category && same.indexOf(x) === -1 && likeness(p, x) >= 0.34; })
+      .sort(function (a, b) { return likeness(p, b) - likeness(p, a); });
+    return same.sort(function (a, b) { return priceOf(a).now - priceOf(b).now; }).concat(near).slice(0, max || 3);
+  }
+  // Groups of the same item sold by two or more sellers, within one category
+  function multiSellerGroups(cat) {
+    var seen = {}, out = [];
+    localProducts.forEach(function (p) {
+      if (!p.match || seen[p.match] || (cat && p.category !== cat)) return;
+      var all = [p].concat(sameItem(p));
+      var sellers = all.map(function (x) { return x.seller; }).filter(function (s, i, l) { return s && l.indexOf(s) === i; });
+      seen[p.match] = 1;
+      if (sellers.length > 1) out.push({ key: p.match, items: all, from: Math.min.apply(null, all.map(function (x) { return priceOf(x).now; })) });
+    });
+    return out;
+  }
+
+  // Compare list: up to 4 products, kept on this device
+  var COMPARE_MAX = 4;
+  function compareList() { return store.get('compare', []).filter(function (id) { return product(id); }); }
+  function toggleCompare(id) {
+    var c = compareList(), i = c.indexOf(id);
+    if (i !== -1) c.splice(i, 1);
+    else { if (c.length >= COMPARE_MAX) c.shift(); c.push(id); }
+    store.set('compare', c);
+    return i === -1;
   }
 
   /* ---------- Cart, wishlist, account state ---------- */
@@ -317,8 +517,16 @@
   /* ---------- Data saver ---------- */
   // Swap 3D category and store artwork for the tiny line icons
   function saverArt(scope) {
-    if (!root.classList.contains('data-saver')) return;
-    $$('img[data-fallback]', scope).forEach(function (im) { im.src = im.getAttribute('data-fallback'); im.removeAttribute('data-fallback'); });
+    var enabled = root.classList.contains('data-saver');
+    $$('img[data-fallback]', scope).forEach(function (im) {
+      if (enabled) {
+        if (!im.hasAttribute('data-artwork')) im.setAttribute('data-artwork', im.getAttribute('src'));
+        im.src = im.getAttribute('data-fallback');
+      } else if (im.hasAttribute('data-artwork')) {
+        im.src = im.getAttribute('data-artwork');
+        im.removeAttribute('data-artwork');
+      }
+    });
   }
   var saver = store.get('datasaver', false);
   root.classList.toggle('data-saver', !!saver);
@@ -376,6 +584,122 @@
       return '<li class="paychip"><span class="paychip__dot" style="--pay:' + esc(m.colour || '#4CC21A') + '" aria-hidden="true"></span>' + esc(m.name) + '</li>';
     }).join('') + '</ul>';
   }
+  /* ---------- Courier options (js/couriers.js) ----------
+     Every ZICTA-licensed postal and courier operator, plus profiles of well-known couriers.
+     Buyers choose where the parcel is going, then a courier (or let Zed Supply arrange it);
+     the choice goes into their WhatsApp order. Sellers tick the couriers they use.
+     Ranking: most used on Zed Supply first (each seller shipping with it +10, each order that
+     chose it +4), then a checked public profile (+6), then licence reach (international 3,
+     domestic 2, local 1). Couriers whose licence we couldn't confirm lose 8. Ties go A to Z. */
+  var SCOPES = { town: 'Within the same town', country: 'Another town in Zambia', world: 'Outside Zambia' };
+  var SCOPE_SHORT = { town: 'Same town', country: 'Across Zambia', world: 'International' };
+  var LICENCES = {
+    PPO: { label: 'Public postal operator', scope: ['town', 'country', 'world'], reach: 3 },
+    ID: { label: 'International and domestic', scope: ['town', 'country', 'world'], reach: 3 },
+    D: { label: 'Domestic: anywhere in Zambia', scope: ['town', 'country'], reach: 2 },
+    L: { label: 'Local: one district only', scope: ['town'], reach: 1 }
+  };
+  var COURIERS = (function () {
+    var src = window.ZS_COURIERS || {}, byLic = {}, out = [];
+    if (S.couriersEnabled === false) return out;
+    (src.register || []).forEach(function (r) {
+      var t = LICENCES[r[2]] || LICENCES.L;
+      var c = { id: 'zicta-' + r[0].replace(/^ZICTA\/P\//, '').replace(/\W+/g, '').toLowerCase(), licence: r[0], name: r[1], legal: r[1], type: r[2], scope: t.scope.slice(), about: '', url: '', note: '' };
+      byLic[r[0]] = c; out.push(c);
+    });
+    (src.profiles || []).forEach(function (p) {
+      var c = p.licence && byLic[p.licence];
+      if (c) { c.id = p.id; c.name = p.name || c.name; c.url = p.url || ''; c.about = p.about || ''; c.note = p.note || ''; c.profile = true; }
+      else out.push({ id: p.id, licence: '', name: p.name, legal: '', type: '', scope: p.scope || ['town'], url: p.url || '', about: p.about || '', note: p.note || '', profile: true, unlicensed: true });
+    });
+    return out;
+  })();
+  var shipScope = 'town', shipChoice = '';   // this cart's choice; kept in memory only
+  function courier(id) { return byId(COURIERS, id); }
+  // A seller's couriers: ticked in the Seller Centre (this browser) or couriers: [...] on the seller in catalogue.js
+  function sellerCouriers(s) {
+    var local = s ? store.get('seller-couriers', {})[s.id] : null;
+    return (local || (s && s.couriers) || []).filter(function (id) { return courier(id); });
+  }
+  function courierUse() {
+    var use = { sellers: {}, score: {} };
+    D.sellers.forEach(function (s) { sellerCouriers(s).forEach(function (id) { use.sellers[id] = (use.sellers[id] || 0) + 1; use.score[id] = (use.score[id] || 0) + 10; }); });
+    store.get('orders', []).forEach(function (o) { if (o.shipId) use.score[o.shipId] = (use.score[o.shipId] || 0) + 4; });
+    return use;
+  }
+  function rankedCouriers(scope, use) {
+    use = use || courierUse();
+    return COURIERS.filter(function (c) { return !scope || c.scope.indexOf(scope) !== -1; }).map(function (c) {
+      return { c: c, s: (use.score[c.id] || 0) + (c.profile ? 6 : 0) + (LICENCES[c.type] ? LICENCES[c.type].reach : 0) - (c.unlicensed ? 8 : 0) };
+    }).sort(function (a, b) { return b.s - a.s || a.c.name.localeCompare(b.c.name); }).map(function (x) { return x.c; });
+  }
+  function byName(a, b) { return a.name.localeCompare(b.name); }
+  function courierName(c) { return c.url ? '<a href="' + esc(c.url) + '" target="_blank" rel="noopener noreferrer">' + esc(c.name) + '<span class="visually-hidden"> (opens in a new tab)</span></a>' : esc(c.name); }
+  function licenceTag(c) {
+    return c.unlicensed ? '<span class="courier__lic courier__lic--none">Licence not confirmed</span>'
+      : '<span class="courier__lic">' + icon(I.shield) + 'ZICTA licensed<span class="visually-hidden">, ' + esc(LICENCES[c.type].label) + '</span></span>';
+  }
+  // Help Centre: cards for the best-known couriers, ranked
+  function courierCardsHTML() {
+    var use = courierUse(), list = rankedCouriers('', use).filter(function (c) { return c.profile || use.sellers[c.id]; });
+    return '<ul class="couriers">' + list.map(function (c) {
+      var n = use.sellers[c.id] || 0;
+      return '<li class="courier"><p class="courier__name">' + courierName(c) + '</p>' + licenceTag(c) +
+        '<ul class="courier__scope" aria-label="Delivers">' + c.scope.map(function (s) { return '<li>' + SCOPE_SHORT[s] + '</li>'; }).join('') + '</ul>' +
+        (c.about ? '<p>' + esc(c.about) + '</p>' : '') + (c.note ? '<p class="pmeta">' + esc(c.note) + '</p>' : '') +
+        (c.licence ? '<p class="pmeta">Licence ' + esc(c.licence) + (c.legal && c.legal !== c.name ? ' (' + esc(c.legal) + ')' : '') + '</p>' : '<p class="pmeta">Not on the ZICTA register we have. Check its licence before you book.</p>') +
+        (n ? '<p class="courier__used">Used by ' + n + ' Zed Supply seller' + (n === 1 ? '' : 's') + '</p>' : '') + '</li>';
+    }).join('') + '</ul><p class="pmeta">Zed Supply isn\'t paid by any courier listed here. Prices, coverage and delivery times are set by each courier, so confirm them before you book.</p>';
+  }
+  // Help Centre: the full register, searchable
+  function courierDirectoryHTML() {
+    var list = rankedCouriers('').filter(function (c) { return !c.unlicensed; });
+    return '<div class="cdir"><div class="field-row"><div class="field"><label for="cdir-q">Search by name or licence number</label><input id="cdir-q" type="search" autocomplete="off"></div>' +
+      '<div class="field"><label for="cdir-scope">Delivers</label><select id="cdir-scope"><option value="">Anywhere</option>' + Object.keys(SCOPES).map(function (s) { return '<option value="' + s + '">' + SCOPES[s] + '</option>'; }).join('') + '</select></div></div>' +
+      '<p class="pmeta" id="cdir-count" role="status">' + list.length + ' licensed operators</p>' +
+      '<div class="cmp" role="region" tabindex="0" aria-label="Licensed couriers (scrolls sideways)"><table class="cdir__table"><thead><tr><th scope="col">Courier</th><th scope="col">Licence</th><th scope="col">Licence type</th><th scope="col">Delivers</th></tr></thead><tbody>' +
+      list.map(function (c) {
+        return '<tr data-scope="' + c.scope.join(' ') + '" data-text="' + esc((c.name + ' ' + c.legal + ' ' + c.licence).toLowerCase()) + '"><th scope="row">' + courierName(c) + (c.legal && c.legal !== c.name ? '<br><small class="pmeta">' + esc(c.legal) + '</small>' : '') + '</th>' +
+          '<td>' + esc(c.licence) + '</td><td>' + esc(LICENCES[c.type].label) + '</td><td>' + c.scope.map(function (s) { return SCOPE_SHORT[s]; }).join(', ') + '</td></tr>';
+      }).join('') + '</tbody></table></div><p class="pmeta">Source: ' + esc((window.ZS_COURIERS || {}).registerNote || 'ZICTA register') + '. Local licences cover one district only.</p></div>';
+  }
+  if (COURIERS.length) {
+    $$('[data-couriers]').forEach(function (el) { el.innerHTML = courierCardsHTML(); });
+    $$('[data-courier-directory]').forEach(function (el) {
+      el.innerHTML = courierDirectoryHTML();
+      var qIn = $('#cdir-q', el), sc = $('#cdir-scope', el), rows = $$('tbody tr', el), count = $('#cdir-count', el);
+      var filter = function () {
+        var t = qIn.value.trim().toLowerCase(), s = sc.value, n = 0;
+        rows.forEach(function (r) { var ok = (!t || r.getAttribute('data-text').indexOf(t) !== -1) && (!s || r.getAttribute('data-scope').indexOf(s) !== -1); r.hidden = !ok; if (ok) n++; });
+        count.textContent = n + (n === 1 ? ' licensed operator' : ' licensed operators') + (t || s ? ' match' + (n === 1 ? 'es' : '') : '');
+      };
+      qIn.addEventListener('input', filter); sc.addEventListener('change', filter);
+    });
+  }
+  // Checkout: the six top-ranked couriers for the route, and every other one in a list
+  function shipChoiceHTML() {
+    if (!COURIERS.length) return '';
+    var list = rankedCouriers(shipScope), top = list.slice(0, 6), rest = list.slice(6).sort(byName);
+    if (shipChoice && list.every(function (c) { return c.id !== shipChoice; })) shipChoice = '';
+    var opt = function (value, label, sub) {
+      var id = 'co-ship-' + (value || 'zs');
+      return '<div class="pay-option"><input type="radio" name="co-ship" id="' + id + '" value="' + esc(value) + '"' + (shipChoice === value ? ' checked' : '') + '><label for="' + id + '">' + esc(label) + (sub ? '<small>' + esc(sub) + '</small>' : '') + '</label></div>';
+    };
+    return '<fieldset class="field pay-choice" id="ship-choice"><legend>Delivery</legend>' +
+      '<div class="ship-scope" role="radiogroup" aria-label="Where is it going?">' + Object.keys(SCOPES).map(function (s) {
+        return '<label class="chip ship-scope__opt"><input type="radio" name="co-scope" value="' + s + '"' + (s === shipScope ? ' checked' : '') + '> ' + esc(SCOPES[s]) + '</label>';
+      }).join('') + '</div>' +
+      opt('', 'Zed Supply arranges it', 'We confirm the courier and fee on WhatsApp') +
+      top.map(function (c) { return opt(c.id, c.name, c.unlicensed ? 'Licence not confirmed' : ''); }).join('') +
+      (rest.length ? '<div class="field"><label for="co-ship-more">Or choose another courier (' + rest.length + ')</label><select id="co-ship-more"><option value="">Choose a courier…</option>' +
+        rest.map(function (c) { return '<option value="' + esc(c.id) + '"' + (shipChoice === c.id ? ' selected' : '') + '>' + esc(c.name) + (c.unlicensed ? ' (licence not confirmed)' : c.type === 'L' ? ' (local)' : '') + '</option>'; }).join('') + '</select></div>' : '') +
+      '<p class="hint"><a href="help.html#couriers" target="_blank" rel="noopener noreferrer">Compare couriers<span class="visually-hidden"> (opens in a new tab)</span></a>. You pay the delivery fee we confirm on WhatsApp.</p></fieldset>';
+  }
+  function shipSummary() {
+    var c = courier(shipChoice);
+    return SCOPES[shipScope] + ': ' + (c ? c.name + (c.licence ? ' (' + c.licence + ')' : ' (licence not confirmed)') : 'Zed Supply arranges the courier');
+  }
+
   function payChoiceHTML() {
     var list = payMethods();
     if (!list.length) return '';
@@ -390,6 +714,17 @@
   }
   // Fill every "we accept" spot on the page (footer, help centre)
   $$('[data-pay-methods]').forEach(function (el) { if (payMethods().length) el.innerHTML = payChipsHTML(); });
+
+  // App store buttons (footer): each becomes a link once its address is set in settings.apps
+  var APPS = S.apps || {};
+  $$('[data-app]').forEach(function (el) {
+    var url = APPS[el.getAttribute('data-app')];
+    if (!url || !/^https:\/\//.test(url)) return;
+    el.href = url; el.target = '_blank'; el.rel = 'noopener noreferrer';
+    el.classList.remove('is-soon');
+    var soon = el.querySelector('.app-btn__soon');
+    if (soon) soon.remove();
+  });
 
   /* ---------- Rendering pieces ---------- */
   function media(p) {
@@ -416,20 +751,24 @@
   function likeBtn(p) {
     return '<button class="like" type="button" data-like="' + esc(p.id) + '" aria-pressed="' + isLiked(p.id) + '" aria-label="Save ' + esc(p.title) + ' to wishlist">' + icon(I.heart) + '</button>';
   }
-  function card(p) {
-    var pr = priceOf(p), s = seller(p.seller);
+  // rank: optional position in a trending or top-picks list
+  function card(p, rank) {
+    var pr = priceOf(p), s = seller(p.seller), others = sameItem(p);
+    var otherSellers = others.filter(function (x) { return x.seller && x.seller !== p.seller; }).length;
     return '<li><article class="pcard">' +
-      '<div class="pflags">' + (pr.off ? '<span class="flag-sale">-' + pr.off + '%</span>' : '') + (pr.promo ? '<span class="badge">Promotion</span>' : '') + (p.sample ? '<span class="tag-sample">Sample</span>' : '') + '</div>' +
+      '<div class="pflags">' + (rank ? '<span class="rank">#' + rank + '<span class="visually-hidden"> in this list</span></span>' : '') + (pr.off ? '<span class="flag-sale">-' + pr.off + '%</span>' : '') +
+        (pr.deal ? '<span class="badge badge--deal">' + esc(DEAL_REASONS[pr.deal.reason] || 'Deal') + '</span>' : '') + (pr.promo ? '<span class="badge">Promotion</span>' : '') + (p.sample ? '<span class="tag-sample">Sample</span>' : '') + '</div>' +
       likeBtn(p) +
       '<a class="pmedia" href="' + R + 'product/' + esc(p.id) + '" tabindex="-1" aria-hidden="true">' + media(p) + '</a>' +
       '<div class="pbody">' +
         '<a class="ptitle" href="' + R + 'product/' + esc(p.id) + '">' + esc(p.title) + '</a>' +
         '<p class="pmeta">' + (s ? 'Sold by ' + esc(s.name) : (p.source === 'china' ? 'Shop the World' : esc(dept(p.category).name))) + '</p>' +
+        (otherSellers ? '<p class="pmeta"><a href="' + R + 'compare?ids=' + [p.id].concat(others.map(function (x) { return x.id; })).map(encodeURIComponent).join(',') + '">Compare ' + (otherSellers + 1) + ' sellers</a></p>' : '') +
         starsHTML(p) + priceHTML(pr) + stockHTML(p) +
         '<button class="btn btn--primary btn--sm" type="button" data-add="' + esc(p.id) + '">Add to cart<span class="visually-hidden">: ' + esc(p.title) + '</span></button>' +
       '</div></article></li>';
   }
-  function cards(list) { return list.map(card).join(''); }
+  function cards(list, ranked) { return list.map(function (p, i) { return card(p, ranked ? i + 1 : 0); }).join(''); }
   function promoCard(pr, level) {
     var h = level === 2 ? 'h2' : 'h3';
     var s = seller(pr.seller), se = season(pr.season), st = promoStatus(pr);
@@ -452,7 +791,9 @@
   }
   function identityArt(entity) {
     var symbols = { 'brand-a': 'tech', 'brand-b': 'solar', 'brand-c': 'home', 'brand-d': 'hardware', 'store-a': 'office', 'store-b': 'solar', 'store-c': 'fashion' };
-    var category = symbols[entity.id];
+    var category = entity.category || symbols[entity.id];
+    if (!byId(D.departments, category)) category = '';
+    if (entity.logo) return '<img class="brand__logo" src="' + esc(entity.logo) + '" data-fallback="assets/icons/marketplace.svg" alt="" width="96" height="96" loading="lazy" decoding="async">';
     return '<img class="brand__logo" src="' + (category ? 'assets/categories-3d/' + category + '.webp' : 'assets/icons/marketplace.svg') + '" data-fallback="assets/icons/' + (category || 'marketplace') + '.svg" alt="" width="96" height="96" loading="lazy" decoding="async">';
   }
   function departmentArtwork(d) {
@@ -672,17 +1013,27 @@
   function adSlides() {
     var promos = allPromos().filter(function (pr) { return promoStatus(pr) === 'live'; }).map(function (pr) {
       var s = seller(pr.seller), se = season(pr.season), first = product(pr.products[0]);
-      return { label: 'Promotion' + (s ? ' · ' + s.name : ''), title: pr.title, text: pr.discount + '% off until ' + niceDate(pr.ends) + '.', cta: 'Shop now', link: '#/promo/' + pr.id, colours: se.colours, art: first ? dept(first.category).icon : '🏷️', image: pr.image || '', photo: true, sample: pr.sample };
+      return { label: 'Promotion' + (s ? ' · ' + s.name : ''), title: pr.title, text: pr.discount + '% off until ' + niceDate(pr.ends) + '.', cta: 'Shop now', link: '#/promo/' + pr.id, colours: se.colours, art: first ? departmentArtwork(dept(first.category)) : seasonalArt(pr.season), image: pr.image || '', photo: true, sample: pr.sample };
     });
     var list = (D.banners || []).concat(promos);
-    if (zambia) {
-      var cc = celebrationCopy();
-      var deals = independenceDeals();
-      list.unshift({ id: 'independence', zambia: true, label: 'Independence ' + now.getFullYear(), title: cc.lead,
-        text: cc.line + (deals ? ' Shop local favourites and seller celebration deals.' : ' Shop local and support Zambian sellers.'),
-        cta: deals ? 'Shop Independence deals' : 'Explore categories', link: deals ? '#/promotions?season=independence' : '#/departments', art: '<img src="assets/brand/zambia-flag.svg" alt="" width="220" height="147">' });
+    if (fest) {
+      var cc = festiveCopy(fest), fl = festiveLink(fest.id), deals = festiveDeals(fest.id);
+      list.unshift({ id: 'festive', zambia: zambia, label: season(fest.id).name + ' ' + (fest.key || fest.start).getFullYear(), title: cc.lead,
+        text: cc.line + (deals ? ' Shop seller celebration deals.' : ' Shop local and support Zambian sellers.'),
+        cta: deals ? 'Shop ' + fl.text : fl.text, link: fl.href, colours: season(fest.id).colours,
+        art: seasonalArt(fest.id) });
     }
     return list;
+  }
+  // Distinct seasonal compositions using the established 3D category collection.
+  // Copy stays in HTML so artwork can be decorative and data saver can use line icons.
+  function seasonalArt(id) {
+    if (id === 'independence') return '<img src="assets/brand/zambia-flag.svg" alt="" width="220" height="147">';
+    var sets = { christmas: ['baby', 'home', 'tech'], valentines: ['fashion', 'home', 'health'], easter: ['home', 'essentials', 'baby'], farmers: ['agri', 'hardware', 'solar'], blackfriday: ['tech', 'home', 'fashion'], school: ['office', 'baby', 'tech'] };
+    return '<span class="season-art">' + (sets[id] || ['essentials', 'home', 'tech']).map(function (category) {
+      var path = root.classList.contains('data-saver') ? 'assets/icons/' + category + '.svg' : 'assets/categories-3d/' + category + '.webp';
+      return '<img src="' + path + '" data-fallback="assets/icons/' + category + '.svg" alt="" width="160" height="160" loading="lazy" decoding="async">';
+    }).join('') + '</span>';
   }
   function adHTML(b, i, n) {
     var saverOn = root.classList.contains('data-saver');
@@ -765,7 +1116,7 @@
       var dx = e.changedTouches[0].clientX - x0; x0 = null;
       if (Math.abs(dx) > 40) { goAd(ads.i + (dx < 0 ? 1 : -1)); playAds(); }
     });
-    document.addEventListener('zs:datasaver', function () { if (!home.hidden) renderHome(); });
+    document.addEventListener('zs:datasaver', function () { if (!home.hidden) renderHome(); else route(); });
   }
 
   // Fill a homepage list, or show a friendly "coming soon" note when there's nothing yet
@@ -778,8 +1129,158 @@
     note.innerHTML = '<img class="empty__art" src="assets/icons/empty.svg" alt="" width="64" height="64"><p>' + msg + '</p><div class="btn-row btn-row--center">' + cta + '</div>';
   }
 
+  /* ---------- Featured brands strip (under the banner) ----------
+     Brands marked featured: true in catalogue.js come first, then any brand with products. */
+  function featuredBrandsHTML() {
+    return D.brands.filter(function (b) { return b.featured || products.some(function (p) { return p.brand === b.id; }); })
+      .sort(function (a, b) { return (b.featured ? 1 : 0) - (a.featured ? 1 : 0); })
+      .map(function (b) {
+        var n = products.filter(function (p) { return p.brand === b.id; }).length;
+        var words = b.name.trim().split(/\s+/);
+        var mono = (words[0].charAt(0) + (words.length > 1 ? words[words.length - 1].charAt(0) : words[0].charAt(1))).toUpperCase();
+        return '<li><a class="fbrand" href="' + R + 'brand/' + esc(b.id) + '" style="--brand-a:' + b.colours[0] + ';--brand-b:' + b.colours[1] + '">' +
+          (b.logo ? '<img class="fbrand__logo" src="' + esc(b.logo) + '" data-fallback="assets/icons/marketplace.svg" alt="" width="34" height="34" loading="lazy" decoding="async">' : '<span class="fbrand__mono" aria-hidden="true">' + esc(mono) + '</span>') +
+          '<span class="fbrand__text"><strong>' + esc(b.name) + '</strong><small>' + n + (n === 1 ? ' product' : ' products') + '</small></span></a></li>';
+      }).join('');
+  }
+
+  /* ---------- Trending by category, and top picks by month ---------- */
+  var TREND_PAGE = 6, TREND_CATS = 3;
+  function trendBlock(g, shown, level) {
+    var d = dept(g.id), h = level || 'h3';
+    return '<section class="trend" data-trend="' + g.id + '" aria-labelledby="tr-' + g.id + '"><div class="trend__head"><' + h + ' id="tr-' + g.id + '">' + esc(d.name) + '</' + h + '>' +
+      '<a href="' + R + 'trending/' + g.id + '">See all<span class="visually-hidden"> trending in ' + esc(d.name) + '</span></a></div>' +
+      '<ul class="grid trend__grid">' + cards(g.items.slice(0, shown), true) + '</ul>' +
+      (g.items.length > shown ? '<button class="btn btn--secondary btn--sm trend__more" type="button" data-trend-more="' + g.id + '" data-shown="' + shown + '" data-level="' + h + '">View more in ' + esc(d.name) + ' (' + (g.items.length - shown) + ' more)</button>' : '') + '</section>';
+  }
+  function trendingHTML(groups, cats, level) {
+    return groups.slice(0, cats).map(function (g) { return trendBlock(g, TREND_PAGE, level); }).join('') +
+      (groups.length > cats ? '<button class="btn btn--secondary trend__cats" type="button" data-trend-cats="' + cats + '" data-level="' + (level || 'h3') + '">Show more trending categories (' + (groups.length - cats) + ')</button>' : '');
+  }
+  function picksTabs(keys, active, base) {
+    return '<div class="tabs" role="tablist" aria-label="Top picks by month">' + keys.map(function (k) {
+      return '<button class="tab" type="button" role="tab" id="pk-tab-' + k + '" aria-controls="pk-panel" aria-selected="' + (k === active) + '" tabindex="' + (k === active ? 0 : -1) + '" data-pick="' + k + '"' + (base ? ' data-pick-base="' + base + '"' : '') + '>' + monthName(k) + ' top picks</button>';
+    }).join('') + '</div>';
+  }
+  function picksPanel(key, max) {
+    var list = topPicks(key);
+    return '<div id="pk-panel" role="tabpanel" aria-labelledby="pk-tab-' + key + '"><ul class="grid trend__grid">' + cards(max ? list.slice(0, max) : list, true) + '</ul>' +
+      (max && list.length > max ? '<p class="view-foot"><a href="' + R + 'top-picks/' + key + '">See all ' + list.length + ' ' + monthName(key) + ' top picks</a></p>' : '') + '</div>';
+  }
+  function trendNote() {
+    return '<details class="trend-note"><summary>How trending and top picks work</summary><p>Products move up when buyers order them (from orders confirmed on WhatsApp), and when shoppers save them, add them to their cart, view them or rate them well. This month counts more than last month. A live deal or a new listing gives a small extra lift, but only to products people are already interested in. Sellers can\'t pay to appear here.</p></details>';
+  }
+  // Side-by-side table. removable: show "Remove" for products on the compare list.
+  function compareTable(list, removable) {
+    var lowest = Math.min.apply(null, list.map(function (p) { return priceOf(p).now; }));
+    var row = function (label, fn) { return '<tr><th scope="row">' + label + '</th>' + list.map(function (p) { return '<td>' + fn(p) + '</td>'; }).join('') + '</tr>'; };
+    return '<div class="cmp" role="region" tabindex="0" aria-label="Comparison table (scrolls sideways)"><table><caption class="visually-hidden">Comparing ' + list.length + ' products</caption>' +
+      '<thead><tr><td></td>' + list.map(function (p) {
+        return '<th scope="col"><a class="cmp__media pmedia" href="' + R + 'product/' + esc(p.id) + '" tabindex="-1" aria-hidden="true">' + media(p) + '</a><a class="ptitle" href="' + R + 'product/' + esc(p.id) + '">' + esc(p.title) + '</a>' + (p.sample ? ' <span class="tag-sample">Sample</span>' : '') + '</th>';
+      }).join('') + '</tr></thead><tbody>' +
+      row('Price', function (p) { var pr = priceOf(p); return priceHTML(pr) + (pr.now === lowest && list.length > 1 ? '<span class="badge badge--best">Lowest price</span>' : ''); }) +
+      row('Offer', function (p) { var pr = priceOf(p); return pr.deal ? esc(DEAL_REASONS[pr.deal.reason] || 'Deal') + (pr.deal.ends ? ' until ' + niceDate(pr.deal.ends) : '') : pr.promo ? esc(pr.promo.title) + ' (' + pr.promo.discount + '% off)' : pr.off ? pr.off + '% off' : '–'; }) +
+      row('Rating', function (p) { var r = ratingOf(p); return r ? starsHTML(p) + ' ' + r.avg.toFixed(1) : 'No reviews yet'; }) +
+      row('Seller', function (p) { var s = seller(p.seller); return s ? '<a href="' + R + 'store/' + esc(s.id) + '">' + esc(s.name) + '</a>' + verifiedHTML(s) : '–'; }) +
+      row('Brand', function (p) { var b = brand(p.brand); return b ? '<a href="' + R + 'brand/' + esc(b.id) + '">' + esc(b.name) + '</a>' : '–'; }) +
+      row('Availability', function (p) { return stockHTML(p); }) +
+      row('', function (p) { return '<button class="btn btn--primary btn--sm" type="button" data-add="' + esc(p.id) + '">Add to cart<span class="visually-hidden">: ' + esc(p.title) + '</span></button>' + (removable ? ' <button class="link-btn" type="button" data-compare-remove="' + esc(p.id) + '">Remove<span class="visually-hidden"> ' + esc(p.title) + '</span></button>' : ''); }) +
+      '</tbody></table></div>';
+  }
+  // Buy box: the same item from other sellers, cheapest first
+  function alsoSoldHTML(p) {
+    var others = sameItem(p).filter(function (x) { return x.seller && x.seller !== p.seller; }).sort(function (a, b) { return priceOf(a).now - priceOf(b).now; });
+    if (!others.length) return '';
+    return '<div class="also"><p class="also__title">Also sold by ' + others.length + ' other seller' + (others.length === 1 ? '' : 's') + '</p><ul>' + others.slice(0, 3).map(function (x) {
+      var sx = seller(x.seller);
+      return '<li><a href="' + R + 'product/' + esc(x.id) + '"><span>' + esc(sx ? sx.name : '') + '</span><strong>' + kwacha(priceOf(x).now) + '</strong></a></li>';
+    }).join('') + '</ul><a href="' + R + 'compare?ids=' + [p.id].concat(others.map(function (x) { return x.id; })).map(encodeURIComponent).join(',') + '">Compare all sellers</a></div>';
+  }
+
+  /* ---------- Ratings and reviews ---------- */
+  function ratingBars(revs) {
+    return '<ul class="rbars" aria-label="How buyers rated it">' + [5, 4, 3, 2, 1].map(function (n) {
+      var c = revs.filter(function (v) { return Math.round(Number(v.rating)) === n; }).length, pc = revs.length ? Math.round(c / revs.length * 100) : 0;
+      return '<li><span>' + n + ' star</span><span class="rbar" aria-hidden="true"><span style="width:' + pc + '%"></span></span><span>' + pc + '%<span class="visually-hidden"> (' + c + ')</span></span></li>';
+    }).join('') + '</ul>';
+  }
+  function reviewForm(mine, bought) {
+    var labels = ['', 'Bad', 'Poor', 'Okay', 'Good', 'Excellent'], cur = mine ? Math.round(Number(mine.rating)) : 0;
+    return '<form class="form form--card" id="review-form" novalidate><h3>' + (mine ? 'Update your review' : bought ? 'How was it?' : 'Rate and review') + '</h3>' +
+      (bought ? '<p class="notice notice--secure">You ordered this on ' + niceDate(bought.date) + '. Purchase verification is available once shared accounts launch.</p>' : '') +
+      '<fieldset class="rate"><legend>Your rating</legend><div class="rate__stars">' + [5, 4, 3, 2, 1].map(function (n) {
+        return '<input type="radio" name="rev-rating" id="rr' + n + '" value="' + n + '"' + (n === cur ? ' checked' : '') + '><label for="rr' + n + '" title="' + n + ' – ' + labels[n] + '"><span aria-hidden="true">★</span><span class="visually-hidden">' + n + (n === 1 ? ' star' : ' stars') + ', ' + labels[n] + '</span></label>';
+      }).join('') + '</div></fieldset>' +
+      '<div class="field"><label for="rev-text">Your review</label><textarea id="rev-text" required maxlength="600" placeholder="What did you like or dislike? How was delivery?">' + esc(mine ? mine.text : '') + '</textarea></div>' +
+      '<p class="hint">Prototype: your review is saved on this device only.</p><p class="form-status" role="status" tabindex="-1"></p>' +
+      '<button class="btn btn--primary" type="submit">' + (mine ? 'Update review' : 'Post review') + '</button></form>';
+  }
+  function reviewList(revs, sort) {
+    var list = revs.slice();
+    if (sort === 'high') list.sort(function (a, b) { return b.rating - a.rating; });
+    else if (sort === 'low') list.sort(function (a, b) { return a.rating - b.rating; });
+    else if (sort === 'verified') list.sort(function (a, b) { return (b.verified ? 1 : 0) - (a.verified ? 1 : 0) || (a.date < b.date ? 1 : -1); });
+    else list.sort(function (a, b) { return a.date < b.date ? 1 : a.date > b.date ? -1 : 0; });
+    return list.map(function (v) {
+      var stars = Math.min(5, Math.max(0, Number(v.rating) || 0));
+      return '<div class="review"><span class="stars__icons" aria-hidden="true">' + starString(stars) + '</span><span class="visually-hidden">' + stars + ' out of 5</span> <strong>' + esc(v.name) + '</strong> <small>' + niceDate(v.date) + '</small>' +
+        (v.verified ? ' <span class="verified-buy">' + icon(I.check) + 'Verified purchase</span>' : '') + (v.mine ? ' <span class="tag-mine">Your review</span>' : '') + '<p>' + esc(v.text) + '</p></div>';
+    }).join('');
+  }
+  function pickMonths() { return [thisMonth, lastMonth].filter(function (k) { return topPicks(k).length; }); }
+  // "View more", "More categories" and month tabs work the same on the homepage and their own pages
+  document.addEventListener('click', function (e) {
+    var more = e.target.closest('[data-trend-more]');
+    if (more) {
+      var id = more.getAttribute('data-trend-more'), shown = Number(more.getAttribute('data-shown')) + TREND_PAGE;
+      var g = trendingGroups().filter(function (x) { return x.id === id; })[0], block = more.closest('.trend');
+      if (!g || !block) return;
+      var before = $$('.pcard', block).length;
+      block.outerHTML = trendBlock(g, shown, more.getAttribute('data-level'));
+      var fresh = $('[data-trend="' + id + '"]'), next = fresh && $$('.ptitle', fresh)[before];
+      if (next) next.focus();
+      return;
+    }
+    var cats = e.target.closest('[data-trend-cats]');
+    if (cats) {
+      var from = Number(cats.getAttribute('data-trend-cats')), groups = trendingGroups(), level = cats.getAttribute('data-level');
+      var holder = document.createElement('div');
+      holder.innerHTML = trendingHTML(groups.slice(from), TREND_CATS, level);
+      var firstNew = holder.querySelector('.trend h2, .trend h3');
+      while (holder.firstChild) cats.parentNode.insertBefore(holder.firstChild, cats);
+      cats.remove();
+      if (firstNew) { firstNew.setAttribute('tabindex', '-1'); firstNew.focus(); }
+      return;
+    }
+    var tab = e.target.closest('[data-pick]');
+    if (tab) selectPick(tab);
+  });
+  function selectPick(tab) {
+    var key = tab.getAttribute('data-pick'), list = tab.closest('.tabs');
+    $$('[role="tab"]', list).forEach(function (t) { var on = t === tab; t.setAttribute('aria-selected', on); t.tabIndex = on ? 0 : -1; });
+    var panel = $('#pk-panel');
+    if (panel) panel.outerHTML = picksPanel(key, tab.hasAttribute('data-pick-base') ? 0 : TREND_PAGE * 2);
+    if (tab.hasAttribute('data-pick-base')) try { history.replaceState(null, '', '#/top-picks/' + key); } catch (err) { /* old browser */ }
+  }
+  document.addEventListener('keydown', function (e) {
+    var tab = e.target.closest && e.target.closest('.tabs [role="tab"]');
+    if (!tab || (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft')) return;
+    var tabs = $$('[role="tab"]', tab.parentNode), i = tabs.indexOf(tab) + (e.key === 'ArrowRight' ? 1 : -1);
+    var next = tabs[(i + tabs.length) % tabs.length];
+    next.focus(); selectPick(next); e.preventDefault();
+  });
+
   function renderHome() {
     buildAds();
+    var fb = featuredBrandsHTML();
+    $('#home-fbrands').hidden = !fb;
+    $('#home-fbrands-list').innerHTML = fb;
+    var tg = trendingGroups();
+    $('#home-trending-wrap').hidden = !tg.length;
+    $('#home-trending').innerHTML = trendingHTML(tg, TREND_CATS);
+    var months = pickMonths();
+    $('#home-picks-wrap').hidden = !months.length;
+    $('#home-picks').innerHTML = months.length ? picksTabs(months, months[0]) + picksPanel(months[0], TREND_PAGE * 2) : '';
     var deals = localProducts.filter(function (p) { return priceOf(p).was; });
     if (deals.length < 6) deals = deals.concat(localProducts.filter(function (p) { return deals.indexOf(p) === -1; })).slice(0, 8);
     var livePromos = sortPromos(allPromos().filter(function (pr) { return promoStatus(pr) !== 'ended'; })).slice(0, 4);
@@ -868,8 +1369,13 @@
     dept: function (id) {
       var d = byId(D.departments, id);
       if (!d) return views.notfound();
+      var groups = multiSellerGroups(id);
       listing({ title: esc(d.name), crumbs: [['Categories', '#/departments'], [d.name]], list: products.filter(function (p) { return p.category === id; }), docTitle: d.name,
-        extra: '<ul class="chips" aria-label="Other categories">' + D.departments.map(function (x) { return '<li><a class="chip" href="#/dept/' + x.id + '"' + (x.id === id ? ' aria-current="page"' : '') + '>' + x.icon + ' ' + esc(x.name) + '</a></li>'; }).join('') + '</ul>' });
+        extra: '<ul class="chips" aria-label="Other categories">' + D.departments.map(function (x) { return '<li><a class="chip" href="#/dept/' + x.id + '"' + (x.id === id ? ' aria-current="page"' : '') + '>' + x.icon + ' ' + esc(x.name) + '</a></li>'; }).join('') + '</ul>' +
+          (groups.length ? '<div class="multi"><p class="multi__title">Sold by more than one seller: compare prices side by side</p><ul class="chips">' + groups.map(function (g) {
+            var n = g.items.map(function (x) { return x.seller; }).filter(function (v, i, l) { return v && l.indexOf(v) === i; }).length;
+            return '<li><a class="chip chip--compare" href="#/compare?ids=' + g.items.map(function (x) { return encodeURIComponent(x.id); }).join(',') + '">' + esc(g.items[0].title) + ' · ' + n + ' sellers from ' + kwacha(g.from) + '</a></li>';
+          }).join('') + '</ul></div>' : '') });
     },
 
     search: function (arg, q) {
@@ -889,18 +1395,63 @@
       listing({ title: term ? 'Results for “' + esc(term) + '”' : 'All products', sub: dp ? 'In ' + esc(dept(dp).name) : '', crumbs: [['Search']], list: list, extra: extra, docTitle: term ? 'Search: ' + term : 'All products' });
     },
 
-    deals: function () {
-      listing({ title: "Today's deals", sub: 'Discounts and live seller promotions.', crumbs: [["Today's deals"]], list: localProducts.filter(function (p) { var pr = priceOf(p); return pr.was || pr.promo; }) });
+    deals: function (arg, q) {
+      var all = localProducts.filter(onDeal), cat = q.get('cat') || '';
+      var cats = D.departments.filter(function (d) { return all.some(function (p) { return p.category === d.id; }); });
+      var chip = function (id, name, n) { return '<li><a class="chip" href="#/deals' + (id ? '?cat=' + id : '') + '"' + (id === cat ? ' aria-current="page"' : '') + '>' + esc(name) + ' <span class="chip__count">' + n + '</span></a></li>'; };
+      listing({ title: cat ? 'Deals in ' + esc(dept(cat).name) : "Today's deals", docTitle: cat ? 'Deals: ' + dept(cat).name : "Today's deals",
+        sub: 'Price drops, clearance, bundles and seller promotions, by category.', crumbs: cat ? [["Today's deals", '#/deals'], [dept(cat).name]] : [["Today's deals"]],
+        list: all.filter(function (p) { return !cat || p.category === cat; }),
+        extra: cats.length ? '<ul class="chips" aria-label="Deals by category">' + chip('', 'All deals', all.length) + cats.map(function (d) { return chip(d.id, d.name, all.filter(function (p) { return p.category === d.id; }).length); }).join('') + '</ul>' : '' });
     },
 
-    product: function (id) {
+    trending: function (id) {
+      var groups = trendingGroups();
+      if (id) {
+        var g = groups.filter(function (x) { return x.id === id; })[0], d = byId(D.departments, id);
+        if (!d) return views.notfound();
+        show(crumbs([['Trending', '#/trending'], [d.name]]) + head('Trending in ' + esc(d.name), 'Ranked by what buyers are ordering, saving and rating most right now.') +
+          (g ? '<div id="trend-one">' + trendBlock(g, TREND_PAGE * 2, 'h2') + '</div>' : empty('Nothing is trending in this category yet.', '<a class="btn btn--primary" href="#/dept/' + id + '">Browse ' + esc(d.name) + '</a>')) + trendNote(), 'Trending: ' + d.name);
+        return;
+      }
+      show(crumbs([['Trending']]) + head('Trending now', 'What buyers are ordering, saving and rating most, category by category.') +
+        (groups.length ? trendingHTML(groups, groups.length, 'h2') : empty('Nothing is trending yet. Check back once buyers start ordering.', '<a class="btn btn--primary" href="#/deals">Shop today\'s deals</a>')) + trendNote(), 'Trending now');
+    },
+
+    'top-picks': function (key) {
+      var months = pickMonths(), active = months.indexOf(key) !== -1 ? key : months[0];
+      show(crumbs([['Top picks']]) + head(active ? monthName(active) + ' top picks' : 'Top picks', 'The products buyers chose most each month: orders, plus ratings and reviews written that month.') +
+        (months.length ? picksTabs(months, active, 'page') + picksPanel(active, 0) : empty('Top picks appear once buyers have ordered or reviewed products this month.', '<a class="btn btn--primary" href="#/deals">Shop today\'s deals</a>')) + trendNote(), 'Top picks');
+      var h1 = $('h1', view);
+      $$('[data-pick]', view).forEach(function (t) { t.addEventListener('click', function () { h1.textContent = monthName(t.getAttribute('data-pick')) + ' top picks'; }); });
+    },
+
+    compare: function (arg, q) {
+      var ids = q.get('ids') ? q.get('ids').split(',') : compareList();
+      var list = ids.map(product).filter(function (p) { return p && (china || p.source !== 'china'); }).slice(0, COMPARE_MAX);
+      var fromList = !q.get('ids');
+      show(crumbs([['Compare']]) + head('Compare products', fromList ? 'Your compare list: up to ' + COMPARE_MAX + ' products, side by side.' : 'The same or similar products from different sellers, side by side.') +
+        (list.length > 1 ? compareTable(list, fromList) : empty('Add two or more products to compare. Open a product and choose "Add to compare".', '<a class="btn btn--primary" href="#/deals">Browse deals</a>')) +
+        (list.length && fromList ? '<p class="view-foot"><button class="link-btn" type="button" id="cmp-clear">Clear compare list</button></p>' : ''), 'Compare');
+      view.onclick = function (e) {
+        var rm = e.target.closest('[data-compare-remove]');
+        if (rm) { toggleCompare(rm.getAttribute('data-compare-remove')); route(); }
+        if (e.target.closest('#cmp-clear')) { store.set('compare', []); route(); }
+      };
+    },
+
+    product: function (id, q) {
       var p = product(id);
       if (!p || (p.source === 'china' && !china)) return views.notfound();
       addRecent(p.id);
       var pr = priceOf(p), s = seller(p.seller), b = brand(p.brand), d = dept(p.category), r = ratingOf(p), u = user();
       var buyMsg = 'Hi Zed Supply, I\'d like to buy: ' + p.title + ' (ID ' + p.id + '), price ' + kwacha(pr.now) + ' each.';
-      var revs = reviewsFor(p);
-      var related = products.filter(function (x) { return x.category === p.category && x.id !== p.id; }).slice(0, 8);
+      var revs = reviewsFor(p), mine = revs.filter(function (v) { return v.mine; })[0];
+      var bought = orders().filter(function (o) { return !o.sample && Number(o.status) >= 1 && (o.items || []).some(function (it) { return it.id === p.id; }); })[0];
+      var similar = p.source === 'china' ? [] : similarTo(p, 3);
+      var similarIds = similar.map(function (x) { return x.id; });
+      var related = products.filter(function (x) { return x.category === p.category && x.id !== p.id && similarIds.indexOf(x.id) === -1; }).slice(0, 8);
+      var inCompare = compareList().indexOf(p.id) !== -1;
       var html = crumbs([[d.name, '#/dept/' + p.category], [p.title]]) +
         '<div class="pdp">' +
           '<div class="pdp__media"><div class="pflags">' + (pr.off ? '<span class="flag-sale">-' + pr.off + '%</span>' : '') + (p.sample ? '<span class="tag-sample">Sample</span>' : '') + '</div>' + likeBtn(p) + '<div class="pmedia">' + media(p) + '</div></div>' +
@@ -916,25 +1467,25 @@
           '<aside class="buybox" aria-label="Buy this product">' +
             priceHTML(pr) + stockHTML(p) +
             '<p>' + esc(p.source === 'china' ? p.shipping : S.deliveryText) + '</p>' +
+            (sellerCouriers(s).length ? '<p class="pmeta">Ships with ' + sellerCouriers(s).map(function (id) { return esc(courier(id).name); }).join(', ') + '. <a href="help.html#couriers">About couriers</a></p>' : '') +
             '<p class="pmeta"><button class="link-btn" type="button" data-open-location aria-haspopup="dialog"><span data-location-label>Deliver to: set location</span></button></p>' +
             '<div><label for="pdp-qty" class="pmeta">Quantity</label><div class="qty"><button type="button" data-step="-1" data-target="#pdp-qty" aria-label="Decrease quantity">−</button><input id="pdp-qty" type="number" min="1" max="99" value="1" inputmode="numeric"><button type="button" data-step="1" data-target="#pdp-qty" aria-label="Increase quantity">+</button></div></div>' +
             '<button class="btn btn--primary btn--block" type="button" data-add="' + p.id + '" data-qty-from="#pdp-qty">Add to cart</button>' +
             '<a class="btn btn--secondary btn--block" id="buy-now" href="#" target="_blank" rel="noopener noreferrer">Buy now on WhatsApp</a>' +
             '<p class="pmeta">The final price and delivery are confirmed on WhatsApp before you pay.</p>' +
+            '<button class="btn btn--secondary btn--block btn--sm" type="button" id="pdp-compare" aria-pressed="' + inCompare + '">' + (inCompare ? 'In your compare list' : 'Add to compare') + '</button>' +
+            alsoSoldHTML(p) +
             (payMethods().length ? '<div class="buybox__pay"><p class="pmeta">Pay with mobile money</p>' + payChipsHTML() + '</div>' : '') +
           '</aside>' +
         '</div>' +
+        (similar.length ? '<section class="section" aria-labelledby="cmp-title"><div class="section-head"><h2 id="cmp-title">Compare with similar items</h2>' +
+          '<a href="#/compare?ids=' + [p.id].concat(similarIds).map(encodeURIComponent).join(',') + '">Open full comparison</a></div>' + compareTable([p].concat(similar), false) + '</section>' : '') +
         '<section class="reviews" id="reviews" aria-labelledby="rev-title"><div>' +
-          '<h2 id="rev-title">Customer reviews</h2>' + (r ? starsHTML(p) + '<p>' + r.avg.toFixed(1) + ' out of 5</p>' : '<p>No reviews yet.</p>') +
-          (u ? '<form class="form form--card" id="review-form"><h3>Write a review</h3>' +
-            '<div class="field"><label for="rev-rating">Your rating</label><select id="rev-rating" required><option value="5">5 – Excellent</option><option value="4">4 – Good</option><option value="3">3 – Okay</option><option value="2">2 – Poor</option><option value="1">1 – Bad</option></select></div>' +
-            '<div class="field"><label for="rev-text">Your review</label><textarea id="rev-text" required maxlength="600"></textarea></div>' +
-            '<p class="hint">Prototype: your review is saved on this device only.</p><button class="btn btn--primary" type="submit">Post review</button></form>'
-            : '<p><a class="btn btn--secondary" href="#/account">Sign in to write a review</a></p>') +
-        '</div><div>' + revs.map(function (v) {
-          var stars = Math.min(5, Math.max(0, Number(v.rating) || 0));
-          return '<div class="review"><span class="stars__icons" aria-hidden="true">' + starString(stars) + '</span><span class="visually-hidden">' + stars + ' out of 5</span> <strong>' + esc(v.name) + '</strong> <small>' + niceDate(v.date) + '</small><p>' + esc(v.text) + '</p></div>';
-        }).join('') + '</div></section>' +
+          '<h2 id="rev-title">Customer reviews</h2>' + (r ? starsHTML(p) + '<p class="reviews__avg">' + r.avg.toFixed(1) + ' out of 5 · ' + r.count + (r.count === 1 ? ' rating' : ' ratings') + '</p>' + ratingBars(revs) : '<p>No reviews yet. Be the first to rate it.</p>') +
+          (u ? reviewForm(mine, bought)
+            : '<p><a class="btn btn--secondary" href="#/account">Sign in to rate and review</a></p>') +
+        '</div><div>' + (revs.length > 1 ? '<div class="field reviews__sort"><label for="rev-sort">Sort reviews</label><select id="rev-sort"><option value="new">Most recent</option><option value="high">Highest rated</option><option value="low">Lowest rated</option><option value="verified">Verified purchases first</option></select></div>' : '') +
+          '<div id="rev-list">' + reviewList(revs, 'new') + '</div></div></section>' +
         (related.length ? '<section class="section" aria-labelledby="rel-title"><h2 id="rel-title">More in ' + esc(d.name) + '</h2><ul class="row">' + cards(related) + '</ul></section>' : '');
       show(html, p.title);
       var qty = $('#pdp-qty'), buy = $('#buy-now');
@@ -944,15 +1495,29 @@
         var j = e.target.closest('[data-jump]');
         if (j) { e.preventDefault(); $('#' + j.getAttribute('data-jump')).scrollIntoView(); }
       };
+      $('#pdp-compare').addEventListener('click', function () {
+        var added = toggleCompare(p.id), btn = $('#pdp-compare');
+        btn.setAttribute('aria-pressed', added);
+        btn.textContent = added ? 'In your compare list' : 'Add to compare';
+        var n = compareList().length;
+        toast(added ? 'Added to compare (' + n + ' of ' + COMPARE_MAX + '). <a href="#/compare">Compare now</a>' : 'Removed from compare');
+      });
+      var sortSel = $('#rev-sort');
+      if (sortSel) sortSel.addEventListener('change', function () { $('#rev-list').innerHTML = reviewList(revs, sortSel.value); });
       var rf = $('#review-form');
       if (rf) rf.addEventListener('submit', function (e) {
         e.preventDefault();
+        var picked = $('input[name="rev-rating"]:checked', rf), st = $('.form-status', rf);
+        if (!picked) { st.className = 'form-status is-error'; st.textContent = 'Choose a star rating from 1 to 5.'; st.focus(); return; }
+        if (!$('#rev-text').value.trim()) { st.className = 'form-status is-error'; st.textContent = 'Write a few words about your experience.'; $('#rev-text').focus(); return; }
         var all = store.get('reviews', {});
-        (all[p.id] = all[p.id] || []).push({ name: u.name, rating: Number($('#rev-rating').value), date: today, text: $('#rev-text').value.trim(), mine: true });
+        all[p.id] = (all[p.id] || []).filter(function (v) { return !v.mine; });
+        all[p.id].push({ name: u.name, rating: Number(picked.value), date: today, text: $('#rev-text').value.trim(), mine: true, verified: false });
         store.set('reviews', all);
-        toast('Thanks for your review');
+        toast(mine ? 'Your review has been updated' : 'Thanks for your review');
         route();
       });
+      if (q && q.get('review') && rf) setTimeout(function () { $('#reviews').scrollIntoView(); var first = $('input[name="rev-rating"]', rf); if (first) first.focus({ preventScroll: true }); }, 50);
     },
 
     cart: function () {
@@ -995,6 +1560,7 @@
           '<div class="field"><label for="co-name">Your name</label><input id="co-name" autocomplete="name" value="' + esc(u.name || '') + '"></div>' +
           '<div class="deliver-box"><p class="deliver-box__label">Deliver to</p><p data-loc-summary>' + locSummaryHTML() + '</p><button class="link-btn" type="button" data-open-location aria-haspopup="dialog">Set or change delivery location</button></div>' +
           '<div class="field"><label for="co-note">Notes for your order (optional)</label><input id="co-note"></div>' +
+          '<div id="ship-wrap">' + shipChoiceHTML() + '</div>' +
           payChoiceHTML() +
           '<a class="btn btn--primary btn--block" id="checkout" href="#" target="_blank" rel="noopener noreferrer">Checkout on WhatsApp</a>' +
           '<p class="pmeta">We confirm the final price and delivery fee on WhatsApp, then send payment instructions. You approve the payment on your own phone. We never ask for your PIN.</p>' +
@@ -1011,6 +1577,7 @@
         var nm = $('#co-name').value.trim(), note = $('#co-note').value.trim();
         if (nm) m += '\nName: ' + nm;
         if (note) m += '\nNotes: ' + note;
+        if (COURIERS.length) m += '\nDelivery: ' + shipSummary();
         if (payChoice) m += '\nPayment: ' + payChoice;
         return m;
       };
@@ -1018,11 +1585,28 @@
       var syncCo = function () { var m = buildMsg(); co.setAttribute('data-wa-message', m); co.href = waUrl(m); };
       ['co-name', 'co-note'].forEach(function (id) { $('#' + id).addEventListener('input', syncCo); });
       $$('input[name="co-pay"]', view).forEach(function (r) { r.addEventListener('change', function () { payChoice = r.value; syncCo(); }); });
+      // Delivery: changing "where is it going?" redraws the courier list for that distance
+      var shipWrap = $('#ship-wrap');
+      if (shipWrap) shipWrap.addEventListener('change', function (e) {
+        if (e.target.name === 'co-scope') {
+          shipScope = e.target.value;
+          shipWrap.innerHTML = shipChoiceHTML();
+          var again = $('input[name="co-scope"][value="' + shipScope + '"]', shipWrap);
+          if (again) again.focus();
+        } else if (e.target.name === 'co-ship') {
+          shipChoice = e.target.value;
+          var more = $('#co-ship-more', shipWrap); if (more) more.value = '';
+        } else if (e.target.id === 'co-ship-more') {
+          shipChoice = e.target.value;
+          $$('input[name="co-ship"]', shipWrap).forEach(function (r) { r.checked = !shipChoice && r.value === ''; });
+        }
+        syncCo();
+      });
       syncCo();
       co.addEventListener('click', function (e) {
         if (hasCardNumber($('#co-name').value + ' ' + $('#co-note').value)) { e.preventDefault(); toast(esc(CARD_WARNING)); $('#co-note').focus(); return; }
         var list = orders();
-        list.unshift({ ref: ref, date: today, items: items.map(function (it) { return { id: it.p.id, qty: it.qty, price: it.pr.now }; }), total: total, status: 0, deliverTo: locFull(), pay: payChoice });
+        list.unshift({ ref: ref, date: today, items: items.map(function (it) { return { id: it.p.id, qty: it.qty, price: it.pr.now }; }), total: total, status: 0, deliverTo: locFull(), pay: payChoice, ship: COURIERS.length ? shipSummary() : '', shipId: shipChoice });
         store.set('orders', list);
         setCart([]);
         store.set('voucher', '');
@@ -1099,8 +1683,15 @@
     },
 
     orders: function () {
-      var list = orders();
+      var list = orders(), mineRev = store.get('reviews', {}), seen = {};
+      var toRate = [];
+      list.forEach(function (o) { (o.items || []).forEach(function (it) {
+        var p = product(it.id);
+        if (p && !seen[it.id] && !(mineRev[it.id] || []).some(function (v) { return v.mine; })) { seen[it.id] = 1; toRate.push(p); }
+      }); });
       show(crumbs([['My Account', '#/account'], ['Orders']]) + head('Your orders', 'Orders you\'ve sent from this device.') +
+        (toRate.length ? '<section class="card rate-prompt" aria-labelledby="rate-title"><h2 id="rate-title">Rate your purchases</h2><p class="pmeta">Share your experience to help other buyers. Reviews are saved on this device.</p><ul class="rate-list">' +
+          toRate.slice(0, 6).map(function (p) { return '<li><span>' + esc(p.title) + '</span><a class="btn btn--secondary btn--sm" href="#/product/' + encodeURIComponent(p.id) + '?review=1">Rate<span class="visually-hidden"> ' + esc(p.title) + '</span></a></li>'; }).join('') + '</ul></section>' : '') +
         (list.length ? '<ul class="orders">' + list.map(function (o) {
           return '<li><a class="order-row" href="#/order/' + encodeURIComponent(o.ref) + '"><span><strong>' + esc(o.ref) + '</strong><br><span class="pmeta">' + niceDate(o.date) + ' · ' + o.items.length + (o.items.length === 1 ? ' product' : ' products') + '</span></span><span><span class="status">' + STATUS[o.status] + '</span><br><strong>' + kwacha(o.total) + '</strong></span></a></li>';
         }).join('') + '</ul>' : empty('No orders yet. When you check out on WhatsApp, your order appears here.', '<a class="btn btn--primary" href="#/deals">Start shopping</a>')) +
@@ -1117,8 +1708,10 @@
         }).join('') + '</ol>' +
         (o.sample ? '<p class="pmeta">This is a demo order to show how tracking will look.</p>' : '<p class="pmeta">We update your order once it\'s confirmed on WhatsApp. Prototype: live tracking arrives with full accounts.</p>') +
         askBtn(msg) + '</div>' +
-        '<aside class="summary"><h2>Items</h2><ul class="lines">' + o.items.map(function (it) { var p = product(it.id); return '<li class="line line--plain"><div><a class="line__title" href="#/product/' + it.id + '">' + esc(p ? p.title : it.id) + '</a><p class="pmeta">Quantity ' + (parseInt(it.qty, 10) || 0) + ' · ' + kwacha(it.price * it.qty) + '</p></div></li>'; }).join('') + '</ul>' +
+        '<aside class="summary"><h2>Items</h2><ul class="lines">' + o.items.map(function (it) { var p = product(it.id); return '<li class="line line--plain"><div><a class="line__title" href="#/product/' + it.id + '">' + esc(p ? p.title : it.id) + '</a><p class="pmeta">Quantity ' + (parseInt(it.qty, 10) || 0) + ' · ' + kwacha(it.price * it.qty) + '</p>' +
+          (p && !o.sample ? '<a class="link-btn" href="#/product/' + encodeURIComponent(it.id) + '?review=1">' + (((store.get('reviews', {})[it.id]) || []).some(function (v) { return v.mine; }) ? 'Edit your review' : 'Rate this item') + '<span class="visually-hidden">: ' + esc(p.title) + '</span></a>' : '') + '</div></li>'; }).join('') + '</ul>' +
         '<dl class="totals"><div class="is-total"><dt>Total</dt><dd>' + kwacha(o.total) + '</dd></div></dl>' +
+        (o.ship ? '<div class="deliver-box"><p class="deliver-box__label">Delivery</p><p>' + esc(o.ship) + '</p></div>' : '') +
         (o.pay ? '<div class="deliver-box"><p class="deliver-box__label">Payment</p><p>' + esc(o.pay) + '</p></div>' : '') +
         '<div class="deliver-box"><p class="deliver-box__label">Deliver to</p><p>' + (o.deliverTo ? esc(o.deliverTo) : '<span class="pmeta">No location given. We\'ll ask on WhatsApp.</span>') + '</p></div></aside></div>', 'Order ' + o.ref);
     },
@@ -1176,6 +1769,8 @@
       var mine = products.filter(function (p) { return p.seller === s.id; });
       var promos = sortPromos(allPromos().filter(function (pr) { return pr.seller === s.id; }));
       var live = promos.filter(function (pr) { return promoStatus(pr) === 'live'; }).length;
+      var myDeals = store.get('deals', []).filter(function (dl) { return dl.seller === s.id; });
+      var myCouriers = sellerCouriers(s);
       show(crumbs([['Seller Centre']]) +
         '<div class="store-hero" style="--brand-a:' + s.colours[0] + ';--brand-b:' + s.colours[1] + '"><h1>' + esc(s.name) + '</h1><p>Seller Centre' + (s.sample ? ' · sample store' : '') + verifiedHTML(s) + '</p></div>' +
         '<ul class="tiles tiles--5"><li><a href="#/store/' + s.id + '"><strong>' + mine.length + ' products</strong><span>View your store</span></a></li><li><a href="#sc-promos" data-jump="sc-promos"><strong>' + live + ' live</strong><span>Promotions running now</span></a></li><li><a href="#sc-new" data-jump="sc-new"><strong>New</strong><span>Create a promotion</span></a></li><li><a href="#/stock"><strong>Stock planner</strong><span>Reorder levels, overstock and forecasts</span></a></li><li><a href="help.html#selling"><strong>Help</strong><span>Selling on Zed Supply</span></a></li></ul>' +
@@ -1194,6 +1789,33 @@
           '<div class="field"><label for="pn-img">Banner image (optional)</label><input id="pn-img" type="file" accept="image/jpeg,image/png,image/webp" aria-describedby="pn-img-hint">' +
           '<p class="hint" id="pn-img-hint">Shown in the homepage banner and on your promotion while it\'s live. Best size 1600 × 500 pixels; we crop and resize it for you. Keep important words in the middle.</p></div>' +
           '<p class="form-status" role="status" tabindex="-1"></p><button class="btn btn--primary" type="submit">Publish promotion</button></form></div>' +
+        '<div class="duo duo--gap">' +
+        '<section class="card" id="sc-deals" aria-labelledby="sc-d-title"><h2 id="sc-d-title">Your deals</h2><p class="pmeta">A deal lowers the price of one product, for example a price drop, clearance or bundle. Deals appear in Today\'s deals under their category.</p>' +
+          (myDeals.length ? '<ul class="orders">' + myDeals.map(function (dl) {
+            var dp = product(dl.product);
+            return '<li class="order-row"><span><strong>' + esc(dp ? dp.title : dl.product) + '</strong><br><span class="pmeta">' + esc(DEAL_REASONS[dl.reason] || 'Deal') + ' · ' + kwacha(dl.price) + (dp ? ' (was ' + kwacha(dp.priceZMW) + ')' : '') + (dl.ends ? ' · until ' + niceDate(dl.ends) : ' · no end date') + '</span></span>' +
+              '<span><span class="status">' + (dl.ends && dl.ends < today ? 'ended' : 'live') + '</span> <button class="link-btn" type="button" data-del-deal="' + esc(dl.id) + '">Delete<span class="visually-hidden"> deal on ' + esc(dp ? dp.title : '') + '</span></button></span></li>';
+          }).join('') + '</ul>' : '<p>No deals yet.</p>') + '</section>' +
+        '<form class="form form--card" id="sc-deal" aria-labelledby="sc-dn-title"><h2 id="sc-dn-title">Make a product a deal</h2>' +
+          '<p class="notice">Prototype: deals you create appear across the store in this browser only.</p>' +
+          (mine.length ? '<div class="field"><label for="dl-product">Product</label><select id="dl-product">' + mine.map(function (p) { return '<option value="' + esc(p.id) + '">' + esc(p.title) + ' (' + kwacha(p.priceZMW) + ')</option>'; }).join('') + '</select></div>' +
+          '<div class="field-row"><div class="field"><label for="dl-price">Deal price (K)</label><input id="dl-price" type="number" min="1" step="1" required inputmode="numeric" aria-describedby="dl-price-hint"><p class="hint" id="dl-price-hint">Must be lower than the normal price.</p></div>' +
+          '<div class="field"><label for="dl-reason">Reason</label><select id="dl-reason">' + Object.keys(DEAL_REASONS).map(function (k) { return '<option value="' + k + '">' + DEAL_REASONS[k] + '</option>'; }).join('') + '</select></div></div>' +
+          '<div class="field"><label for="dl-ends">Ends (optional)</label><input id="dl-ends" type="date" min="' + today + '"></div>' +
+          '<p class="form-status" role="status" tabindex="-1"></p><button class="btn btn--primary" type="submit">Publish deal</button>' : '<p>Add products to your store first.</p>') + '</form></div>' +
+        (COURIERS.length ? '<div class="duo duo--gap">' +
+          '<form class="form form--card" id="sc-couriers" aria-labelledby="sc-c-title"><h2 id="sc-c-title">Couriers you use</h2>' +
+            '<p class="pmeta">Buyers see these on your products as "Ships with". Tick two or more per route, so you have a backup. All ' + COURIERS.filter(function (c) { return !c.unlicensed; }).length + ' ZICTA-licensed operators are listed; local licences cover one district only.</p>' +
+            '<div class="field"><label for="scc-q">Find a courier (' + COURIERS.length + ')</label><input id="scc-q" type="search" autocomplete="off" placeholder="Name or licence number"></div>' +
+            '<fieldset class="field"><legend class="visually-hidden">Couriers</legend><div class="checks checks--scroll" id="scc-list">' +
+            myCouriers.map(courier).concat(rankedCouriers('').filter(function (c) { return myCouriers.indexOf(c.id) === -1; })).map(function (c) {
+              return '<div class="check" data-text="' + esc((c.name + ' ' + c.legal + ' ' + c.licence).toLowerCase()) + '"><input type="checkbox" id="scc-' + c.id + '" value="' + c.id + '"' + (myCouriers.indexOf(c.id) !== -1 ? ' checked' : '') + '><label for="scc-' + c.id + '">' + esc(c.name) +
+                ' <small class="pmeta">' + (c.unlicensed ? 'Licence not confirmed' : esc(LICENCES[c.type].label)) + '</small></label></div>';
+            }).join('') + '</div></fieldset>' +
+            '<p class="hint">Prototype: saved in this browser only.</p><button class="btn btn--primary" type="submit">Save couriers</button></form>' +
+          '<section class="card" aria-labelledby="sc-t-title"><h2 id="sc-t-title">Before you send a parcel</h2>' +
+            ticks(['Confirm the delivery fee and who pays it with the buyer before you dispatch.', 'Pack in a strong box with padding, wrap against rain, and label it with the order number.', 'Photograph the item and the sealed parcel, and keep the courier\'s waybill or tracking number.', 'Send the tracking number to the buyer, and ask the courier for proof of delivery.', 'Insure valuable items and declare their true value.', 'Check the courier\'s rules for batteries, liquids and chemicals. Power banks and other lithium batteries have special rules for air freight.']) +
+            '<p><a href="help.html#shipping-tips">All shipping tips and courier details</a></p></section></div>' : '') +
         '<p class="view-foot"><button class="link-btn" type="button" id="seller-out">Sign out of Seller Centre</button></p>', 'Seller Centre');
       $('#sc-new').addEventListener('submit', function (e) {
         e.preventDefault();
@@ -1220,11 +1842,38 @@
           route();
         });
       });
+      var courierForm = $('#sc-couriers');
+      if (courierForm) $('#scc-q', courierForm).addEventListener('input', function (e) {
+        var t = e.target.value.trim().toLowerCase();
+        $$('#scc-list .check', courierForm).forEach(function (row) { row.hidden = !!t && !$('input', row).checked && row.getAttribute('data-text').indexOf(t) === -1; });
+      });
+      if (courierForm) courierForm.addEventListener('submit', function (e) {
+        e.preventDefault();
+        var all = store.get('seller-couriers', {});
+        all[s.id] = $$('input:checked', courierForm).map(function (c) { return c.value; });
+        store.set('seller-couriers', all);
+        toast('Couriers saved');
+      });
+      var dealForm = $('#sc-deal');
+      if (dealForm && $('#dl-product')) dealForm.addEventListener('submit', function (e) {
+        e.preventDefault();
+        var st = $('.form-status', dealForm), dp = product($('#dl-product').value), price = Math.round(Number($('#dl-price').value));
+        var fail = function (m) { st.className = 'form-status is-error'; st.textContent = m; st.focus(); };
+        if (!dp) return fail('Choose a product.');
+        if (!(price > 0) || price >= dp.priceZMW) return fail('The deal price must be lower than the normal price of ' + kwacha(dp.priceZMW) + '.');
+        var list = store.get('deals', []).filter(function (x) { return !(x.seller === s.id && x.product === dp.id); });
+        list.push({ id: 'D' + Date.now().toString(36), demo: true, seller: s.id, product: dp.id, price: price, reason: $('#dl-reason').value, starts: today, ends: $('#dl-ends').value || '' });
+        store.set('deals', list);
+        toast('Deal published <a href="#/deals?cat=' + dp.category + '">View</a>');
+        route();
+      });
       view.onclick = function (e) {
         var j = e.target.closest('[data-jump]');
         if (j) { e.preventDefault(); $('#' + j.getAttribute('data-jump')).scrollIntoView(); }
         var del = e.target.closest('[data-del-promo]');
         if (del) { store.set('promos', store.get('promos', []).filter(function (x) { return x.id !== del.getAttribute('data-del-promo'); })); route(); }
+        var delDeal = e.target.closest('[data-del-deal]');
+        if (delDeal) { store.set('deals', store.get('deals', []).filter(function (x) { return x.id !== delDeal.getAttribute('data-del-deal'); })); route(); }
         if (e.target.closest('#seller-out')) { store.set('seller', null); route(); }
       };
     },

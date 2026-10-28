@@ -8,8 +8,7 @@
                                   cookies are accepted, the Meta Pixel (connect.facebook.net), LinkedIn Insight Tag (snap.licdn.com)
                                   and Google Ads (googleadservices.com, googleads.g.doubleclick.net, google.com), plus the small
                                   inline scripts in this head, each allowed by its sha256 hash.
-       style-src                  our stylesheet and the Google Fonts stylesheet. 'unsafe-inline' allows the colours set in style="" attributes.
-       font-src                   the font files from fonts.gstatic.com.
+       style-src                  our own stylesheet. 'unsafe-inline' allows the colours set in style="" attributes.
        img-src                    our images, data: and blob: images the site creates itself (such as promotion banners), and the tiny
                                   measurement images used by Google Analytics, Clarity, Meta, LinkedIn and Google Ads.
        frame-src                  the Google Maps embed on the help page, and the hidden frames Google Ads uses to record conversions.
@@ -20,7 +19,7 @@
        WARNING: anything new from another website (a chat widget, an ad or social pixel, a CDN library, a YouTube video, a payment
        button) is silently blocked until its domain is added here, on all four pages. Editing an inline script in this head changes
        its hash: update the matching sha256 or it stops running (see Business/PCI-DSS.md). -->
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self' file:; script-src 'self' file: https://*.googletagmanager.com https://*.clarity.ms https://connect.facebook.net https://snap.licdn.com https://www.googleadservices.com https://googleads.g.doubleclick.net https://www.google.com 'sha256-7nnX2oOzt7UowW1mEvREIsoin+PIvwJs3DopQMg2tVQ=' 'sha256-jVDEcytlIBASSTXX8UWMAW3fwym5+rzcwhDWKbgu4NQ=' 'sha256-HuzeagOWxw72t91+fcLW0a2epg2jV2lvbgvXlvSrhbg=' 'sha256-bMUqGRvrd7Oa5B3isZfKHogU7mYoQRtwns8KYhU30vw=' 'sha256-LObU1tdmcx/heQRtk57MQWwTslHx0RgWSMB828agqtk=' 'sha256-JXvATGpaUOztFQ6cJs+CQjDwUHLmwQQOh5eHJqip73E='; style-src 'self' file: 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' file: data: blob: https://*.google-analytics.com https://*.googletagmanager.com https://*.clarity.ms https://c.bing.com https://www.facebook.com https://*.linkedin.com https://www.googleadservices.com https://googleads.g.doubleclick.net https://www.google.com https://www.google.co.zm https://pagead2.googlesyndication.com; frame-src https://www.google.com https://td.doubleclick.net https://www.googletagmanager.com; connect-src https://formspree.io https://*.google-analytics.com https://*.analytics.google.com https://*.googletagmanager.com https://*.clarity.ms https://c.bing.com https://www.facebook.com https://connect.facebook.net https://*.linkedin.com https://www.google.com https://www.google.co.zm https://googleads.g.doubleclick.net https://www.googleadservices.com https://pagead2.googlesyndication.com; form-action 'self' https://formspree.io; base-uri 'self'; object-src 'none'; upgrade-insecure-requests">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self' file:; script-src 'self' file: https://*.googletagmanager.com https://*.clarity.ms https://connect.facebook.net https://snap.licdn.com https://www.googleadservices.com https://googleads.g.doubleclick.net https://www.google.com 'sha256-yPEuvoV9qB8vQW+Krm8zEqMBI82A1FsRwzy4FyMTeio=' 'sha256-jVDEcytlIBASSTXX8UWMAW3fwym5+rzcwhDWKbgu4NQ=' 'sha256-HuzeagOWxw72t91+fcLW0a2epg2jV2lvbgvXlvSrhbg=' 'sha256-bMUqGRvrd7Oa5B3isZfKHogU7mYoQRtwns8KYhU30vw=' 'sha256-LObU1tdmcx/heQRtk57MQWwTslHx0RgWSMB828agqtk=' 'sha256-JXvATGpaUOztFQ6cJs+CQjDwUHLmwQQOh5eHJqip73E='; style-src 'self' file: 'unsafe-inline'; img-src 'self' file: data: blob: https://*.google-analytics.com https://*.googletagmanager.com https://*.clarity.ms https://c.bing.com https://www.facebook.com https://*.linkedin.com https://www.googleadservices.com https://googleads.g.doubleclick.net https://www.google.com https://www.google.co.zm https://pagead2.googlesyndication.com; frame-src https://www.google.com https://td.doubleclick.net https://www.googletagmanager.com; connect-src https://formspree.io https://*.google-analytics.com https://*.analytics.google.com https://*.googletagmanager.com https://*.clarity.ms https://c.bing.com https://www.facebook.com https://connect.facebook.net https://*.linkedin.com https://www.google.com https://www.google.co.zm https://googleads.g.doubleclick.net https://www.googleadservices.com https://pagead2.googlesyndication.com; form-action 'self' https://formspree.io; base-uri 'self'; object-src 'none'; upgrade-insecure-requests">
   <meta name="referrer" content="strict-origin-when-cross-origin">
   <!-- Google tag (gtag.js) for Google Analytics 4, with Consent Mode v2:
        everything is denied by default; js/main.js updates consent only if the visitor accepts. -->
@@ -45,7 +44,7 @@
   <!-- Clarity starts cookie-free; only a saved "Accept" switches its cookies on (before Clarity loads). -->
   <script>window.clarity('consentv2', (function () { try { return localStorage.getItem('zs-consent') === 'granted'; } catch (e) { return false; } })() ? { ad_Storage: 'granted', analytics_Storage: 'granted' } : { ad_Storage: 'denied', analytics_Storage: 'denied' });</script>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <script>document.documentElement.className = 'js'; try { if (localStorage.getItem('zs-datasaver') === 'true') document.documentElement.className += ' data-saver'; } catch (e) {} var zq = location.search; if ((new Date().getMonth() >= 9 && !/[?&]theme=off/.test(zq)) || /[?&]theme=zambia/.test(zq)) document.documentElement.className += ' theme-zambia';</script>
+  <script>document.documentElement.className = 'js'; try { if (localStorage.getItem('zs-datasaver') === 'true') document.documentElement.className += ' data-saver'; } catch (e) {} var zq = location.search; if ((new Date().getMonth() === 9 && !/[?&]theme=off/.test(zq)) || /[?&]theme=(zambia|independence)\b/.test(zq)) document.documentElement.className += ' theme-zambia';</script>
   <title>Help Centre | Ordering, Delivery &amp; Contact | Zed Supply</title>
   <meta name="description" content="Get help with Zed Supply: how ordering on WhatsApp works, delivery, payments, returns, selling on Zed Supply, business supplies, and how to contact us.">
   <link rel="canonical" href="https://SITE_URL/help.html">
@@ -68,11 +67,9 @@
   <link rel="icon" type="image/png" href="assets/favicon.png">
   <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon.png">
   <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Exo+2:wght@600;700&family=Inter:wght@400;500;600;700&display=swap">
   <link rel="stylesheet" href="css/style.css">
   <script src="js/catalogue.js" defer></script>
+  <script src="js/couriers.js" defer></script>
   <script src="js/main.js" defer></script>
 
   <script type="application/ld+json">
@@ -285,7 +282,7 @@
         <h2 id="topics-title" class="visually-hidden">Help topics</h2>
         <ul class="help-topics">
           <li><a href="#ordering"><strong>Ordering</strong>How checkout on WhatsApp works</a></li>
-          <li><a href="#delivery"><strong>Delivery</strong>Areas, times and costs</a></li>
+          <li><a href="#delivery"><strong>Delivery</strong>Couriers, times and costs</a></li>
           <li><a href="#payments"><strong>Payments</strong>How to pay</a></li>
           <li><a href="#returns"><strong>Returns</strong>Returns and buyer protection</a></li>
           <li><a href="#account"><strong>Your account</strong>Orders, wishlist and reviews</a></li>
@@ -312,6 +309,50 @@
           <div><dt>How long it takes</dt><dd><span class="placeholder">[DELIVERY TIMES]</span></dd></div>
           <div><dt>What it costs</dt><dd><span class="placeholder">[DELIVERY COSTS]</span>. Delivery is always confirmed on WhatsApp before you pay.</dd></div>
         </dl>
+
+        <h3 id="couriers">Courier options</h3>
+        <p>At checkout you can say where your order is going (within your town, to another town in Zambia, or outside Zambia) and pick a courier, or let us arrange it. You can choose from every courier licensed by ZICTA, Zambia's postal and courier regulator. The best-known are below; the ones most used by Zed Supply sellers come first.</p>
+        <!-- Filled from js/couriers.js; this list shows if JavaScript is off -->
+        <div data-couriers>
+          <ul>
+            <li><strong>Zampost EMS</strong> (public postal operator): across Zambia and to over 190 countries.</li>
+            <li><strong>DHL Express</strong> (ZICTA licensed): to and from other countries.</li>
+            <li><strong>FedEx</strong> (ZICTA licensed): same-day within a city, across Zambia and abroad.</li>
+            <li><strong>Mercury Express Logistics</strong> (ZICTA licensed): international and domestic.</li>
+          </ul>
+        </div>
+        <h4 id="all-couriers">All licensed couriers</h4>
+        <p>Every operator on ZICTA's register of licensed postal and courier operators. Domestic licences cover anywhere in Zambia; local licences cover one district only.</p>
+        <div data-courier-directory><p>Turn on JavaScript to search the list, or see ZICTA's <a href="https://www.zicta.zm/services/licensing/registers" target="_blank" rel="noopener noreferrer">licensed operators register<span class="visually-hidden"> (opens in a new tab)</span></a>.</p></div>
+        <h4>Which one suits you?</h4>
+        <ul>
+          <li><strong>Same town, today:</strong> a motorbike courier or on-demand app is usually fastest for small parcels.</li>
+          <li><strong>Another town:</strong> an established courier with offices at both ends, so the parcel can be tracked and collected.</li>
+          <li><strong>Outside Zambia:</strong> an international express courier or Zampost EMS. Allow time for customs at both ends.</li>
+          <li><strong>Large or heavy items:</strong> ask for a vehicle or cargo service, and confirm the price for the size and weight first.</li>
+        </ul>
+
+        <h3 id="delivery-tips">Getting your parcel safely: tips for buyers</h3>
+        <ul>
+          <li>Give a full delivery location with a landmark, and a phone number you'll answer.</li>
+          <li>Ask for the tracking or waybill number, and keep it until your order arrives.</li>
+          <li>Open and check the parcel when it arrives. If it's damaged, take photos and tell the courier and us before you sign.</li>
+          <li>Pay only the delivery fee we confirm on WhatsApp. Don't pay anyone who contacts you unexpectedly asking for a "release" or "clearance" fee: <a href="#contact">check with us first</a>.</li>
+          <li>Parcels from outside Zambia may attract customs duty and VAT from the Zambia Revenue Authority, and you may need to collect them for inspection.</li>
+        </ul>
+
+        <h3 id="shipping-tips">Sending parcels: tips for sellers</h3>
+        <ul>
+          <li><strong>Use a licensed courier.</strong> Couriers in Zambia are licensed by ZICTA; check the <a href="https://www.zicta.zm/services/licensing/registers" target="_blank" rel="noopener noreferrer">licensed postal and courier operators register<span class="visually-hidden"> (opens in a new tab)</span></a>. Bus companies need a courier licence to carry parcels too.</li>
+          <li><strong>Agree the cost first.</strong> Confirm the delivery fee, and who pays it, before you dispatch.</li>
+          <li><strong>Pack for the journey.</strong> A strong box, padding around the item, waterproof wrapping in the rainy season, sealed with tape, and labelled with the order number. Mark fragile items.</li>
+          <li><strong>Keep evidence.</strong> Photograph the item and the sealed parcel, and keep the waybill. Send the tracking number to the buyer.</li>
+          <li><strong>Get proof of delivery,</strong> such as a signature, photo or delivery code.</li>
+          <li><strong>Insure valuable items</strong> and declare their true value.</li>
+          <li><strong>Check restricted items.</strong> Batteries (including power banks), liquids, chemicals and perishables have special rules, especially by air.</li>
+          <li><strong>Exports:</strong> include a customs declaration and a commercial invoice, and ask the courier or a clearing agent about Zambia Revenue Authority requirements.</li>
+          <li><strong>Have a backup.</strong> Keep two couriers for each route you send to, and tick them in your Seller Centre.</li>
+        </ul>
 
         <h2 id="payments">Payments</h2>
         <p>Pay with the mobile money wallet on your phone:</p>
@@ -477,6 +518,15 @@
         <div class="footer-pay">
           <p class="footer-pay__label">Pay with mobile money</p>
           <div data-pay-methods><p class="footer-pay__list">MTN MoMo · Airtel Money · Zamtel Mobile Money</p></div>
+        </div>
+        <!-- App store buttons: they link once the app addresses are set in js/catalogue.js (settings.apps) -->
+        <div class="footer-apps">
+          <p class="footer-pay__label">Get the Zed Supply app</p>
+          <ul class="app-btns">
+            <li><a class="app-btn is-soon" data-app="ios"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6" y="2" width="12" height="20" rx="2.5"/><path d="M11 18h2"/></svg><span class="app-btn__text"><small>Download on the</small>App Store</span><span class="app-btn__soon">Coming soon</span></a></li>
+            <li><a class="app-btn is-soon" data-app="android"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3.5v17l13-8.5z"/></svg><span class="app-btn__text"><small>Get it on</small>Google Play</span><span class="app-btn__soon">Coming soon</span></a></li>
+            <li><a class="app-btn is-soon" data-app="huawei"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 7h14l-1.2 12.2a2 2 0 0 1-2 1.8H8.2a2 2 0 0 1-2-1.8z"/><path d="M9 10V6a3 3 0 0 1 6 0v4"/></svg><span class="app-btn__text"><small>Explore it on</small>AppGallery</span><span class="app-btn__soon">Coming soon</span></a></li>
+          </ul>
         </div>
       </div>
       <nav aria-labelledby="f-shop">

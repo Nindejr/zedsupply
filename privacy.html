@@ -8,8 +8,7 @@
                                   cookies are accepted, the Meta Pixel (connect.facebook.net), LinkedIn Insight Tag (snap.licdn.com)
                                   and Google Ads (googleadservices.com, googleads.g.doubleclick.net, google.com), plus the small
                                   inline scripts in this head, each allowed by its sha256 hash.
-       style-src                  our stylesheet and the Google Fonts stylesheet. 'unsafe-inline' allows the colours set in style="" attributes.
-       font-src                   the font files from fonts.gstatic.com.
+       style-src                  our own stylesheet. 'unsafe-inline' allows the colours set in style="" attributes.
        img-src                    our images, data: and blob: images the site creates itself (such as promotion banners), and the tiny
                                   measurement images used by Google Analytics, Clarity, Meta, LinkedIn and Google Ads.
        frame-src                  the Google Maps embed on the help page, and the hidden frames Google Ads uses to record conversions.
@@ -20,7 +19,7 @@
        WARNING: anything new from another website (a chat widget, an ad or social pixel, a CDN library, a YouTube video, a payment
        button) is silently blocked until its domain is added here, on all four pages. Editing an inline script in this head changes
        its hash: update the matching sha256 or it stops running (see Business/PCI-DSS.md). -->
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self' file:; script-src 'self' file: https://*.googletagmanager.com https://*.clarity.ms https://connect.facebook.net https://snap.licdn.com https://www.googleadservices.com https://googleads.g.doubleclick.net https://www.google.com 'sha256-7nnX2oOzt7UowW1mEvREIsoin+PIvwJs3DopQMg2tVQ=' 'sha256-jVDEcytlIBASSTXX8UWMAW3fwym5+rzcwhDWKbgu4NQ=' 'sha256-HuzeagOWxw72t91+fcLW0a2epg2jV2lvbgvXlvSrhbg=' 'sha256-bMUqGRvrd7Oa5B3isZfKHogU7mYoQRtwns8KYhU30vw=' 'sha256-LObU1tdmcx/heQRtk57MQWwTslHx0RgWSMB828agqtk=' 'sha256-JXvATGpaUOztFQ6cJs+CQjDwUHLmwQQOh5eHJqip73E='; style-src 'self' file: 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' file: data: blob: https://*.google-analytics.com https://*.googletagmanager.com https://*.clarity.ms https://c.bing.com https://www.facebook.com https://*.linkedin.com https://www.googleadservices.com https://googleads.g.doubleclick.net https://www.google.com https://www.google.co.zm https://pagead2.googlesyndication.com; frame-src https://www.google.com https://td.doubleclick.net https://www.googletagmanager.com; connect-src https://formspree.io https://*.google-analytics.com https://*.analytics.google.com https://*.googletagmanager.com https://*.clarity.ms https://c.bing.com https://www.facebook.com https://connect.facebook.net https://*.linkedin.com https://www.google.com https://www.google.co.zm https://googleads.g.doubleclick.net https://www.googleadservices.com https://pagead2.googlesyndication.com; form-action 'self' https://formspree.io; base-uri 'self'; object-src 'none'; upgrade-insecure-requests">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self' file:; script-src 'self' file: https://*.googletagmanager.com https://*.clarity.ms https://connect.facebook.net https://snap.licdn.com https://www.googleadservices.com https://googleads.g.doubleclick.net https://www.google.com 'sha256-yPEuvoV9qB8vQW+Krm8zEqMBI82A1FsRwzy4FyMTeio=' 'sha256-jVDEcytlIBASSTXX8UWMAW3fwym5+rzcwhDWKbgu4NQ=' 'sha256-HuzeagOWxw72t91+fcLW0a2epg2jV2lvbgvXlvSrhbg=' 'sha256-bMUqGRvrd7Oa5B3isZfKHogU7mYoQRtwns8KYhU30vw=' 'sha256-LObU1tdmcx/heQRtk57MQWwTslHx0RgWSMB828agqtk=' 'sha256-JXvATGpaUOztFQ6cJs+CQjDwUHLmwQQOh5eHJqip73E='; style-src 'self' file: 'unsafe-inline'; img-src 'self' file: data: blob: https://*.google-analytics.com https://*.googletagmanager.com https://*.clarity.ms https://c.bing.com https://www.facebook.com https://*.linkedin.com https://www.googleadservices.com https://googleads.g.doubleclick.net https://www.google.com https://www.google.co.zm https://pagead2.googlesyndication.com; frame-src https://www.google.com https://td.doubleclick.net https://www.googletagmanager.com; connect-src https://formspree.io https://*.google-analytics.com https://*.analytics.google.com https://*.googletagmanager.com https://*.clarity.ms https://c.bing.com https://www.facebook.com https://connect.facebook.net https://*.linkedin.com https://www.google.com https://www.google.co.zm https://googleads.g.doubleclick.net https://www.googleadservices.com https://pagead2.googlesyndication.com; form-action 'self' https://formspree.io; base-uri 'self'; object-src 'none'; upgrade-insecure-requests">
   <meta name="referrer" content="strict-origin-when-cross-origin">
   <!-- Google tag (gtag.js) for Google Analytics 4, with Consent Mode v2:
        everything is denied by default; js/main.js updates consent only if the visitor accepts. -->
@@ -45,7 +44,7 @@
   <!-- Clarity starts cookie-free; only a saved "Accept" switches its cookies on (before Clarity loads). -->
   <script>window.clarity('consentv2', (function () { try { return localStorage.getItem('zs-consent') === 'granted'; } catch (e) { return false; } })() ? { ad_Storage: 'granted', analytics_Storage: 'granted' } : { ad_Storage: 'denied', analytics_Storage: 'denied' });</script>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <script>document.documentElement.className = 'js'; try { if (localStorage.getItem('zs-datasaver') === 'true') document.documentElement.className += ' data-saver'; } catch (e) {} var zq = location.search; if ((new Date().getMonth() >= 9 && !/[?&]theme=off/.test(zq)) || /[?&]theme=zambia/.test(zq)) document.documentElement.className += ' theme-zambia';</script>
+  <script>document.documentElement.className = 'js'; try { if (localStorage.getItem('zs-datasaver') === 'true') document.documentElement.className += ' data-saver'; } catch (e) {} var zq = location.search; if ((new Date().getMonth() === 9 && !/[?&]theme=off/.test(zq)) || /[?&]theme=(zambia|independence)\b/.test(zq)) document.documentElement.className += ' theme-zambia';</script>
   <title>Privacy Policy | Zed Supply</title>
   <meta name="description" content="How Zed Supply collects, uses and protects your personal data under Zambia's Data Protection Act, 2021, and how to access, correct or delete your data.">
   <link rel="canonical" href="https://SITE_URL/privacy.html">
@@ -68,11 +67,9 @@
   <link rel="icon" type="image/png" href="assets/favicon.png">
   <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon.png">
   <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Exo+2:wght@600;700&family=Inter:wght@400;500;600;700&display=swap">
   <link rel="stylesheet" href="css/style.css">
   <script src="js/catalogue.js" defer></script>
+  <script src="js/couriers.js" defer></script>
   <script src="js/main.js" defer></script>
 
   <script type="application/ld+json">
@@ -310,7 +307,7 @@
           <li><strong>Orders:</strong> if you go on to buy through us, the details needed to complete the order, such as delivery address and payment confirmation.</li>
         </ul>
         <h3>Information stored only on your device</h3>
-        <p>Your cart, wishlist, recently viewed products, the account details you enter in My Account, order references, reviews you write, Seller Centre demo promotions, your data saver setting and your cookie choice are saved in your browser's local storage on your device. This preview version of the site does not send them to us or to anyone else. You can delete them at any time by signing out, emptying your cart or clearing your browser's site data.</p>
+        <p>Your cart, wishlist, recently viewed products, the account details you enter in My Account, order references, reviews you write, Seller Centre demo promotions and deals, the products you add to compare, your data saver setting and your cookie choice are saved in your browser's local storage on your device. This preview version of the site does not send them to us or to anyone else. You can delete them at any time by signing out, emptying your cart or clearing your browser's site data.</p>
         <p>Your delivery location is kept in your browser only until you close the tab, unless you tick "Remember on this device", in which case it stays on your device until you clear it. The location of each order you send is also kept with that order in your order history on your device. Use "Clear" in the delivery location panel to remove it.</p>
         <p>Please don't send us sensitive personal data (for example health information or ID numbers) unless we specifically need it for your order.</p>
         <h3>Payment card details</h3>
@@ -332,8 +329,9 @@
         <h2 id="share">4. Who we share it with</h2>
         <ul>
           <li><strong>Suppliers and sellers</strong> we connect your order to, only the details they need to quote for or fulfil it.</li>
+          <li><strong>Couriers</strong> that deliver your order, chosen by you, the seller or us: only your name, phone number and delivery location.</li>
           <li><strong>Formspree</strong>, which receives contact-form and seller-application submissions and forwards them to us by email.</li>
-          <li><strong>Google</strong>, which provides our email service, the fonts used on this site, the map on our contact page and, if you accept, Google Analytics and Google Ads.</li>
+          <li><strong>Google</strong>, which provides our email service, the map on our contact page and, if you accept, Google Analytics and Google Ads.</li>
           <li><strong>Microsoft</strong>, which provides Microsoft Clarity (see <a href="#cookies">section 6</a>).</li>
           <li><strong>LinkedIn</strong> (owned by Microsoft), which provides the LinkedIn Insight Tag, if you accept (see <a href="#cookies">section 6</a>).</li>
           <li><strong>Meta</strong> (the company behind Facebook, Instagram and WhatsApp), which provides WhatsApp, if you choose to message us there, and the Meta Pixel, if you accept (see <a href="#cookies">section 6</a>).</li>
@@ -376,9 +374,8 @@
           <li>Choosing Decline in <button class="link-btn" type="button" data-cookie-settings>Cookie settings</button> stops these tags straight away and deletes their cookies on our site. Cookies they have set on their own websites can be removed in your browser settings, and each platform lets you manage ad preferences in your account settings.</li>
         </ul>
         <h3>Other third-party content</h3>
-        <p>Apart from the analytics and advertising cookies you have accepted, our own website does not set cookies. It uses your browser's local storage only for the on-device features described in section 2. Two pieces of third-party content may collect technical data when they load:</p>
+        <p>Apart from the analytics and advertising cookies you have accepted, our own website does not set cookies. It uses your browser's local storage only for the on-device features described in section 2. One piece of third-party content may collect technical data when it loads:</p>
         <ul>
-          <li><strong>Google Fonts</strong>, which loads our typefaces and receives your IP address.</li>
           <li><strong>Google Maps</strong>, embedded in the contact section of our help centre, which may set its own cookies.</li>
         </ul>
 
@@ -430,6 +427,15 @@
         <div class="footer-pay">
           <p class="footer-pay__label">Pay with mobile money</p>
           <div data-pay-methods><p class="footer-pay__list">MTN MoMo · Airtel Money · Zamtel Mobile Money</p></div>
+        </div>
+        <!-- App store buttons: they link once the app addresses are set in js/catalogue.js (settings.apps) -->
+        <div class="footer-apps">
+          <p class="footer-pay__label">Get the Zed Supply app</p>
+          <ul class="app-btns">
+            <li><a class="app-btn is-soon" data-app="ios"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6" y="2" width="12" height="20" rx="2.5"/><path d="M11 18h2"/></svg><span class="app-btn__text"><small>Download on the</small>App Store</span><span class="app-btn__soon">Coming soon</span></a></li>
+            <li><a class="app-btn is-soon" data-app="android"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3.5v17l13-8.5z"/></svg><span class="app-btn__text"><small>Get it on</small>Google Play</span><span class="app-btn__soon">Coming soon</span></a></li>
+            <li><a class="app-btn is-soon" data-app="huawei"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 7h14l-1.2 12.2a2 2 0 0 1-2 1.8H8.2a2 2 0 0 1-2-1.8z"/><path d="M9 10V6a3 3 0 0 1 6 0v4"/></svg><span class="app-btn__text"><small>Explore it on</small>AppGallery</span><span class="app-btn__soon">Coming soon</span></a></li>
+          </ul>
         </div>
       </div>
       <nav aria-labelledby="f-shop">

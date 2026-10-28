@@ -51,11 +51,42 @@ window.ZS_CATALOGUE = {
       { id: 'zamtel', name: 'Zamtel Mobile Money', kind: 'Mobile money', colour: '#00A651', enabled: true }
     ],
 
-    // ---- Zambia Independence celebration theme ----
-    // Switches on automatically every year between these dates (month-day) and
-    // off again on 1 January. Independence Day is 24 October (1964).
-    // Preview any time by adding ?theme=zambia to the address (or ?theme=off).
-    celebration: { enabled: true, start: '10-01', end: '12-31', independenceDay: '10-24', independenceYear: 1964 }
+    // ---- Mobile apps ----
+    // Paste each store's full https:// address once the app is published. The footer
+    // buttons then link to it; until then they show "Coming soon".
+    apps: { ios: '', android: '', huawei: '' },
+
+    // ---- Courier options ----
+    // The courier list (ZICTA's licensed operators, plus details for well-known couriers)
+    // lives in js/couriers.js. Set this to false to hide courier choices everywhere.
+    couriersEnabled: true,
+
+    // ---- Festive periods ----
+    // Each period shows a bar above the header and the first homepage banner slide
+    // on its dates, every year. Only one runs at a time: if two would overlap, the
+    // one that starts later begins the day after the other ends.
+    // Fixed dates are month-day; day is the date the bar counts down to.
+    // Moveable dates are worked out each year:
+    //   easter:      two weeks before Easter Sunday, to Easter Monday
+    //   farmers:     the week before Farmers' Day (first Monday of August), to the day
+    //   blackfriday: Monday to Cyber Monday around Black Friday (the day after the
+    //                fourth Thursday of November). Christmas starts after it ends.
+    // Independence also turns on the Zambian flag theme (Independence Day 24 October 1964).
+    // Set enabled: false on a period to skip it. Preview one on any date with
+    // ?theme=christmas (or easter, independence...); ?theme=off hides them all.
+    festive: {
+      enabled: true,
+      independenceYear: 1964,
+      periods: [
+        { id: 'school', start: '01-02', end: '01-20' },              // adjust to the Ministry of Education's term dates
+        { id: 'valentines', start: '02-01', end: '02-14', day: '02-14' },
+        { id: 'easter', rule: 'easter' },
+        { id: 'farmers', rule: 'farmers' },
+        { id: 'independence', start: '10-01', end: '10-31', day: '10-24' },
+        { id: 'blackfriday', rule: 'blackfriday' },
+        { id: 'christmas', start: '12-01', end: '01-01', day: '12-25' }   // runs to New Year's Day
+      ]
+    }
   },
 
   /* Homepage advertising banner (carousel). Slides appear in this order, followed by
@@ -109,17 +140,32 @@ window.ZS_CATALOGUE = {
      Demo content lives in js/catalogue-sample.js (view it with ?demo=1);
      copy an entry from there as a starting point for a real one. */
 
-  // Registered sellers: { id, name, city, verified, about, colours: [a, b] }
+  // Registered sellers: { id, name, city, verified, about, colours: [a, b], couriers: ['zampost', ...] (optional, courier ids from js/couriers.js) }
   sellers: [],
 
-  // Brand stores: { id, name, tagline, colours: [a, b] }
+  /* Brand stores: { id, name, tagline, colours: [a, b], featured, logo }
+     featured: true puts the brand first in the Featured brands strip under the banner.
+     logo (optional): authentic square brand image, 80×80, in assets/brands/.
+     category (optional): department ID for the 3D artwork when no logo is supplied.
+     Never substitute an invented logo for a real business identity. */
   brands: [],
 
   /* Products
      { id, title, category, seller, brand, priceZMW, wasZMW (optional, only for a
        genuine previous price), stock: 'in' | 'low' | 'request', image, alt, tags,
-       description, reviews: [] }
+       description, reviews: [], and optionally: }
+       sales:  units sold per month from confirmed WhatsApp orders, e.g. { '2026-10': 14, '2026-09': 9 }.
+               Drives Trending now and the monthly Top picks, so keep this and last month up to date.
+       match:  the same word for the same item from different sellers, e.g. 'solar-lantern-led'.
+               Buyers then see "Also sold by" and can compare the sellers side by side.
+       added:  date first listed, 'YYYY-MM-DD'. New listings get a small lift in Trending.
+       deal:   { price, reason, ends } a lower price for a limited time. reason is one of
+               'reduced', 'clearance', 'limited', 'bundle', 'seasonal'; ends is 'YYYY-MM-DD' or ''.
      image: square photo, 600×600, WebP or JPEG under 80KB, in assets/products/
+     Keep product images faithful to the actual item, including its colour and contents.
+     Use consistent square framing and a clean background; do not add campaign text.
+     Decorative 3D category artwork belongs in department and campaign panels, not
+     as a replacement for real product photography. Sample illustrations stay in demo mode.
      Reviews must come from real customers. */
   products: [],
 

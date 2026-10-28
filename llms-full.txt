@@ -125,6 +125,41 @@ Help centre. Answers about ordering, delivery, payments, returns and selling, an
 - How long it takes: Not yet published
 - What it costs: Not yet published. Delivery is always confirmed on WhatsApp before you pay.
 
+### Courier options
+
+At checkout you can say where your order is going (within your town, to another town in Zambia, or outside Zambia) and pick a courier, or let Zed Supply arrange it. Buyers and sellers can choose from all 130 operators on the ZICTA register of licensed postal and courier operators (supplied October 2026). Couriers most used by Zed Supply sellers are listed first. Domestic licences cover anywhere in Zambia; local licences cover one district only.
+
+Best-known licensed couriers:
+
+- Zampost EMS (public postal operator, ZICTA/P/PPO/0001): across Zambia and to over 190 countries (https://www.zampost.com.zm/ems.html)
+- DHL Express (ZICTA/P/ID/0006): to and from other countries (https://mydhl.express.dhl/zm/en/help-and-support.html)
+- FedEx (ZICTA/P/ID/0004): same-day within a city, across Zambia and abroad (https://www.fedex.com/en-zm/shipping.html)
+- Mercury Express Logistics (ZICTA/P/ID/0002): international and domestic
+
+Also listed, licence not confirmed on the register supplied: Kingsway Couriers (https://www.kingswaycourier.com/), Rapid Riders Courier (https://www.rapidriderscourier.com/), DropSync (https://www.dropsynczm.com/) and Yango Delivery (in the Yango app).
+
+Zed Supply isn't paid by any courier listed. Prices, coverage and delivery times are set by each courier.
+
+### Tips for buyers
+
+- Give a full delivery location with a landmark, and a phone number you'll answer.
+- Ask for the tracking or waybill number, and keep it until your order arrives.
+- Open and check the parcel when it arrives. If it's damaged, take photos and tell the courier and Zed Supply before you sign.
+- Pay only the delivery fee Zed Supply confirms on WhatsApp. Don't pay anyone who contacts you unexpectedly asking for a "release" or "clearance" fee.
+- Parcels from outside Zambia may attract customs duty and VAT from the Zambia Revenue Authority, and you may need to collect them for inspection.
+
+### Tips for sellers
+
+- Use a courier licensed by ZICTA (https://www.zicta.zm/services/licensing/registers). Bus companies need a courier licence to carry parcels too.
+- Confirm the delivery fee, and who pays it, before you dispatch.
+- Pack in a strong box with padding, wrap against rain, seal it and label it with the order number. Mark fragile items.
+- Photograph the item and the sealed parcel, keep the waybill, and send the tracking number to the buyer.
+- Get proof of delivery, such as a signature, photo or delivery code.
+- Insure valuable items and declare their true value.
+- Check the courier's rules for batteries (including power banks), liquids, chemicals and perishables, especially by air.
+- For exports, include a customs declaration and a commercial invoice, and ask the courier or a clearing agent about Zambia Revenue Authority requirements.
+- Keep two couriers for each route you send to.
+
 ## Payments
 
 Pay with the mobile money wallet on your phone:
@@ -266,7 +301,7 @@ Zed Supply is a Zambia-based e-commerce business in Lusaka. For the purposes of 
 
 ### Information stored only on your device
 
-Your cart, wishlist, recently viewed products, the account details you enter in My Account, order references, reviews you write, Seller Centre demo promotions, your data saver setting and your cookie choice are saved in your browser's local storage on your device. This preview version of the site does not send them to us or to anyone else. You can delete them at any time by signing out, emptying your cart or clearing your browser's site data.
+Your cart, wishlist, recently viewed products, the account details you enter in My Account, order references, reviews you write, Seller Centre demo promotions and deals, the products you add to compare, your data saver setting and your cookie choice are saved in your browser's local storage on your device. This preview version of the site does not send them to us or to anyone else. You can delete them at any time by signing out, emptying your cart or clearing your browser's site data.
 
 Your delivery location is kept in your browser only until you close the tab, unless you tick "Remember on this device", in which case it stays on your device until you clear it. The location of each order you send is also kept with that order in your order history on your device. Use "Clear" in the delivery location panel to remove it.
 
@@ -294,8 +329,9 @@ We only collect what we need for these purposes and we do not sell your personal
 ## 4. Who we share it with
 
 - Suppliers and sellers we connect your order to, only the details they need to quote for or fulfil it.
+- Couriers that deliver your order, chosen by you, the seller or us: only your name, phone number and delivery location.
 - Formspree, which receives contact-form and seller-application submissions and forwards them to us by email.
-- Google, which provides our email service, the fonts used on this site, the map on our contact page and, if you accept, Google Analytics and Google Ads.
+- Google, which provides our email service, the map on our contact page and, if you accept, Google Analytics and Google Ads.
 - Microsoft, which provides Microsoft Clarity (see section 6).
 - LinkedIn (owned by Microsoft), which provides the LinkedIn Insight Tag, if you accept (see section 6).
 - Meta (the company behind Facebook, Instagram and WhatsApp), which provides WhatsApp, if you choose to message us there, and the Meta Pixel, if you accept (see section 6).
@@ -346,9 +382,8 @@ These tags let us measure the adverts we run on Facebook, Instagram, LinkedIn an
 
 ### Other third-party content
 
-Apart from the analytics and advertising cookies you have accepted, our own website does not set cookies. It uses your browser's local storage only for the on-device features described in section 2. Two pieces of third-party content may collect technical data when they load:
+Apart from the analytics and advertising cookies you have accepted, our own website does not set cookies. It uses your browser's local storage only for the on-device features described in section 2. One piece of third-party content may collect technical data when it loads:
 
-- Google Fonts, which loads our typefaces and receives your IP address.
 - Google Maps, embedded in the contact section of our help centre, which may set its own cookies.
 
 ## 7. How long we keep it
