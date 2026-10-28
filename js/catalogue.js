@@ -136,6 +136,25 @@ window.ZS_CATALOGUE = {
     { id: 'essentials', name: 'Everyday Essentials', icon: '<img src=\"assets/icons/essentials.svg\" alt=\"\" width=\"32\" height=\"32\">' }
   ],
 
+  /* Listing templates: the extra fields the seller form shows for each department.
+     fields: any of 'colour', 'size', 'ageRange', 'inBox', 'manufacturer', 'specs'.
+     sizeUnits: the units in the size dropdown, first is the default. Leave it empty for
+     letter or shoe sizes typed by the seller. specs: suggested specification names. */
+  attributeTemplates: {
+    tech:       { fields: ['colour', 'inBox', 'manufacturer', 'specs'], specs: ['Model', 'Battery', 'Storage', 'Warranty'] },
+    solar:      { fields: ['inBox', 'manufacturer', 'specs'], specs: ['Panel output', 'Battery capacity', 'Warranty'] },
+    fashion:    { fields: ['colour', 'size', 'ageRange'], sizeUnits: [], specs: ['Material'] },
+    home:       { fields: ['colour', 'size', 'inBox', 'specs'], sizeUnits: ['l', 'ml', 'cm'], specs: ['Material', 'Power', 'Warranty'] },
+    business:   { fields: ['inBox', 'manufacturer', 'specs'], specs: ['Power', 'Output', 'Warranty'] },
+    office:     { fields: ['colour', 'size', 'ageRange', 'specs'], sizeUnits: ['cm', 'mm'], specs: ['Pack size'] },
+    agri:       { fields: ['size', 'manufacturer', 'specs'], sizeUnits: ['kg', 'g', 'l', 'ml'], specs: ['Crop or use', 'Active ingredient'] },
+    auto:       { fields: ['inBox', 'manufacturer', 'specs'], specs: ['Fits (make, model, year)', 'Part number'] },
+    hardware:   { fields: ['size', 'inBox', 'specs'], sizeUnits: ['mm', 'cm', 'm', 'kg', 'l'], specs: ['Material', 'Power'] },
+    baby:       { fields: ['colour', 'size', 'ageRange', 'inBox', 'specs'], sizeUnits: [], specs: ['Material', 'Safety standard'] },
+    health:     { fields: ['size', 'ageRange', 'inBox', 'specs'], sizeUnits: ['ml', 'g', 'l', 'kg'], specs: ['Ingredients'] },
+    essentials: { fields: ['size', 'specs'], sizeUnits: ['l', 'ml', 'kg', 'g'], specs: ['Pack size', 'Ingredients'] }
+  },
+
   // Seasons sellers can choose for a promotion
   seasons: [
     { id: 'christmas', name: 'Christmas & festive season', colours: ['#8A1022', '#C8102E'] },
@@ -175,6 +194,26 @@ window.ZS_CATALOGUE = {
        added:  date first listed, 'YYYY-MM-DD'. New listings get a small lift in Trending.
        deal:   { price, reason, ends } a lower price for a limited time. reason is one of
                'reduced', 'clearance', 'limited', 'bundle', 'seasonal'; ends is 'YYYY-MM-DD' or ''.
+       attributes: the item's specifications. Every part is optional.
+               size:         { value: 1.7, unit: 'l' }  one size only. Units: 'ml', 'l', 'g', 'kg', 'mm', 'cm', 'm', 'in'
+               ageRange:     ['kid', 'teen']            any of 'infant', 'kid', 'teen', 'adult', 'senior'
+               manufacturer: 'Maker name'               only when it differs from the brand store
+               specs:        { 'Battery': '20,000 mAh', 'Warranty': '12 months' }
+       options: the choices a buyer makes. Each one becomes a column in the variants.
+               colour: [{ name: 'Black', hex: '#1F2937' }]   hex must match the real item
+               size:   ['S', 'M', 'L']  or measured: [{ value: 500, unit: 'ml' }, { value: 1, unit: 'l' }]
+       variants: needed when options are set; one row per combination.
+               [{ sku: 'ZS-L008-WHT-42', colour: 'White', size: '42', stock: 3, priceZMW: 760 }]
+               colour and size use the option's name or label ('500 ml'); stock is the number on hand
+               and 0 shows the combination as sold out; priceZMW is optional, otherwise the product price.
+       inBox:  what comes with it: [{ item: 'USB-C cable' }, { item: 'Wall charger', addonZMW: 120 }]
+               Without addonZMW it is included; with addonZMW it is an optional add-on the buyer can tick.
+       commit: buyer commit pricing, { min: 450, max: 520 }. Buyers name a price between min and
+               max and the seller confirms it on WhatsApp; priceZMW stays the Buy now price.
+               max must not be above priceZMW. Buyers can see min, so set one you would accept.
+     reviews: [{ name, rating: 1-5, date: 'YYYY-MM-DD', title, text, verified }]
+               verified: true only for a confirmed order delivered to that customer.
+               The average and star breakdown are worked out from these when the page loads.
      image: square photo, 600×600, WebP or JPEG under 80KB, in assets/products/
      Keep product images faithful to the actual item, including its colour and contents.
      Use consistent square framing and a clean background; do not add campaign text.
