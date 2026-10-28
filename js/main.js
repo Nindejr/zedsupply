@@ -222,9 +222,23 @@
     if (skipLink) skipLink.parentNode.insertBefore(bar, skipLink.nextSibling);
   }
 
-  /* ---------- Products, prices and promotions ---------- */
-  var products = D.products.filter(function (p) { return china || p.source !== 'china'; });
-  var localProducts = products.filter(function (p) { return p.source !== 'china'; });
+  /* ---------- Products, prices and promotions ----------
+     Listings a seller saved in the Seller Centre (this browser only, for now) join the
+     catalogue; an edited catalogue product is replaced by its saved copy. Listings from
+     sellers who aren't in the catalogue, such as demo stores outside demo mode, stay hidden. */
+  var ZP = window.ZSProduct;
+  var listingsApi = ZP.listings({ get: store.get, set: function (k, v) { if (trySave(k, v)) return true; mem[k] = v; return false; } });
+  var BASE_PRODUCTS = D.products.slice();
+  var products, localProducts;
+  function loadProducts() {
+    var saved = listingsApi.list().filter(function (p) { return seller(p.seller); }), byIdSaved = {};
+    saved.forEach(function (p) { byIdSaved[p.id] = p; });
+    D.products = BASE_PRODUCTS.map(function (p) { var s = byIdSaved[p.id]; delete byIdSaved[p.id]; return s || p; })
+      .concat(saved.filter(function (p) { return byIdSaved[p.id]; }));
+    products = D.products.filter(function (p) { return china || p.source !== 'china'; });
+    localProducts = products.filter(function (p) { return p.source !== 'china'; });
+  }
+  loadProducts();
   function product(id) { return byId(D.products, id); }
 
   function allPromos() { return D.promotions.concat(store.get('promos', [])); }
@@ -265,14 +279,14 @@
   }
   function onDeal(p) { var pr = priceOf(p); return !!(pr.was || pr.promo || pr.deal); }
   function reviewsFor(p) { return (p.reviews || []).concat((store.get('reviews', {})[p.id]) || []); }
+  // { avg, count, dist } where dist[n] counts the n-star reviews; null when there are none
   function ratingOf(p) {
-    var r = reviewsFor(p);
-    if (!r.length) return null;
-    return { avg: r.reduce(function (a, b) { return a + Number(b.rating); }, 0) / r.length, count: r.length };
+    var r = ZP.ratingSummary(reviewsFor(p));
+    return r.count ? r : null;
   }
   function searchText(p) {
     var b = brand(p.brand), s = seller(p.seller);
-    return [p.title, p.tags, dept(p.category).name, b ? b.name : '', s ? s.name : ''].join(' ').toLowerCase();
+    return [p.title, p.tags, dept(p.category).name, b ? b.name : '', s ? s.name : '', ZP.attrText(p)].join(' ').toLowerCase();
   }
 
   /* ---------- Trending and top picks ----------
@@ -380,12 +394,24 @@
   function wish() { return store.get('wish', []); }
   function isLiked(id) { return wish().indexOf(id) !== -1; }
   function user() { return store.get('user', null); }
-  function addToCart(id, qty) {
-    var c = cart(), line = null;
-    for (var i = 0; i < c.length; i++) if (c[i].id === id) line = c[i];
-    if (line) line.qty = Math.min(99, line.qty + qty); else c.push({ id: id, qty: qty });
+  // opt (optional): { colour, size, addons: [inBox index], commit: offer per item }.
+  // The same product with different options is a separate line.
+  function lineKey(l) { return l.id + (l.opt ? '|' + JSON.stringify(l.opt) : ''); }
+  function addToCart(id, qty, opt) {
+    var c = cart(), line = null, key = lineKey({ id: id, opt: opt });
+    for (var i = 0; i < c.length; i++) if (lineKey(c[i]) === key) line = c[i];
+    if (line) line.qty = Math.min(99, line.qty + qty); else c.push(opt ? { id: id, qty: qty, opt: opt } : { id: id, qty: qty });
     setCart(c);
   }
+  // Price of one item on a cart line: the variant's own price, add-ons and any commit offer
+  function variantOf(p, opt) { return opt && ZP.hasOptions(p) ? ZP.findVariant(p, opt) : null; }
+  function basePriceOf(p, v) {
+    if (!v || !v.priceZMW) return priceOf(p);
+    var q = {}; for (var k in p) q[k] = p[k];
+    q.priceZMW = v.priceZMW; q.wasZMW = 0;
+    return priceOf(q);
+  }
+  function lineQuote(p, opt) { var v = variantOf(p, opt), pr = basePriceOf(p, v); return { pr: pr, q: ZP.quote(p, pr.now, opt), v: v }; }
   function toggleLike(id) {
     var w = wish(), i = w.indexOf(id);
     if (i === -1) w.push(id); else w.splice(i, 1);
@@ -742,8 +768,13 @@
     return '<p class="price"><span class="price__now"><span class="visually-hidden">Price </span>' + kwacha(pr.now) + '</span>' +
       (pr.was ? '<span class="price__was"><span class="visually-hidden">was </span>' + kwacha(pr.was) + '</span>' : '') + '</p>';
   }
-  function stockHTML(p) {
+  // v (optional): the chosen variant, whose own stock count decides
+  function stockHTML(p, v) {
     if (p.source === 'china') return '<p class="pstock">' + esc(p.shipping) + '</p>';
+    var st = ZP.hasOptions(p) && (p.variants || []).length ? ZP.stockState(p, v) : '';
+    if (st === 'out') return '<p class="pstock pstock--out">' + (v ? 'Sold out in this option' : 'Sold out') + '</p>';
+    if (st === 'low') return '<p class="pstock pstock--low">' + (v ? 'Only ' + v.stock + ' left' : 'Only a few left') + '</p>';
+    if (st === 'in') return '<p class="pstock">In stock</p>';
     if (p.stock === 'low') return '<p class="pstock pstock--low">Only a few left</p>';
     if (p.stock === 'request') return '<p class="pstock pstock--low">Sourced on request</p>';
     return '<p class="pstock">In stock</p>';
@@ -764,8 +795,10 @@
         '<a class="ptitle" href="' + R + 'product/' + esc(p.id) + '">' + esc(p.title) + '</a>' +
         '<p class="pmeta">' + (s ? 'Sold by ' + esc(s.name) : (p.source === 'china' ? 'Shop the World' : esc(dept(p.category).name))) + '</p>' +
         (otherSellers ? '<p class="pmeta"><a href="' + R + 'compare?ids=' + [p.id].concat(others.map(function (x) { return x.id; })).map(encodeURIComponent).join(',') + '">Compare ' + (otherSellers + 1) + ' sellers</a></p>' : '') +
-        starsHTML(p) + priceHTML(pr) + stockHTML(p) +
-        '<button class="btn btn--primary btn--sm" type="button" data-add="' + esc(p.id) + '">Add to cart<span class="visually-hidden">: ' + esc(p.title) + '</span></button>' +
+        starsHTML(p) + priceHTML(pr) + (p.commit && ZP.commitRange(p, pr.now) ? '<p class="pmeta pcommit">Or name your price from ' + kwacha(ZP.commitRange(p, pr.now).min) + '</p>' : '') + stockHTML(p) +
+        (ZP.hasOptions(p) || ZP.inBox(p).addons.length || p.commit
+          ? '<a class="btn btn--primary btn--sm" href="' + R + 'product/' + esc(p.id) + '">' + (ZP.hasOptions(p) ? 'Choose options' : 'See options') + '<span class="visually-hidden">: ' + esc(p.title) + '</span></a>'
+          : '<button class="btn btn--primary btn--sm" type="button" data-add="' + esc(p.id) + '">Add to cart<span class="visually-hidden">: ' + esc(p.title) + '</span></button>') +
       '</div></article></li>';
   }
   function cards(list, ranked) { return list.map(function (p, i) { return card(p, ranked ? i + 1 : 0); }).join(''); }
@@ -1198,7 +1231,7 @@
       row('Seller', function (p) { var s = seller(p.seller); return s ? '<a href="' + R + 'store/' + esc(s.id) + '">' + esc(s.name) + '</a>' + verifiedHTML(s) : '–'; }) +
       row('Brand', function (p) { var b = brand(p.brand); return b ? '<a href="' + R + 'brand/' + esc(b.id) + '">' + esc(b.name) + '</a>' : '–'; }) +
       row('Availability', function (p) { return stockHTML(p); }) +
-      row('', function (p) { return '<button class="btn btn--primary btn--sm" type="button" data-add="' + esc(p.id) + '">Add to cart<span class="visually-hidden">: ' + esc(p.title) + '</span></button>' + (removable ? ' <button class="link-btn" type="button" data-compare-remove="' + esc(p.id) + '">Remove<span class="visually-hidden"> ' + esc(p.title) + '</span></button>' : ''); }) +
+      row('', function (p) { return (ZP.hasOptions(p) ? '<a class="btn btn--primary btn--sm" href="' + R + 'product/' + esc(p.id) + '">Choose options<span class="visually-hidden">: ' + esc(p.title) + '</span></a>' : '<button class="btn btn--primary btn--sm" type="button" data-add="' + esc(p.id) + '">Add to cart<span class="visually-hidden">: ' + esc(p.title) + '</span></button>') + (removable ? ' <button class="link-btn" type="button" data-compare-remove="' + esc(p.id) + '">Remove<span class="visually-hidden"> ' + esc(p.title) + '</span></button>' : ''); }) +
       '</tbody></table></div>';
   }
   // Buy box: the same item from other sellers, cheapest first
@@ -1211,10 +1244,59 @@
     }).join('') + '</ul><a href="' + R + 'compare?ids=' + [p.id].concat(others.map(function (x) { return x.id; })).map(encodeURIComponent).join(',') + '">Compare all sellers</a></div>';
   }
 
+  /* ---------- Product page: options, specifications, in the box, commit pricing ---------- */
+  // Colour swatches and size badges are radio buttons, so they work with a keyboard and screen readers.
+  // A combination that's sold out stays selectable (the buy box then says so), like Amazon.
+  function optionsHTML(p, sel) {
+    return ZP.options(p).map(function (o) {
+      var cur = sel[o.key] || '';
+      return '<fieldset class="popt popt--' + o.key + '"><legend>' + o.name + ': <strong data-opt-label="' + o.key + '">' + esc(cur || 'choose one') + '</strong></legend><div class="popt__list">' +
+        o.values.map(function (v, i) {
+          var id = 'po-' + o.key + '-' + i, out = (p.variants || []).length && !ZP.valueInStock(p, o.key, v.label, sel);
+          return '<span class="popt__item' + (out ? ' is-out' : '') + '"><input type="radio" name="po-' + o.key + '" id="' + id + '" value="' + esc(v.label) + '"' + (v.label === cur ? ' checked' : '') + '>' +
+            (o.key === 'colour'
+              ? '<label for="' + id + '" class="swatch" style="--sw:' + esc(v.hex) + '" title="' + esc(v.label) + '"><span class="visually-hidden">' + esc(v.label) + '</span>'
+              : '<label for="' + id + '" class="size-badge">' + esc(v.label)) +
+            '<span class="visually-hidden" data-out-note>' + (out ? ' (sold out)' : '') + '</span></label></span>';
+        }).join('') + '</div></fieldset>';
+    }).join('');
+  }
+  function specsHTML(p) {
+    var a = p.attributes || {}, rows = [];
+    if (a.manufacturer) rows.push(['Manufacturer', esc(a.manufacturer)]);
+    if (a.size) rows.push([ZP.UNITS[a.size.unit] && ZP.UNITS[a.size.unit].dim === 'volume' ? 'Volume' : ZP.UNITS[a.size.unit] && ZP.UNITS[a.size.unit].dim === 'mass' ? 'Weight' : 'Size', esc(ZP.sizeLabel(a.size))]);
+    if (ZP.ages(p).length) rows.push(['Age range', ZP.AGES.filter(function (x) { return ZP.ages(p).indexOf(x[0]) !== -1; }).map(function (x) { return x[1]; }).join(', ')]);
+    ZP.options(p).forEach(function (o) { rows.push([o.key === 'colour' ? 'Colours' : 'Sizes', o.values.map(function (v) { return esc(v.label); }).join(', ')]); });
+    Object.keys(a.specs || {}).forEach(function (k) { rows.push([esc(k), esc(a.specs[k])]); });
+    return rows.length ? '<h2 class="h3">Specifications</h2><table class="specs"><tbody>' + rows.map(function (r) { return '<tr><th scope="row">' + r[0] + '</th><td>' + r[1] + '</td></tr>'; }).join('') + '</tbody></table>' : '';
+  }
+  function inBoxHTML(p) {
+    var box = ZP.inBox(p);
+    if (!box.included.length && !box.addons.length) return '';
+    return '<section class="inbox" aria-labelledby="inbox-title"><h2 class="h3" id="inbox-title">In the box</h2>' +
+      (box.included.length ? '<ul class="inbox__list">' + box.included.map(function (c) { return '<li>' + icon(I.check) + esc(c.item) + '</li>'; }).join('') + '</ul>' : '') +
+      (box.addons.length ? '<fieldset class="inbox__addons"><legend>Optional add-ons</legend><p class="pmeta">Tick any you\'d like. The price updates as you go.</p>' + box.addons.map(function (a) {
+        return '<div class="check"><input type="checkbox" id="pa-' + a.index + '" value="' + a.index + '" data-addon><label for="pa-' + a.index + '">' + esc(a.item) + ' <strong class="inbox__price">+' + kwacha(a.price) + '</strong></label></div>';
+      }).join('') + '</fieldset>' : '') + '</section>';
+  }
+  function commitHTML(range) {
+    if (!range) return '';
+    return '<fieldset class="pmode"><legend class="visually-hidden">How you want to pay</legend>' +
+        '<div class="check"><input type="radio" name="pmode" id="pm-fixed" value="fixed" checked><label for="pm-fixed">Buy now at the listed price</label></div>' +
+        '<div class="check"><input type="radio" name="pmode" id="pm-commit" value="commit"><label for="pm-commit">Name your price</label></div></fieldset>' +
+      '<div class="commit" id="commit-box" hidden>' +
+        '<label for="commit-range">Name your commitment price (Range: ' + kwacha(range.min) + ' – ' + kwacha(range.max) + ')</label>' +
+        '<input type="range" id="commit-range" min="' + range.min + '" max="' + range.max + '" step="1" value="' + range.max + '" aria-describedby="commit-hint">' +
+        '<div class="commit__amt"><span aria-hidden="true">K</span><label for="commit-amt" class="visually-hidden">Your price in Kwacha, per item</label><input id="commit-amt" type="number" min="' + range.min + '" max="' + range.max + '" step="1" value="' + range.max + '" inputmode="numeric"><span class="pmeta">per item</span></div>' +
+        '<p class="hint" id="commit-hint">The seller accepts your price or replies on WhatsApp before you pay. Add-ons are charged at their listed price.</p>' +
+      '</div>';
+  }
+
   /* ---------- Ratings and reviews ---------- */
   function ratingBars(revs) {
+    var sum = ZP.ratingSummary(revs);
     return '<ul class="rbars" aria-label="How buyers rated it">' + [5, 4, 3, 2, 1].map(function (n) {
-      var c = revs.filter(function (v) { return Math.round(Number(v.rating)) === n; }).length, pc = revs.length ? Math.round(c / revs.length * 100) : 0;
+      var c = sum.dist[n], pc = sum.count ? Math.round(c / sum.count * 100) : 0;
       return '<li><span>' + n + ' star</span><span class="rbar" aria-hidden="true"><span style="width:' + pc + '%"></span></span><span>' + pc + '%<span class="visually-hidden"> (' + c + ')</span></span></li>';
     }).join('') + '</ul>';
   }
@@ -1225,6 +1307,7 @@
       '<fieldset class="rate"><legend>Your rating</legend><div class="rate__stars">' + [5, 4, 3, 2, 1].map(function (n) {
         return '<input type="radio" name="rev-rating" id="rr' + n + '" value="' + n + '"' + (n === cur ? ' checked' : '') + '><label for="rr' + n + '" title="' + n + ' – ' + labels[n] + '"><span aria-hidden="true">★</span><span class="visually-hidden">' + n + (n === 1 ? ' star' : ' stars') + ', ' + labels[n] + '</span></label>';
       }).join('') + '</div></fieldset>' +
+      '<div class="field"><label for="rev-head">Headline</label><input id="rev-head" maxlength="120" placeholder="Sum it up in a few words" value="' + esc(mine && mine.title ? mine.title : '') + '"></div>' +
       '<div class="field"><label for="rev-text">Your review</label><textarea id="rev-text" required maxlength="600" placeholder="What did you like or dislike? How was delivery?">' + esc(mine ? mine.text : '') + '</textarea></div>' +
       '<p class="hint">Prototype: your review is saved on this device only.</p><p class="form-status" role="status" tabindex="-1"></p>' +
       '<button class="btn btn--primary" type="submit">' + (mine ? 'Update review' : 'Post review') + '</button></form>';
@@ -1238,7 +1321,7 @@
     return list.map(function (v) {
       var stars = Math.min(5, Math.max(0, Number(v.rating) || 0));
       return '<div class="review"><span class="stars__icons" aria-hidden="true">' + starString(stars) + '</span><span class="visually-hidden">' + stars + ' out of 5</span> <strong>' + esc(v.name) + '</strong> <small>' + niceDate(v.date) + '</small>' +
-        (v.verified ? ' <span class="verified-buy">' + icon(I.check) + 'Verified purchase</span>' : '') + (v.mine ? ' <span class="tag-mine">Your review</span>' : '') + '<p>' + esc(v.text) + '</p></div>';
+        (v.verified ? ' <span class="verified-buy">' + icon(I.check) + 'Verified purchase</span>' : '') + (v.mine ? ' <span class="tag-mine">Your review</span>' : '') + (v.title ? '<h3 class="review__title">' + esc(v.title) + '</h3>' : '') + '<p>' + esc(v.text) + '</p></div>';
     }).join('');
   }
   function pickMonths() { return [thisMonth, lastMonth].filter(function (k) { return topPicks(k).length; }); }
@@ -1340,25 +1423,38 @@
   function ticks(list) { return '<ul class="ticks">' + list.map(function (t) { return '<li>' + icon(I.check) + t + '</li>'; }).join('') + '</ul>'; }
 
   /* Product listing with sort and filters: departments, search, deals, brands, stores, promotions */
+  // Colour and age filters appear only when products in the list have them
+  function facetSelect(id, label, values) {
+    return values.length ? '<label for="' + id + '" class="visually-hidden">' + label + '</label><select id="' + id + '"><option value="">' + label + ': all</option>' +
+      values.map(function (v) { return '<option value="' + esc(v[0]) + '">' + esc(v[1]) + '</option>'; }).join('') + '</select>' : '';
+  }
   function listing(opts) {
+    var colourSet = {}, ageSet = {};
+    opts.list.forEach(function (p) { ZP.colours(p).forEach(function (c) { colourSet[c] = 1; }); ZP.ages(p).forEach(function (a) { ageSet[a] = 1; }); });
+    var colourVals = Object.keys(colourSet).sort().map(function (c) { return [c, c]; });
+    var ageVals = ZP.AGES.filter(function (a) { return ageSet[a[0]]; });
     var html = crumbs(opts.crumbs) + head(opts.title, opts.sub) + (opts.extra || '') +
       '<div class="toolbar"><p class="result-count" id="lst-count" role="status"></p><div class="toolbar__filters">' +
         '<label class="inline-check"><input type="checkbox" id="lst-promo"> On promotion</label>' +
         '<label class="inline-check"><input type="checkbox" id="lst-stock"> In stock</label>' +
+        facetSelect('lst-colour', 'Colour', colourVals) + facetSelect('lst-age', 'Age', ageVals) +
         '<label for="lst-sort" class="visually-hidden">Sort by</label><select id="lst-sort"><option value="">Sort: Relevance</option><option value="asc">Price: low to high</option><option value="desc">Price: high to low</option><option value="rating">Top rated</option></select>' +
       '</div></div><ul class="grid" id="lst-grid"></ul>';
     show(html, opts.docTitle || opts.title);
     var draw = function () {
       var list = opts.list.slice();
       if ($('#lst-promo').checked) list = list.filter(function (p) { var pr = priceOf(p); return pr.promo || pr.was; });
-      if ($('#lst-stock').checked) list = list.filter(function (p) { return p.stock === 'in' || p.stock === 'low'; });
+      if ($('#lst-stock').checked) list = list.filter(function (p) { var st = ZP.stockState(p); return st === 'in' || st === 'low'; });
+      var col = $('#lst-colour') ? $('#lst-colour').value : '', age = $('#lst-age') ? $('#lst-age').value : '';
+      if (col) list = list.filter(function (p) { return ZP.variants(p).some(function (v) { return v.colour === col && v.stock > 0; }) || (!(p.variants || []).length && ZP.colours(p).indexOf(col) !== -1); });
+      if (age) list = list.filter(function (p) { return ZP.ages(p).indexOf(age) !== -1; });
       var sort = $('#lst-sort').value;
       if (sort === 'asc' || sort === 'desc') list.sort(function (a, b) { var d = priceOf(a).now - priceOf(b).now; return sort === 'asc' ? d : -d; });
       if (sort === 'rating') list.sort(function (a, b) { return (ratingOf(b) || { avg: 0 }).avg - (ratingOf(a) || { avg: 0 }).avg; });
       $('#lst-grid').innerHTML = list.length ? cards(list) : '<li class="grid__full">' + empty('Nothing listed here yet. Tell us what you need and we\'ll find it.', askBtn('Hi Zed Supply, I\'m looking for: ')) + '</li>';
       $('#lst-count').textContent = list.length + (list.length === 1 ? ' product' : ' products');
     };
-    ['lst-promo', 'lst-stock', 'lst-sort'].forEach(function (id) { $('#' + id).addEventListener('change', draw); });
+    ['lst-promo', 'lst-stock', 'lst-sort', 'lst-colour', 'lst-age'].forEach(function (id) { var el = $('#' + id); if (el) el.addEventListener('change', draw); });
     draw();
   }
 
@@ -1458,8 +1554,9 @@
       var p = product(id);
       if (!p || (p.source === 'china' && !china)) return views.notfound();
       addRecent(p.id);
-      var pr = priceOf(p), s = seller(p.seller), b = brand(p.brand), d = dept(p.category), r = ratingOf(p), u = user();
-      var buyMsg = 'Hi Zed Supply, I\'d like to buy: ' + p.title + ' (ID ' + p.id + '), price ' + kwacha(pr.now) + ' each.';
+      var s = seller(p.seller), b = brand(p.brand), d = dept(p.category), r = ratingOf(p), u = user();
+      var sel = ZP.hasOptions(p) ? ZP.defaultSelection(p) : {}, v0 = variantOf(p, sel), pr = basePriceOf(p, v0);
+      var range = p.source === 'china' ? null : ZP.commitRange(p, pr.now);
       var revs = reviewsFor(p), mine = revs.filter(function (v) { return v.mine; })[0];
       var bought = orders().filter(function (o) { return !o.sample && Number(o.status) >= 1 && (o.items || []).some(function (it) { return it.id === p.id; }); })[0];
       var similar = p.source === 'china' ? [] : similarTo(p, 3);
@@ -1473,18 +1570,23 @@
             '<h1>' + esc(p.title) + '</h1>' +
             '<p class="pmeta">' + (b ? 'Brand: <a href="#/brand/' + b.id + '">' + esc(b.name) + '</a> · ' : '') + (s ? 'Sold by <a href="#/store/' + s.id + '">' + esc(s.name) + '</a>' + verifiedHTML(s) : '') + '</p>' +
             (r ? starsHTML(p) + '<p><a href="#reviews" data-jump="reviews">' + r.count + (r.count === 1 ? ' review' : ' reviews') + '</a></p>' : '<p class="pmeta">No reviews yet</p>') +
-            priceHTML(pr) +
+            '<div data-price-main>' + priceHTML(pr) + '</div>' +
+            (range ? '<p class="pmeta pcommit">Or name your own price from ' + kwacha(range.min) + ' in the buy box.</p>' : '') +
             (pr.promo ? '<p class="notice">Part of <a href="#/promo/' + pr.promo.id + '">' + esc(pr.promo.title) + '</a>: ' + pr.promo.discount + '% off until ' + niceDate(pr.promo.ends) + '.</p>' : '') +
+            (ZP.hasOptions(p) ? '<div class="popts" id="pdp-opts">' + optionsHTML(p, sel) + '</div>' : '') +
+            inBoxHTML(p) +
             '<h2 class="h3">About this product</h2><p>' + (p.description ? esc(p.description) : '<span class="placeholder">[PRODUCT DESCRIPTION: add a description field in catalogue.js]</span>') + '</p>' +
-            '<p class="pmeta">Category: <a href="#/dept/' + p.category + '">' + esc(d.name) + '</a> · Product ID ' + esc(p.id) + '</p>' +
+            specsHTML(p) +
+            '<p class="pmeta">Category: <a href="#/dept/' + p.category + '">' + esc(d.name) + '</a> · Product ID ' + esc(p.id) + '<span data-sku>' + (v0 ? ' · SKU ' + esc(v0.sku) : '') + '</span></p>' +
           '</div>' +
           '<aside class="buybox" aria-label="Buy this product">' +
-            priceHTML(pr) + stockHTML(p) +
+            '<div data-price-box>' + priceHTML(pr) + '</div><p class="pmeta" id="pdp-total" aria-live="polite"></p><div data-stock>' + stockHTML(p, v0) + '</div>' +
             '<p>' + esc(p.source === 'china' ? p.shipping : S.deliveryText) + '</p>' +
             (sellerCouriers(s).length ? '<p class="pmeta">Ships with ' + sellerCouriers(s).map(function (id) { return esc(courier(id).name); }).join(', ') + '. <a href="help.html#couriers">About couriers</a></p>' : '') +
             '<p class="pmeta"><button class="link-btn" type="button" data-open-location aria-haspopup="dialog"><span data-location-label>Deliver to: set location</span></button></p>' +
             '<div><label for="pdp-qty" class="pmeta">Quantity</label><div class="qty"><button type="button" data-step="-1" data-target="#pdp-qty" aria-label="Decrease quantity">−</button><input id="pdp-qty" type="number" min="1" max="99" value="1" inputmode="numeric"><button type="button" data-step="1" data-target="#pdp-qty" aria-label="Increase quantity">+</button></div></div>' +
-            '<button class="btn btn--primary btn--block" type="button" data-add="' + p.id + '" data-qty-from="#pdp-qty">Add to cart</button>' +
+            commitHTML(range) +
+            '<button class="btn btn--primary btn--block" type="button" id="pdp-add">Add to cart</button>' +
             '<a class="btn btn--secondary btn--block" id="buy-now" href="#" target="_blank" rel="noopener noreferrer">Buy now on WhatsApp</a>' +
             '<p class="pmeta">The final price and delivery are confirmed on WhatsApp before you pay.</p>' +
             '<button class="btn btn--secondary btn--block btn--sm" type="button" id="pdp-compare" aria-pressed="' + inCompare + '">' + (inCompare ? 'In your compare list' : 'Add to compare') + '</button>' +
@@ -1495,16 +1597,83 @@
         (similar.length ? '<section class="section" aria-labelledby="cmp-title"><div class="section-head"><h2 id="cmp-title">Compare with similar items</h2>' +
           '<a href="#/compare?ids=' + [p.id].concat(similarIds).map(encodeURIComponent).join(',') + '">Open full comparison</a></div>' + compareTable([p].concat(similar), false) + '</section>' : '') +
         '<section class="reviews" id="reviews" aria-labelledby="rev-title"><div>' +
-          '<h2 id="rev-title">Customer reviews</h2>' + (r ? starsHTML(p) + '<p class="reviews__avg">' + r.avg.toFixed(1) + ' out of 5 · ' + r.count + (r.count === 1 ? ' rating' : ' ratings') + '</p>' + ratingBars(revs) : '<p>No reviews yet. Be the first to rate it.</p>') +
+          '<h2 id="rev-title">Customer reviews</h2>' + (r ? '<div class="rsum"><p class="rsum__avg"><strong>' + r.avg.toFixed(1) + '</strong><span class="visually-hidden"> out of 5</span></p><div>' + starsHTML(p) + '<p class="reviews__avg">' + r.count + (r.count === 1 ? ' global rating' : ' global ratings') + '</p></div></div>' + ratingBars(revs) : '<p>No reviews yet. Be the first to rate it.</p>') +
           (u ? reviewForm(mine, bought)
             : '<p><a class="btn btn--secondary" href="#/account">Sign in to rate and review</a></p>') +
         '</div><div>' + (revs.length > 1 ? '<div class="field reviews__sort"><label for="rev-sort">Sort reviews</label><select id="rev-sort"><option value="new">Most recent</option><option value="high">Highest rated</option><option value="low">Lowest rated</option><option value="verified">Verified purchases first</option></select></div>' : '') +
-          '<div id="rev-list">' + reviewList(revs, 'new') + '</div></div></section>' +
+          (revs.length ? '<div id="rev-list" class="rev-scroll" tabindex="0" role="region" aria-label="Reviews, ' + revs.length + ' in total">' + reviewList(revs, 'new') + '</div>' : '') + '</div></section>' +
         (related.length ? '<section class="section" aria-labelledby="rel-title"><h2 id="rel-title">More in ' + esc(d.name) + '</h2><ul class="row">' + cards(related) + '</ul></section>' : '');
       show(html, p.title);
-      var qty = $('#pdp-qty'), buy = $('#buy-now');
-      var syncBuy = function () { var m = buyMsg + ' Quantity: ' + Math.max(1, parseInt(qty.value, 10) || 1); buy.setAttribute('data-wa-message', m); buy.href = waUrl(m); };
-      qty.addEventListener('input', syncBuy); syncBuy();
+      // Everything the buyer picks (options, add-ons, their own price) updates the prices,
+      // stock, buttons and the WhatsApp message together.
+      var qty = $('#pdp-qty'), buy = $('#buy-now'), add = $('#pdp-add'), commitBox = $('#commit-box');
+      var cRange = $('#commit-range'), cAmt = $('#commit-amt'), cur = null;
+      var pick = function () {
+        var o = {};
+        ZP.options(p).forEach(function (x) { var c = $('input[name="po-' + x.key + '"]:checked'); if (c) o[x.key] = c.value; });
+        var adds = $$('[data-addon]:checked').map(function (c) { return Number(c.value); });
+        if (adds.length) o.addons = adds;
+        var mode = $('input[name="pmode"]:checked');
+        if (mode && mode.value === 'commit') o.commit = Number(cAmt.value) || 0;
+        return o;
+      };
+      var update = function () {
+        var o = pick(), n = Math.max(1, parseInt(qty.value, 10) || 1), lq = lineQuote(p, o), v = lq.v, q = lq.q;
+        var axes = ZP.options(p), missing = axes.filter(function (x) { return !o[x.key]; });
+        var out = (p.variants || []).length && axes.length && (!v || v.stock <= 0);
+        cur = { opt: o, q: q, v: v, n: n, ok: !missing.length && !out };
+        // Prices: the main column shows the item price, the buy box adds add-ons and the buyer's own price
+        $('[data-price-main]').innerHTML = priceHTML(lq.pr);
+        $('[data-price-box]').innerHTML = q.commit ? '<p class="price"><span class="price__now"><span class="visually-hidden">Your price </span>' + kwacha(q.each) + '</span><span class="price__was"><span class="visually-hidden">listed at </span>' + kwacha(lq.pr.now + q.addTotal) + '</span></p>' : priceHTML({ now: q.each, was: lq.pr.was ? lq.pr.was + q.addTotal : 0 });
+        $('#pdp-total').textContent = (q.addTotal ? kwacha(q.unit) + ' + ' + kwacha(q.addTotal) + ' add-ons. ' : '') + (q.commit ? 'Your offer, pending the seller. ' : '') + (n > 1 || q.addTotal || q.commit ? 'Total for ' + n + ': ' + kwacha(q.each * n) : '');
+        $('[data-stock]').innerHTML = stockHTML(p, v);
+        var sku = $('[data-sku]'); if (sku) sku.textContent = v ? ' · SKU ' + v.sku : '';
+        if (v && v.image) { var img = $('.pdp__media img'); if (img) img.src = v.image; }
+        axes.forEach(function (x) {
+          var lab = $('[data-opt-label="' + x.key + '"]'); if (lab) lab.textContent = o[x.key] || 'choose one';
+          if (!(p.variants || []).length) return;
+          $$('input[name="po-' + x.key + '"]').forEach(function (r) {
+            var soldOut = !ZP.valueInStock(p, x.key, r.value, o);
+            r.parentNode.classList.toggle('is-out', soldOut);
+            $('[data-out-note]', r.parentNode).textContent = soldOut ? ' (sold out)' : '';
+          });
+        });
+        if (cRange && q.range) { cRange.max = cAmt.max = q.range.max; cRange.min = cAmt.min = q.range.min; }
+        add.disabled = !cur.ok;
+        add.textContent = out ? 'Sold out' : missing.length ? 'Choose ' + missing.map(function (x) { return x.name.toLowerCase(); }).join(' and ') : q.commit ? 'Add to cart at ' + kwacha(q.each) : 'Add to cart';
+        buy.classList.toggle('is-disabled', !cur.ok);
+        buy.setAttribute('aria-disabled', String(!cur.ok));
+        var bits = ZP.describe(p, o), m = q.commit
+          ? 'Hi Zed Supply, I\'d like to commit ' + kwacha(q.unit) + ' each for: ' + p.title + ' (ID ' + p.id + (v ? ', SKU ' + v.sku : '') + '). The seller\'s range is ' + kwacha(q.range.min) + ' to ' + kwacha(q.range.max) + '.'
+          : 'Hi Zed Supply, I\'d like to buy: ' + p.title + ' (ID ' + p.id + (v ? ', SKU ' + v.sku : '') + '), price ' + kwacha(q.unit) + ' each.';
+        if (bits) m += ' Options: ' + bits + '.';
+        if (q.addTotal) m += ' With add-ons: ' + kwacha(q.each) + ' each.';
+        m += ' Quantity: ' + n;
+        buy.setAttribute('data-wa-message', m); buy.href = waUrl(m);
+      };
+      $('.pdp').addEventListener('change', function (e) {
+        if (e.target.name === 'pmode') {
+          commitBox.hidden = e.target.value !== 'commit';
+          if (!commitBox.hidden) cAmt.focus();
+        }
+        if (e.target === cAmt) {
+          // Typed prices outside the range snap to the nearest end of it
+          cAmt.value = Math.min(Number(cAmt.max), Math.max(Number(cAmt.min), Math.round(Number(cAmt.value) || Number(cAmt.max))));
+          cRange.value = cAmt.value;
+        }
+        if (e.target.closest('.popts, .inbox, .pmode') || e.target === cAmt) update();
+      });
+      if (cRange) cRange.addEventListener('input', function () { cAmt.value = cRange.value; update(); });
+      if (cAmt) cAmt.addEventListener('input', function () { var n = Number(cAmt.value); if (n >= Number(cAmt.min) && n <= Number(cAmt.max)) { cRange.value = n; update(); } });
+      qty.addEventListener('input', update);
+      update();
+      add.addEventListener('click', function () {
+        if (!cur.ok) return;
+        var o = cur.opt, hasAny = Object.keys(o).length;
+        addToCart(p.id, cur.n, hasAny ? o : undefined);
+        toast('Added to cart: ' + esc(p.title) + (hasAny ? ' (' + esc(ZP.describe(p, o)) + ')' : '') + ' <a href="#/cart">View cart</a>');
+      });
+      buy.addEventListener('click', function (e) { if (!cur.ok) e.preventDefault(); });
       view.onclick = function (e) {
         var j = e.target.closest('[data-jump]');
         if (j) { e.preventDefault(); $('#' + j.getAttribute('data-jump')).scrollIntoView(); }
@@ -1526,7 +1695,8 @@
         if (!$('#rev-text').value.trim()) { st.className = 'form-status is-error'; st.textContent = 'Write a few words about your experience.'; $('#rev-text').focus(); return; }
         var all = store.get('reviews', {});
         all[p.id] = (all[p.id] || []).filter(function (v) { return !v.mine; });
-        all[p.id].push({ name: u.name, rating: Number(picked.value), date: today, text: $('#rev-text').value.trim(), mine: true, verified: false });
+        var headline = cleanText($('#rev-head').value, 120);
+        all[p.id].push({ name: u.name, rating: Number(picked.value), date: today, title: headline, text: $('#rev-text').value.trim(), mine: true, verified: false });
         store.set('reviews', all);
         toast(mine ? 'Your review has been updated' : 'Thanks for your review');
         route();
@@ -1546,7 +1716,7 @@
       }
       var voucher = store.get('voucher', '');
       var sub = 0, save = 0, items = [];
-      lines.forEach(function (l) { var p = product(l.id), pr = priceOf(p), qty = Math.min(99, Math.max(1, parseInt(l.qty, 10) || 1)); sub += pr.now * qty; if (pr.was) save += (pr.was - pr.now) * qty; items.push({ p: p, pr: pr, qty: qty }); });
+      lines.forEach(function (l) { var p = product(l.id), lq = lineQuote(p, l.opt), pr = lq.pr, qty = Math.min(99, Math.max(1, parseInt(l.qty, 10) || 1)); sub += lq.q.each * qty; if (pr.was && !lq.q.commit) save += (pr.was - pr.now) * qty; items.push({ p: p, pr: pr, qty: qty, each: lq.q.each, commit: lq.q.commit, key: lineKey(l), label: ZP.describe(p, l.opt), sku: lq.v ? lq.v.sku : "", opt: l.opt }); });
       var v = voucher ? (D.vouchers || []).filter(function (x) { return x.code === voucher; })[0] : null;
       var vOff = v && sub >= v.minSpend ? Math.round(sub * v.percent / 100) : 0;
       var total = sub - vOff;
@@ -1555,11 +1725,12 @@
           var s = seller(it.p.seller);
           return '<li class="line"><a class="pmedia" href="#/product/' + it.p.id + '" tabindex="-1" aria-hidden="true">' + media(it.p) + '</a><div>' +
             '<a class="line__title" href="#/product/' + it.p.id + '">' + esc(it.p.title) + '</a>' +
-            '<p class="pmeta">' + (s ? 'Sold by ' + esc(s.name) + ' ' : '') + (it.pr.promo ? '<span class="badge">' + esc(it.pr.promo.title) + '</span>' : '') + '</p>' +
-            '<p class="line__price">' + kwacha(it.pr.now * it.qty) + (it.qty > 1 ? ' <small class="pmeta">(' + kwacha(it.pr.now) + ' each)</small>' : '') + '</p>' +
+            '<p class="pmeta">' + (s ? 'Sold by ' + esc(s.name) + ' ' : '') + (it.pr.promo && !it.commit ? '<span class="badge">' + esc(it.pr.promo.title) + '</span>' : '') + '</p>' +
+            (it.label ? '<p class="pmeta line__opts">' + esc(it.label) + (it.commit ? ' <span class="badge">Pending seller</span>' : '') + '</p>' : '') +
+            '<p class="line__price">' + kwacha(it.each * it.qty) + (it.qty > 1 ? ' <small class="pmeta">(' + kwacha(it.each) + ' each)</small>' : '') + '</p>' +
             '<div class="line__actions"><div class="qty"><button type="button" data-step="-1" data-target="#cq' + i + '" aria-label="Decrease quantity of ' + esc(it.p.title) + '">−</button>' +
-            '<input id="cq' + i + '" type="number" min="1" max="99" value="' + it.qty + '" data-cart-qty="' + it.p.id + '" aria-label="Quantity of ' + esc(it.p.title) + '"><button type="button" data-step="1" data-target="#cq' + i + '" aria-label="Increase quantity of ' + esc(it.p.title) + '">+</button></div>' +
-            '<button class="link-btn" type="button" data-remove="' + it.p.id + '">Remove<span class="visually-hidden"> ' + esc(it.p.title) + '</span></button><button class="link-btn" type="button" data-save="' + it.p.id + '">Save for later<span class="visually-hidden">: ' + esc(it.p.title) + '</span></button></div>' +
+            '<input id="cq' + i + '" type="number" min="1" max="99" value="' + it.qty + '" data-cart-qty="' + esc(it.key) + '" aria-label="Quantity of ' + esc(it.p.title) + '"><button type="button" data-step="1" data-target="#cq' + i + '" aria-label="Increase quantity of ' + esc(it.p.title) + '">+</button></div>' +
+            '<button class="link-btn" type="button" data-remove="' + esc(it.key) + '">Remove<span class="visually-hidden"> ' + esc(it.p.title) + '</span></button><button class="link-btn" type="button" data-save="' + esc(it.key) + '">Save for later<span class="visually-hidden">: ' + esc(it.p.title) + '</span></button></div>' +
           '</div></li>';
         }).join('') + '</ul>' + savedHTML +
         '</div><aside class="summary" aria-labelledby="sum-title"><h2 id="sum-title">Order summary</h2>' +
@@ -1586,7 +1757,7 @@
       var co = $('#checkout');
       var buildMsg = function () {
         var m = 'Hi Zed Supply, I\'d like to place an order (ref ' + ref + '):\n' +
-          items.map(function (it, i) { return (i + 1) + '. ' + it.p.title + ' (' + it.p.id + ') x ' + it.qty + ' = ' + kwacha(it.pr.now * it.qty); }).join('\n') +
+          items.map(function (it, i) { return (i + 1) + '. ' + it.p.title + ' (' + it.p.id + (it.sku ? ', SKU ' + it.sku : '') + ')' + (it.label ? ' [' + it.label + ']' : '') + ' x ' + it.qty + ' = ' + kwacha(it.each * it.qty) + (it.commit ? ' (my offer, pending the seller)' : ''); }).join('\n') +
           (vOff ? '\nVoucher ' + v.code + ': -' + kwacha(vOff) : '') + '\nEstimated total: ' + kwacha(total);
         var nm = $('#co-name').value.trim(), note = $('#co-note').value.trim();
         if (nm) m += '\nName: ' + nm;
@@ -1620,7 +1791,7 @@
       co.addEventListener('click', function (e) {
         if (hasCardNumber($('#co-name').value + ' ' + $('#co-note').value)) { e.preventDefault(); toast(esc(CARD_WARNING)); $('#co-note').focus(); return; }
         var list = orders();
-        list.unshift({ ref: ref, date: today, items: items.map(function (it) { return { id: it.p.id, qty: it.qty, price: it.pr.now }; }), total: total, status: 0, deliverTo: locFull(), pay: payChoice, ship: COURIERS.length ? shipSummary() : '', shipId: shipChoice });
+        list.unshift({ ref: ref, date: today, items: items.map(function (it) { return it.opt ? { id: it.p.id, qty: it.qty, price: it.each, opt: it.opt, label: it.label } : { id: it.p.id, qty: it.qty, price: it.each }; }), total: total, status: 0, deliverTo: locFull(), pay: payChoice, ship: COURIERS.length ? shipSummary() : '', shipId: shipChoice });
         store.set('orders', list);
         setCart([]);
         store.set('voucher', '');
@@ -1629,7 +1800,7 @@
       $$('[data-cart-qty]', view).forEach(function (inp) {
         inp.addEventListener('change', function () {
           var c = cart();
-          c.forEach(function (l) { if (l.id === inp.getAttribute('data-cart-qty')) l.qty = Math.min(99, Math.max(1, parseInt(inp.value, 10) || 1)); });
+          c.forEach(function (l) { if (lineKey(l) === inp.getAttribute('data-cart-qty')) l.qty = Math.min(99, Math.max(1, parseInt(inp.value, 10) || 1)); });
           setCart(c); views.cart();
         });
         inp.addEventListener('input', function (e) { if (e.isTrusted === false) inp.dispatchEvent(new Event('change')); });
@@ -1722,7 +1893,7 @@
         }).join('') + '</ol>' +
         (o.sample ? '<p class="pmeta">This is a demo order to show how tracking will look.</p>' : '<p class="pmeta">We update your order once it\'s confirmed on WhatsApp. Prototype: live tracking arrives with full accounts.</p>') +
         askBtn(msg) + '</div>' +
-        '<aside class="summary"><h2>Items</h2><ul class="lines">' + o.items.map(function (it) { var p = product(it.id); return '<li class="line line--plain"><div><a class="line__title" href="#/product/' + it.id + '">' + esc(p ? p.title : it.id) + '</a><p class="pmeta">Quantity ' + (parseInt(it.qty, 10) || 0) + ' · ' + kwacha(it.price * it.qty) + '</p>' +
+        '<aside class="summary"><h2>Items</h2><ul class="lines">' + o.items.map(function (it) { var p = product(it.id); return '<li class="line line--plain"><div><a class="line__title" href="#/product/' + it.id + '">' + esc(p ? p.title : it.id) + '</a><p class="pmeta">' + (it.label ? esc(it.label) + ' · ' : '') + 'Quantity ' + (parseInt(it.qty, 10) || 0) + ' · ' + kwacha(it.price * it.qty) + '</p>' +
           (p && !o.sample ? '<a class="link-btn" href="#/product/' + encodeURIComponent(it.id) + '?review=1">' + (((store.get('reviews', {})[it.id]) || []).some(function (v) { return v.mine; }) ? 'Edit your review' : 'Rate this item') + '<span class="visually-hidden">: ' + esc(p.title) + '</span></a>' : '') + '</div></li>'; }).join('') + '</ul>' +
         '<dl class="totals"><div class="is-total"><dt>Total</dt><dd>' + kwacha(o.total) + '</dd></div></dl>' +
         (o.ship ? '<div class="deliver-box"><p class="deliver-box__label">Delivery</p><p>' + esc(o.ship) + '</p></div>' : '') +
@@ -1787,7 +1958,17 @@
       var myCouriers = sellerCouriers(s);
       show(crumbs([['Seller Centre']]) +
         '<div class="store-hero" style="--brand-a:' + s.colours[0] + ';--brand-b:' + s.colours[1] + '"><h1>' + esc(s.name) + '</h1><p>Seller Centre' + (s.sample ? ' · sample store' : '') + verifiedHTML(s) + '</p></div>' +
-        '<ul class="tiles tiles--5"><li><a href="#/store/' + s.id + '"><strong>' + mine.length + ' products</strong><span>View your store</span></a></li><li><a href="#sc-promos" data-jump="sc-promos"><strong>' + live + ' live</strong><span>Promotions running now</span></a></li><li><a href="#sc-new" data-jump="sc-new"><strong>New</strong><span>Create a promotion</span></a></li><li><a href="#/stock"><strong>Stock planner</strong><span>Reorder levels, overstock and forecasts</span></a></li><li><a href="help.html#selling"><strong>Help</strong><span>Selling on Zed Supply</span></a></li></ul>' +
+        '<ul class="tiles tiles--5"><li><a href="#sc-products" data-jump="sc-products"><strong>' + mine.length + ' products</strong><span>Add and edit products</span></a></li><li><a href="#sc-promos" data-jump="sc-promos"><strong>' + live + ' live</strong><span>Promotions running now</span></a></li><li><a href="#sc-new" data-jump="sc-new"><strong>New</strong><span>Create a promotion</span></a></li><li><a href="#/stock"><strong>Stock planner</strong><span>Reorder levels, overstock and forecasts</span></a></li><li><a href="help.html#selling"><strong>Help</strong><span>Selling on Zed Supply</span></a></li></ul>' +
+        '<section class="card sc-products" id="sc-products" aria-labelledby="sc-pr-title"><div class="section-head"><h2 id="sc-pr-title">Your products</h2><a class="btn btn--primary btn--sm" href="#/listing/new">Add a product</a></div>' +
+          '<p class="pmeta">Set colours, sizes, stock for each combination, what\'s in the box, add-ons and buyer offers. <a href="#/store/' + s.id + '">View your store</a></p>' +
+          (mine.length ? '<ul class="orders">' + mine.map(function (p) {
+            var bits = [kwacha(p.priceZMW)];
+            if ((p.variants || []).length) bits.push(p.variants.length + ' variations, ' + ZP.totalStock(p) + ' in stock');
+            if (ZP.inBox(p).addons.length) bits.push(ZP.inBox(p).addons.length + ' add-ons');
+            if (p.commit) bits.push('offers ' + kwacha(p.commit.min) + '–' + kwacha(p.commit.max));
+            return '<li class="order-row"><span><a href="#/product/' + esc(p.id) + '"><strong>' + esc(p.title) + '</strong></a><br><span class="pmeta">' + esc(p.id) + ' · ' + bits.join(' · ') + (listingsApi.get(p.id) ? ' · edited in this browser' : '') + '</span></span>' +
+              '<a class="link-btn" href="#/listing/' + encodeURIComponent(p.id) + '">Edit<span class="visually-hidden"> ' + esc(p.title) + '</span></a></li>';
+          }).join('') + '</ul>' : '<p>No products yet.</p>') + '</section>' +
         '<div class="duo duo--gap">' +
         '<section class="card" id="sc-promos" aria-labelledby="sc-p-title"><h2 id="sc-p-title">Your promotions</h2>' + (promos.length ? '<ul class="orders">' + promos.map(function (pr) {
           return '<li class="order-row"><span><strong>' + esc(pr.title) + '</strong><br><span class="pmeta">' + esc(season(pr.season).name) + ' · ' + (Number(pr.discount) || 0) + '% off · ' + niceDate(pr.starts) + ' to ' + niceDate(pr.ends) + (pr.image ? ' · with banner image' : '') + '</span></span><span><span class="status">' + promoStatus(pr) + '</span>' + (pr.demo ? ' <button class="link-btn" type="button" data-del-promo="' + esc(pr.id) + '">Delete<span class="visually-hidden"> ' + esc(pr.title) + '</span></button>' : '') + '</span></li>';
@@ -1892,6 +2073,243 @@
       };
     },
 
+    /* Seller Centre: add a product (#/listing/new) or edit one (#/listing/<id>).
+       The department's template in catalogue.js (attributeTemplates) decides which extra
+       fields show. A field the template leaves out still shows if the product already uses it,
+       so switching department never hides data. Everything is kept in `dr` (the draft); each
+       redraw reads the form into it first, so nothing typed is lost. */
+    listing: function (id, q) {
+      var sess = store.get('seller', null), s = sess ? seller(sess.id) : null;
+      if (!s) { location.hash = '#/seller'; return; }
+      var editing = id && id !== 'new' ? product(id) : null;
+      if (id && id !== 'new' && (!editing || editing.seller !== s.id)) return views.notfound();
+      var dr = editing ? JSON.parse(JSON.stringify(editing)) : { title: '', category: '', brand: '', priceZMW: '', wasZMW: '', stock: 'in', description: '', tags: '', image: '', alt: '' };
+      dr.seller = s.id;
+      dr.attributes = dr.attributes || {}; dr.options = dr.options || {}; dr.variants = dr.variants || []; dr.inBox = dr.inBox || [];
+      var specRows = Object.keys(dr.attributes.specs || {}).map(function (k) { return [k, dr.attributes.specs[k]]; });
+      var ctx = { departments: D.departments, brands: D.brands, products: BASE_PRODUCTS };
+      var tpl = function () { return (D.attributeTemplates || {})[dr.category] || { fields: dr.category ? ZP.FIELDS : [] }; };
+      var used = {
+        colour: function () { return (dr.options.colour || []).length; }, size: function () { return (dr.options.size || []).length || dr.attributes.size; },
+        ageRange: function () { return (dr.attributes.ageRange || []).length; }, inBox: function () { return dr.inBox.length; },
+        manufacturer: function () { return dr.attributes.manufacturer; }, specs: function () { return specRows.length; }
+      };
+      var has = function (f) { return tpl().fields.indexOf(f) !== -1 || !!used[f](); };
+      var units = function () { var u = tpl().sizeUnits; return u && u.length ? u : (dr.attributes.size ? [dr.attributes.size.unit] : []); };
+      var addSuggestedSpecs = function () {
+        (tpl().specs || []).forEach(function (k) { if (!specRows.some(function (r) { return r[0].toLowerCase() === k.toLowerCase(); })) specRows.push([k, '']); });
+      };
+      addSuggestedSpecs();
+
+      var fieldHTML = function (fid, label, input, hint) { return '<div class="field" id="lf-f-' + fid + '"><label for="lf-' + fid + '">' + label + '</label>' + input + (hint ? '<p class="hint">' + hint + '</p>' : '') + '</div>'; };
+      var attrsHTML = function () {
+        var t = tpl(), out = '';
+        if (!dr.category) return '<p class="pmeta">Choose a department to see the details buyers look for in it.</p>';
+        if (has('size') && units().length) out += '<div class="field-row lf-size" id="lf-f-size"><div class="field"><label for="lf-size">' + (ZP.UNITS[units()[0]].dim === 'volume' ? 'Volume' : ZP.UNITS[units()[0]].dim === 'mass' ? 'Weight' : 'Size') + ' (one size only)</label><input id="lf-size" type="number" min="0" step="any" inputmode="decimal" value="' + esc(dr.attributes.size ? dr.attributes.size.value : '') + '"><p class="hint">Leave empty if buyers choose a size below.</p></div>' +
+          '<div class="field"><label for="lf-unit">Unit</label><select id="lf-unit">' + units().map(function (u) { return '<option value="' + u + '"' + (dr.attributes.size && dr.attributes.size.unit === u ? ' selected' : '') + '>' + esc(ZP.UNITS[u].name) + '</option>'; }).join('') + '</select></div></div>';
+        if (has('ageRange')) out += '<fieldset class="field" id="lf-f-ageRange"><legend>Age range</legend><div class="checks checks--ages">' + ZP.AGES.map(function (a) {
+          return '<div class="check"><input type="checkbox" id="lf-age-' + a[0] + '" value="' + a[0] + '" data-age' + ((dr.attributes.ageRange || []).indexOf(a[0]) !== -1 ? ' checked' : '') + '><label for="lf-age-' + a[0] + '">' + a[1] + '</label></div>';
+        }).join('') + '</div></fieldset>';
+        if (has('manufacturer')) out += fieldHTML('manufacturer', 'Manufacturer', '<input id="lf-manufacturer" maxlength="80" value="' + esc(dr.attributes.manufacturer || '') + '">', 'Only if it differs from the brand.');
+        if (has('specs')) out += '<fieldset class="field" id="lf-f-specs"><legend>Specifications</legend><p class="hint">Leave a value empty to skip it. Only list what you have checked on the item.</p><div class="lf-rows">' + specRows.map(function (r, i) {
+          return '<div class="lf-row"><label class="visually-hidden" for="lf-sk-' + i + '">Specification name</label><input id="lf-sk-' + i + '" data-spec-key placeholder="Name" maxlength="60" value="' + esc(r[0]) + '">' +
+            '<label class="visually-hidden" for="lf-sv-' + i + '">' + esc(r[0] || 'Specification') + ' value</label><input id="lf-sv-' + i + '" data-spec-val placeholder="Value" maxlength="200" value="' + esc(r[1]) + '">' +
+            '<button class="link-btn" type="button" data-del-spec="' + i + '">Remove<span class="visually-hidden"> ' + esc(r[0] || 'specification') + '</span></button></div>';
+        }).join('') + '</div><button class="btn btn--secondary btn--sm" type="button" data-add-spec>Add a specification</button></fieldset>';
+        if (has('inBox')) out += '<fieldset class="field" id="lf-f-inBox"><legend>In the box</legend><p class="hint">What the buyer gets. An optional add-on is ticked by the buyer and adds its price.</p><div class="lf-rows">' + dr.inBox.map(function (c, i) {
+          var addon = c.addonZMW != null && c.addonZMW !== '';
+          return '<div class="lf-row lf-row--box"><label class="visually-hidden" for="lf-bi-' + i + '">Item</label><input id="lf-bi-' + i + '" data-box-item placeholder="e.g. Charging cable" maxlength="80" value="' + esc(c.item || '') + '">' +
+            '<label class="visually-hidden" for="lf-bk-' + i + '">Included or add-on</label><select id="lf-bk-' + i + '" data-box-kind><option value="included">Included</option><option value="addon"' + (addon ? ' selected' : '') + '>Optional add-on</option></select>' +
+            '<label class="visually-hidden" for="lf-bp-' + i + '">Add-on price in Kwacha</label><input id="lf-bp-' + i + '" data-box-price type="number" min="0" step="1" inputmode="numeric" placeholder="K price"' + (addon ? ' value="' + esc(c.addonZMW) + '"' : ' hidden') + '>' +
+            '<button class="link-btn" type="button" data-del-box="' + i + '">Remove<span class="visually-hidden"> ' + esc(c.item || 'item') + '</span></button></div>';
+        }).join('') + '</div><button class="btn btn--secondary btn--sm" type="button" data-add-box>Add an item</button></fieldset>';
+        return out || '<p class="pmeta">No extra details for this department.</p>';
+      };
+      var varsHTML = function () {
+        var out = '', cols = dr.options.colour || [], sizes = dr.options.size || [];
+        if (has('colour')) out += '<fieldset class="field" id="lf-f-colour"><legend>Colours the buyer can choose</legend><p class="hint">Pick a swatch that matches the real item.</p><div class="lf-rows">' + cols.map(function (c, i) {
+          return '<div class="lf-row lf-row--colour"><label class="visually-hidden" for="lf-cn-' + i + '">Colour name</label><input id="lf-cn-' + i + '" data-col-name placeholder="e.g. Midnight black" maxlength="40" value="' + esc(c.name) + '">' +
+            '<label class="visually-hidden" for="lf-ch-' + i + '">Swatch for ' + esc(c.name || 'this colour') + '</label><input id="lf-ch-' + i + '" data-col-hex type="color" value="' + esc(/^#[0-9a-f]{6}$/i.test(c.hex || '') ? c.hex : '#808080') + '">' +
+            '<button class="link-btn" type="button" data-del-col="' + i + '">Remove<span class="visually-hidden"> ' + esc(c.name || 'colour') + '</span></button></div>';
+        }).join('') + '</div><button class="btn btn--secondary btn--sm" type="button" data-add-col>Add a colour</button></fieldset>';
+        if (has('size')) out += '<fieldset class="field" id="lf-f-sizes"><legend>Sizes the buyer can choose</legend><p class="hint">For example S, M, L, 42, or 500 ml and 1 l. Measured sizes are read with their unit.</p>' +
+          (sizes.length ? '<ul class="lf-chips">' + sizes.map(function (sz, i) { return '<li><span>' + esc(ZP.sizeLabel(sz)) + '</span><button type="button" class="lf-chip-x" data-del-size="' + i + '" aria-label="Remove size ' + esc(ZP.sizeLabel(sz)) + '">×</button></li>'; }).join('') + '</ul>' : '') +
+          '<div class="lf-row"><label class="visually-hidden" for="lf-newsize">New size</label><input id="lf-newsize" maxlength="20" placeholder="Add a size"><button class="btn btn--secondary btn--sm" type="button" data-add-size>Add size</button></div></fieldset>';
+        if (dr.variants.length) {
+          var withC = cols.length > 0, withS = sizes.length > 0;
+          out += '<div class="field" id="lf-f-variants"><p class="lf-label" id="lf-vt">Stock for each combination (' + dr.variants.length + ')</p><p class="hint">Stock 0 shows that combination as sold out. Leave the price empty to use the main price.</p>' +
+            '<div class="cmp lf-matrix" tabindex="0" role="region" aria-labelledby="lf-vt"><table><thead><tr>' + (withC ? '<th scope="col">Colour</th>' : '') + (withS ? '<th scope="col">Size</th>' : '') + '<th scope="col">SKU</th><th scope="col">Stock</th><th scope="col">Price (K)</th></tr></thead><tbody>' +
+            dr.variants.map(function (v, i) {
+              var name = [v.colour, v.size].filter(Boolean).join(' / ');
+              var hex = withC ? ((cols.filter(function (c) { return c.name === v.colour; })[0] || {}).hex || '') : '';
+              return '<tr>' + (withC ? '<th scope="row"><span class="swatch swatch--sm" style="--sw:' + esc(hex) + '" aria-hidden="true"></span> ' + esc(v.colour) + '</th>' : '') + (withS ? (withC ? '<td>' : '<th scope="row">') + esc(v.size) + (withC ? '</td>' : '</th>') : '') +
+                '<td><input data-v-sku="' + i + '" maxlength="40" value="' + esc(v.sku || '') + '" aria-label="SKU for ' + esc(name) + '"></td>' +
+                '<td><input data-v-stock="' + i + '" type="number" min="0" step="1" inputmode="numeric" value="' + esc(v.stock) + '" aria-label="Stock for ' + esc(name) + '"></td>' +
+                '<td><input data-v-price="' + i + '" type="number" min="1" step="1" inputmode="numeric" value="' + esc(v.priceZMW || '') + '" placeholder="Main price" aria-label="Price for ' + esc(name) + ' in Kwacha"></td></tr>';
+            }).join('') + '</tbody></table></div><button class="btn btn--secondary btn--sm" type="button" data-fill-sku>Fill in empty SKUs</button></div>';
+        }
+        return out || '<p class="pmeta">This department doesn\'t use colours or sizes.</p>';
+      };
+      var commitOn = !!dr.commit;
+      var html = crumbs([['Seller Centre', '#/seller'], [editing ? 'Edit product' : 'Add a product']]) +
+        head(editing ? 'Edit ' + esc(editing.title) : 'Add a product', 'Selling as ' + esc(s.name) + '. Fields marked * are required.') +
+        (q && q.get('saved') && editing ? '<div class="notice notice--secure" role="status"><p><strong>Saved.</strong> <a href="#/product/' + esc(editing.id) + '">View the product page</a>. Prototype: saved in this browser only.</p>' +
+          '<details><summary>Copy for catalogue.js</summary><p class="pmeta">To publish it for everyone, paste this into the products list in js/catalogue.js' + (/^data:/.test(editing.image || '') ? ' and save the photo as ' + esc('assets/products/' + editing.id + '.webp') : '') + '.</p><textarea class="lf-code" readonly rows="10" aria-label="Catalogue entry">' + esc(ZP.catalogueEntry(editing)) + ',</textarea><button class="btn btn--secondary btn--sm" type="button" data-copy-entry>Copy</button></details></div>' : '') +
+        '<form class="form form--card lf" id="lf" novalidate>' +
+          '<div class="lf-errors" id="lf-errors" tabindex="-1" hidden></div>' +
+          '<section class="lf-sec" aria-labelledby="lf-h1"><h2 class="h3" id="lf-h1">Basics</h2>' +
+            fieldHTML('title', 'Product name *', '<input id="lf-title" maxlength="120" required value="' + esc(dr.title) + '">', 'Say what it is, its size or capacity, and the pack size, e.g. "Electric kettle, 1.7 litre".') +
+            '<div class="field-row">' + fieldHTML('category', 'Department *', '<select id="lf-category" required><option value="">Choose a department</option>' + D.departments.map(function (x) { return '<option value="' + x.id + '"' + (x.id === dr.category ? ' selected' : '') + '>' + esc(x.name) + '</option>'; }).join('') + '</select>') +
+              fieldHTML('brand', 'Brand', '<select id="lf-brand"><option value="">No brand store</option>' + D.brands.map(function (x) { return '<option value="' + x.id + '"' + (x.id === dr.brand ? ' selected' : '') + '>' + esc(x.name) + '</option>'; }).join('') + '</select>') + '</div>' +
+            fieldHTML('description', 'Description', '<textarea id="lf-description" maxlength="2000">' + esc(dr.description || '') + '</textarea>') +
+            fieldHTML('tags', 'Search words', '<input id="lf-tags" maxlength="200" value="' + esc(dr.tags || '') + '">', 'Other words buyers might search for, separated by spaces.') +
+            '<div class="field-row">' + fieldHTML('image', 'Photo', '<input id="lf-image" type="file" accept="image/jpeg,image/png,image/webp">', 'A square photo of the actual item on a plain background. We crop it to 600 × 600.') +
+              fieldHTML('alt', 'Photo description', '<input id="lf-alt" maxlength="160" value="' + esc(dr.alt || '') + '">', 'What the photo shows, for buyers using screen readers.') + '</div>' +
+            (dr.image ? '<img class="lf-photo" id="lf-photo" src="' + esc(dr.image) + '" alt="Current photo" width="120" height="120">' : '<img class="lf-photo" id="lf-photo" alt="" width="120" height="120" hidden>') +
+          '</section>' +
+          '<section class="lf-sec" aria-labelledby="lf-h2"><h2 class="h3" id="lf-h2">Details</h2><div id="lf-attrs">' + attrsHTML() + '</div></section>' +
+          '<section class="lf-sec" aria-labelledby="lf-h3"><h2 class="h3" id="lf-h3">Variations</h2><div id="lf-vars">' + varsHTML() + '</div></section>' +
+          '<section class="lf-sec" aria-labelledby="lf-h4"><h2 class="h3" id="lf-h4">Price and stock</h2>' +
+            '<div class="field-row">' + fieldHTML('priceZMW', 'Price (K) *', '<input id="lf-priceZMW" type="number" min="1" step="1" inputmode="numeric" required value="' + esc(dr.priceZMW) + '">', 'The Buy now price.') +
+              fieldHTML('wasZMW', 'Was price (K)', '<input id="lf-wasZMW" type="number" min="1" step="1" inputmode="numeric" value="' + esc(dr.wasZMW || '') + '">', 'Only a genuine previous price.') + '</div>' +
+            fieldHTML('stock', 'Stock status', '<select id="lf-stock">' + [['in', 'In stock'], ['low', 'Only a few left'], ['request', 'Sourced on request']].map(function (o) { return '<option value="' + o[0] + '"' + (o[0] === dr.stock ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('') + '</select>', 'With variations, buyers see the stock from the table above instead.') +
+            '<div class="lf-switch"><input type="checkbox" role="switch" id="lf-commit"' + (commitOn ? ' checked' : '') + ' aria-describedby="lf-commit-hint"><label for="lf-commit">Enable buyer offer and commit pricing</label></div>' +
+            '<p class="hint" id="lf-commit-hint">Buyers can name a price between your lowest and target prices. You confirm each offer on WhatsApp. Buyers see the range, including your lowest price.</p>' +
+            '<div class="field-row" id="lf-commit-fields"' + (commitOn ? '' : ' hidden') + '>' + fieldHTML('commitMin', 'Lowest price you\'ll accept (K) *', '<input id="lf-commitMin" type="number" min="1" step="1" inputmode="numeric" value="' + esc(dr.commit ? dr.commit.min : '') + '">') +
+              fieldHTML('commitMax', 'Target price (K) *', '<input id="lf-commitMax" type="number" min="1" step="1" inputmode="numeric" value="' + esc(dr.commit ? dr.commit.max : dr.priceZMW) + '">', 'Usually your Buy now price. It can\'t be higher.') + '</div>' +
+          '</section>' +
+          '<p class="form-status" role="status" tabindex="-1"></p>' +
+          '<div class="btn-row"><button class="btn btn--primary" type="submit">' + (editing ? 'Save changes' : 'Add product') + '</button><a class="btn btn--secondary" href="#/seller">Cancel</a>' +
+            (editing && listingsApi.get(editing.id) ? '<button class="link-btn" type="button" id="lf-delete">' + (byId(BASE_PRODUCTS, editing.id) ? 'Undo my changes' : 'Delete this product') + '</button>' : '') + '</div>' +
+        '</form>';
+      show(html, editing ? 'Edit product' : 'Add a product');
+      var form = $('#lf');
+
+      // Form -> draft
+      var collect = function () {
+        dr.title = $('#lf-title').value; dr.category = $('#lf-category').value; dr.brand = $('#lf-brand').value;
+        dr.description = $('#lf-description').value; dr.tags = $('#lf-tags').value; dr.alt = $('#lf-alt').value;
+        dr.priceZMW = $('#lf-priceZMW').value; dr.wasZMW = $('#lf-wasZMW').value; dr.stock = $('#lf-stock').value;
+        var a = dr.attributes;
+        if ($('#lf-size')) { var sv = $('#lf-size').value.trim(); a.size = sv ? { value: Number(sv), unit: $('#lf-unit').value } : undefined; }
+        if ($('#lf-f-ageRange')) a.ageRange = $$('[data-age]:checked', form).map(function (c) { return c.value; });
+        if ($('#lf-manufacturer')) a.manufacturer = $('#lf-manufacturer').value;
+        if ($('#lf-f-specs')) specRows = $$('[data-spec-key]', form).map(function (k, i) { return [k.value.trim(), $$('[data-spec-val]', form)[i].value.trim()]; });
+        a.specs = {};
+        specRows.forEach(function (r) { if (r[1]) a.specs[r[0]] = r[1]; });
+        if ($('#lf-f-inBox')) dr.inBox = $$('[data-box-item]', form).map(function (it, i) {
+          var kind = $$('[data-box-kind]', form)[i].value, price = $$('[data-box-price]', form)[i].value;
+          return kind === 'addon' ? { item: it.value, addonZMW: price === '' ? 0 : price } : { item: it.value };
+        });
+        if ($('#lf-f-colour')) dr.options.colour = $$('[data-col-name]', form).map(function (n, i) { return { name: n.value.trim(), hex: $$('[data-col-hex]', form)[i].value }; });
+        dr.variants.forEach(function (v, i) {
+          var sk = $('[data-v-sku="' + i + '"]', form); if (!sk) return;
+          v.sku = sk.value.trim(); v.stock = $('[data-v-stock="' + i + '"]', form).value; v.priceZMW = $('[data-v-price="' + i + '"]', form).value;
+        });
+        dr.commit = $('#lf-commit').checked ? { min: $('#lf-commitMin').value, max: $('#lf-commitMax').value } : undefined;
+        if (!(dr.options.colour || []).length) delete dr.options.colour;
+        if (!(dr.options.size || []).length) delete dr.options.size;
+      };
+      var rebuildMatrix = function () {
+        var o = { colour: (dr.options.colour || []).filter(function (c) { return c.name; }), size: dr.options.size || [] };
+        dr.variants = ZP.matrix(o, dr.variants);
+      };
+      var redraw = function (focusSel) {
+        $('#lf-attrs').innerHTML = attrsHTML();
+        $('#lf-vars').innerHTML = varsHTML();
+        var f = focusSel && $(focusSel, form); if (f) f.focus();
+      };
+
+      form.addEventListener('change', function (e) {
+        var t = e.target;
+        if (t.id === 'lf-category') { collect(); addSuggestedSpecs(); redraw(); }
+        else if (t.matches('[data-box-kind]')) { var pr = t.parentNode.querySelector('[data-box-price]'); pr.hidden = t.value !== 'addon'; if (!pr.hidden) pr.focus(); }
+        else if (t.matches('[data-col-name]')) { collect(); rebuildMatrix(); var idx = $$('[data-col-name]', form).indexOf(t); redraw('#lf-cn-' + idx); }
+        else if (t.matches('[data-col-hex]')) { collect(); $('#lf-vars').innerHTML = varsHTML(); }
+        else if (t.id === 'lf-commit') {
+          $('#lf-commit-fields').hidden = !t.checked;
+          if (t.checked) { if (!$('#lf-commitMax').value) $('#lf-commitMax').value = $('#lf-priceZMW').value; $('#lf-commitMin').focus(); }
+        } else if (t.id === 'lf-image') {
+          bannerFromFile(t.files[0], 600, 600, function (img) {
+            var st = $('.form-status', form);
+            if (img === null) { st.className = 'form-status is-error'; st.textContent = 'That photo couldn\'t be used. Choose a JPEG, PNG or WebP under 10 MB.'; return; }
+            if (!img) return;
+            dr.image = img;
+            var ph = $('#lf-photo'); ph.src = img; ph.alt = 'New photo'; ph.hidden = false;
+          });
+        }
+      });
+      var addSize = function () {
+        var inp = $('#lf-newsize'), val = inp.value.trim();
+        if (!val) return inp.focus();
+        collect();
+        var sz = ZP.parseSize(val), label = ZP.sizeLabel(sz).toLowerCase();
+        dr.options.size = dr.options.size || [];
+        if (!dr.options.size.some(function (x) { return ZP.sizeLabel(x).toLowerCase() === label; })) dr.options.size.push(sz);
+        rebuildMatrix(); redraw('#lf-newsize');
+      };
+      form.addEventListener('keydown', function (e) { if (e.key === 'Enter' && e.target.id === 'lf-newsize') { e.preventDefault(); addSize(); } });
+      form.addEventListener('click', function (e) {
+        var t = e.target.closest('button');
+        if (!t || t.type === 'submit') return;
+        var n = function (attr) { return Number(t.getAttribute(attr)); };
+        if (t.hasAttribute('data-add-spec')) { collect(); specRows.push(['', '']); redraw('#lf-sk-' + (specRows.length - 1)); }
+        else if (t.hasAttribute('data-del-spec')) { collect(); specRows.splice(n('data-del-spec'), 1); redraw('[data-add-spec]'); }
+        else if (t.hasAttribute('data-add-box')) { collect(); dr.inBox.push({ item: '' }); redraw('#lf-bi-' + (dr.inBox.length - 1)); }
+        else if (t.hasAttribute('data-del-box')) { collect(); dr.inBox.splice(n('data-del-box'), 1); redraw('[data-add-box]'); }
+        else if (t.hasAttribute('data-add-col')) { collect(); dr.options.colour = (dr.options.colour || []).concat([{ name: '', hex: '#808080' }]); redraw('#lf-cn-' + (dr.options.colour.length - 1)); }
+        else if (t.hasAttribute('data-del-col')) { collect(); dr.options.colour.splice(n('data-del-col'), 1); rebuildMatrix(); redraw('[data-add-col]'); }
+        else if (t.hasAttribute('data-add-size')) addSize();
+        else if (t.hasAttribute('data-del-size')) { collect(); dr.options.size.splice(n('data-del-size'), 1); rebuildMatrix(); redraw('#lf-newsize'); }
+        else if (t.hasAttribute('data-fill-sku')) {
+          collect();
+          dr.variants.forEach(function (v) { if (!v.sku) v.sku = ZP.skuFor(editing ? editing.id : dr.title, v); });
+          redraw('[data-fill-sku]');
+        }
+      });
+      form.addEventListener('submit', function (e) {
+        e.preventDefault();
+        collect();
+        $$('[aria-invalid]', form).forEach(function (x) { x.removeAttribute('aria-invalid'); });
+        var res = editing ? listingsApi.update(editing.id, dr, ctx) : listingsApi.create(dr, ctx), box = $('#lf-errors');
+        if (!res.ok) {
+          box.hidden = false;
+          box.innerHTML = '<h2 class="h3">Please fix ' + (res.errors.length === 1 ? 'this' : 'these ' + res.errors.length + ' things') + '</h2><ul>' + res.errors.map(function (er) {
+            var wrap = $('#lf-f-' + er.field), ctl = wrap && $('input, select, textarea', wrap);
+            if (ctl) ctl.setAttribute('aria-invalid', 'true');
+            return '<li>' + (ctl ? '<a href="#lf-f-' + er.field + '" data-goto="' + er.field + '">' + esc(er.message) + '</a>' : esc(er.message)) + '</li>';
+          }).join('') + '</ul>';
+          box.focus();
+          return;
+        }
+        loadProducts();
+        toast((editing ? 'Changes saved' : 'Product added') + (res.stored ? '' : '. This browser\'s storage is full, so it lasts until you close the page.'));
+        var to = '#/listing/' + encodeURIComponent(res.product.id) + '?saved=1';
+        if (location.hash === to) route(); else location.hash = to;
+      });
+      $('#lf-errors').addEventListener('click', function (e) {
+        var a = e.target.closest('[data-goto]'); if (!a) return;
+        e.preventDefault();
+        var wrap = $('#lf-f-' + a.getAttribute('data-goto')), ctl = wrap && $('input, select, textarea', wrap);
+        if (ctl) ctl.focus();
+      });
+      var del = $('#lf-delete');
+      if (del) del.addEventListener('click', function () {
+        listingsApi.remove(editing.id);
+        loadProducts();
+        toast(byId(BASE_PRODUCTS, editing.id) ? 'Your changes were undone' : 'Product deleted');
+        location.hash = '#/seller';
+      });
+      var cp = $('[data-copy-entry]');
+      if (cp) cp.addEventListener('click', function () {
+        var ta = $('.lf-code');
+        ta.select();
+        var done = function () { toast('Copied'); };
+        if (navigator.clipboard) navigator.clipboard.writeText(ta.value).then(done, function () { document.execCommand('copy'); done(); });
+        else { document.execCommand('copy'); done(); }
+      });
+    },
+
     // Stock planner: js/stock-planner.js is fetched the first time this opens
     stock: function () {
       show(crumbs([['Seller Centre', '#/seller'], ['Stock planner']]) +
@@ -1984,8 +2402,8 @@
     view.onclick = function (e) {
       var rm = e.target.closest('[data-remove]'), sv = e.target.closest('[data-save]'), ad = e.target.closest('[data-add]');
       if (rm || sv) {
-        var id = (rm || sv).getAttribute(rm ? 'data-remove' : 'data-save');
-        setCart(cart().filter(function (l) { return l.id !== id; }));
+        var key = (rm || sv).getAttribute(rm ? 'data-remove' : 'data-save'), id = key.split('|')[0];
+        setCart(cart().filter(function (l) { return lineKey(l) !== key; }));
         if (sv) { var s2 = store.get('saved', []); if (s2.indexOf(id) === -1) s2.push(id); store.set('saved', s2); toast('Saved for later'); }
         views.cart();
       }
