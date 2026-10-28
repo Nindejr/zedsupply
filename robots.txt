@@ -1,4 +1,7 @@
 # Zed Supply robots.txt
+# While the site lives at nindejr.github.io/zedsupply/, crawlers don't read this file:
+# they only look at a domain's root. It takes effect once the site has its own domain.
+# Until then, submit the sitemap in Google Search Console and Bing Webmaster Tools.
 # Every crawler may read the whole site. The groups below name the major
 # search engines and AI crawlers explicitly, so it is clear they are welcome.
 
@@ -86,4 +89,4 @@ Allow: /
 User-agent: meta-externalagent
 Allow: /
 
-Sitemap: https://SITE_URL/sitemap.xml
+Sitemap: https://nindejr.github.io/zedsupply/sitemap.xml

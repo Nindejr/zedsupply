@@ -3,4 +3,4 @@
 Contact: mailto:expresszambezi@gmail.com
 Expires: 2027-10-27T00:00:00.000Z
 Preferred-Languages: en
-Canonical: https://SITE_URL/.well-known/security.txt
+Canonical: https://nindejr.github.io/zedsupply/.well-known/security.txt

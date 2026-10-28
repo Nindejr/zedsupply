@@ -1,12 +1,12 @@
 # Zed Supply: full text of every page
 
-> The complete text content of the Zed Supply website (https://SITE_URL/), one page per section. Navigation menus, the shared footer and form fields are summarised once at the end rather than repeated. Details the business has not yet published are marked "Not yet published".
+> The complete text content of the Zed Supply website (https://nindejr.github.io/zedsupply/), one page per section. Navigation menus, the shared footer and form fields are summarised once at the end rather than repeated. Details the business has not yet published are marked "Not yet published".
 
 ---
 
 # Page: Homepage
 
-URL: https://SITE_URL/
+URL: https://nindejr.github.io/zedsupply/
 
 # Zed Supply: Everything Within Reach
 
@@ -95,7 +95,7 @@ Zed Supply is a Zambia-based e-commerce business building an online marketplace 
 
 # Page: Help Centre
 
-URL: https://SITE_URL/help.html
+URL: https://nindejr.github.io/zedsupply/help.html
 
 # How can we help?
 
@@ -271,7 +271,7 @@ A contact form asks for your name, email, phone or WhatsApp number (optional; in
 
 # Page: Privacy policy
 
-URL: https://SITE_URL/privacy.html
+URL: https://nindejr.github.io/zedsupply/privacy.html
 
 # Privacy policy
 
