@@ -1039,7 +1039,13 @@ input, select, textarea { border-color: #737F96; }
   border: 1.5px solid #737F96; border-radius: var(--radius-sm); cursor: pointer;
   font-weight: 600; color: var(--color-text); background: var(--color-bg);
 }
+.pay-option label { flex-wrap: wrap; }
 .pay-option label small { margin-left: auto; font-weight: 500; color: var(--color-muted); font-size: 0.8rem; }
+/* A full-sentence note (bank, card, cash) sits on its own line under the name */
+.pay-option label small.pay-note { flex-basis: 100%; margin-left: 1.45rem; line-height: 1.35; }
+.pay-guide { list-style: none; margin: 0 0 1rem; padding: 0; display: grid; gap: 0.5rem; }
+.pay-guide li { max-width: none; }
+.pay-guide .paychip__dot { display: inline-block; margin-right: 0.45rem; vertical-align: 0.05em; }
 .pay-option input:checked + label { border-color: var(--color-accent-ink); box-shadow: 0 0 0 1px var(--color-accent-ink), inset 0 0 0 9999px rgb(76 194 26 / 0.08); }
 .pay-option input:checked + label::after { content: "✓"; margin-left: 0.5rem; color: var(--color-accent-ink); font-weight: 700; }
 .pay-option input:focus-visible + label { outline: 3px solid var(--color-focus); outline-offset: 2px; }

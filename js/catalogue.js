@@ -45,10 +45,27 @@ window.ZS_CATALOGUE = {
     // one. Never publish merchant codes or till numbers here: payment instructions are
     // sent on WhatsApp after the order is confirmed. Customers approve the payment on
     // their own phone; Zed Supply never asks for a PIN.
+    //
+    // kind: 'mobile' (mobile money), 'bank' (bank transfer or bank app), 'card' (a secure
+    // payment link from a licensed payment provider) or 'cash' (cash on delivery).
+    // note: one line for buyers, shown at checkout and in the help centre.
+    // The bank, card and cash methods are off until their accounts are open: switch one on
+    // with enabled: true. preview: true shows it in demo mode (?demo=1) so it can be tried first.
+    // Cards: Zed Supply never takes card numbers. Open an account with a payment provider
+    // licensed by the Bank of Zambia, then send buyers its secure payment link on WhatsApp;
+    // name the provider in `provider` so the help centre and privacy policy can say who it is.
+    // Only list card networks the provider account actually accepts.
     paymentMethods: [
-      { id: 'mtn', name: 'MTN MoMo', kind: 'Mobile money', colour: '#FFCB05', enabled: true },
-      { id: 'airtel', name: 'Airtel Money', kind: 'Mobile money', colour: '#E4002B', enabled: true },
-      { id: 'zamtel', name: 'Zamtel Mobile Money', kind: 'Mobile money', colour: '#00A651', enabled: true }
+      { id: 'mtn', name: 'MTN MoMo', kind: 'mobile', colour: '#FFCB05', enabled: true },
+      { id: 'airtel', name: 'Airtel Money', kind: 'mobile', colour: '#E4002B', enabled: true },
+      { id: 'zamtel', name: 'Zamtel Mobile Money', kind: 'mobile', colour: '#00A651', enabled: true },
+      { id: 'bank', name: 'Bank transfer', kind: 'bank', colour: '#0057AE', enabled: false, preview: true,
+        note: 'Pay from your bank app, internet banking or at a branch. We send our account details on WhatsApp.' },
+      { id: 'card', name: 'Visa or Mastercard', kind: 'card', colour: '#E2A93A', enabled: false, preview: true,
+        networks: ['Visa', 'Mastercard'], provider: '[PAYMENT PROVIDER]',
+        note: 'Pay on our payment provider\'s secure page. We send you the link on WhatsApp.' },
+      { id: 'cod', name: 'Cash on delivery', kind: 'cash', colour: '#198A00', enabled: false, preview: true,
+        note: 'Pay the rider in cash when your order arrives, where available. We confirm on WhatsApp.' }
     ],
 
     // ---- Mobile apps ----

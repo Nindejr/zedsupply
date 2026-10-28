@@ -614,13 +614,35 @@
     reader.readAsDataURL(file);
   }
 
-  /* ---------- Payment methods (mobile money) ---------- */
+  /* ---------- Payment methods ----------
+     Mobile money, bank transfer, cards (a secure link from a payment provider) and cash on
+     delivery, as set in catalogue.js. Only switched-on methods show; demo mode also shows those
+     marked preview. Nothing here takes payment details: instructions follow on WhatsApp. */
   var payChoice = '';   // the customer's preferred method for this cart; kept in memory only
-  function payMethods() { return (S.paymentMethods || []).filter(function (m) { return m.enabled !== false; }); }
+  var PAY_KINDS = { mobile: 'Mobile money', bank: 'Bank transfer', card: 'Card payments', cash: 'Cash on delivery' };
+  // What the WhatsApp order asks for, by kind
+  var PAY_ASK = { bank: 'please send your bank details', card: 'please send me a secure card payment link', cash: 'please confirm cash on delivery to my area' };
+  function payMethods() { return (S.paymentMethods || []).filter(function (m) { return m.enabled !== false || (DEMO && m.preview); }); }
+  function payKind(m) { return PAY_KINDS[m.kind] ? m.kind : 'mobile'; }
+  function payByName(name) { return payMethods().filter(function (m) { return m.name === name; })[0] || null; }
+  // "Pay with mobile money" while that's all there is, "Ways to pay" once there's more
+  function payHeading() { return payMethods().every(function (m) { return payKind(m) === 'mobile'; }) ? 'Pay with mobile money' : 'Ways to pay'; }
   function payChipsHTML() {
-    return '<ul class="paychips" aria-label="Mobile money we accept">' + payMethods().map(function (m) {
+    return '<ul class="paychips" aria-label="' + payHeading() + '">' + payMethods().map(function (m) {
       return '<li class="paychip"><span class="paychip__dot" style="--pay:' + esc(m.colour || '#4CC21A') + '" aria-hidden="true"></span>' + esc(m.name) + '</li>';
     }).join('') + '</ul>';
+  }
+  // Help centre: each method with its note, grouped by kind
+  function payGuideHTML() {
+    return Object.keys(PAY_KINDS).map(function (k) {
+      var list = payMethods().filter(function (m) { return payKind(m) === k; });
+      if (!list.length) return '';
+      return '<h3>' + PAY_KINDS[k] + '</h3><ul class="pay-guide">' + list.map(function (m) {
+        return '<li><span class="paychip__dot" style="--pay:' + esc(m.colour || '#4CC21A') + '" aria-hidden="true"></span><strong>' + esc(m.name) + '</strong>' +
+          (m.note ? ' <span>' + esc(m.note) + '</span>' : '') +
+          (k === 'card' && m.provider && !/^\[/.test(m.provider) ? ' <span>Payments are processed by ' + esc(m.provider) + '.</span>' : '') + '</li>';
+      }).join('') + '</ul>';
+    }).join('');
   }
   /* ---------- Courier options (js/couriers.js) ----------
      Every ZICTA-licensed postal and courier operator, plus profiles of well-known couriers.
@@ -741,17 +763,21 @@
   function payChoiceHTML() {
     var list = payMethods();
     if (!list.length) return '';
-    var opt = function (value, label, sub, colour) {
+    var opt = function (value, label, sub, colour, note) {
       return '<div class="pay-option"><input type="radio" name="co-pay" id="co-pay-' + (value ? esc(value).replace(/\W+/g, '-').toLowerCase() : 'later') + '" value="' + esc(value) + '"' + (payChoice === value ? ' checked' : '') + '>' +
-        '<label for="co-pay-' + (value ? esc(value).replace(/\W+/g, '-').toLowerCase() : 'later') + '">' + (colour ? '<span class="paychip__dot" style="--pay:' + esc(colour) + '" aria-hidden="true"></span>' : '') + esc(label) + (sub ? '<small>' + esc(sub) + '</small>' : '') + '</label></div>';
+        '<label for="co-pay-' + (value ? esc(value).replace(/\W+/g, '-').toLowerCase() : 'later') + '">' + (colour ? '<span class="paychip__dot" style="--pay:' + esc(colour) + '" aria-hidden="true"></span>' : '') + esc(label) + (sub ? '<small' + (note ? ' class="pay-note"' : '') + '>' + esc(sub) + '</small>' : '') + '</label></div>';
     };
+    // Mobile money shows its kind beside the name; bank, card and cash show their note underneath
     return '<fieldset class="field pay-choice"><legend>How would you like to pay?</legend>' +
-      list.map(function (m) { return opt(m.name, m.name, m.kind, m.colour); }).join('') +
+      list.map(function (m) { return opt(m.name, m.name, m.note || PAY_KINDS[payKind(m)], m.colour, !!m.note); }).join('') +
       opt('', 'Decide on WhatsApp', '', '') +
       '</fieldset>';
   }
   // Fill every "we accept" spot on the page (footer, help centre)
-  $$('[data-pay-methods]').forEach(function (el) { if (payMethods().length) el.innerHTML = payChipsHTML(); });
+  // data-pay-methods="guide" (help centre) lists each method with its note; otherwise chips.
+  // data-pay-heading follows what's on offer: "Pay with mobile money" or "Ways to pay".
+  $$('[data-pay-methods]').forEach(function (el) { if (payMethods().length) el.innerHTML = el.getAttribute('data-pay-methods') === 'guide' ? payGuideHTML() : payChipsHTML(); });
+  $$('[data-pay-heading]').forEach(function (el) { if (payMethods().length) el.textContent = payHeading(); });
 
   // App store buttons (footer): each becomes a link once its address is set in settings.apps
   var APPS = S.apps || {};
@@ -1683,7 +1709,7 @@
             '<p class="pmeta">The final price and delivery are confirmed on WhatsApp before you pay.</p>' +
             '<button class="btn btn--secondary btn--block btn--sm" type="button" id="pdp-compare" aria-pressed="' + inCompare + '">' + (inCompare ? 'In your compare list' : 'Add to compare') + '</button>' +
             alsoSoldHTML(p) +
-            (payMethods().length ? '<div class="buybox__pay"><p class="pmeta">Pay with mobile money</p>' + payChipsHTML() + '</div>' : '') +
+            (payMethods().length ? '<div class="buybox__pay"><p class="pmeta">' + payHeading() + '</p>' + payChipsHTML() + '</div>' : '') +
           '</aside>' +
         '</div>' +
         (similar.length ? '<section class="section" aria-labelledby="cmp-title"><div class="section-head"><h2 id="cmp-title">Compare with similar items</h2>' +
@@ -1895,7 +1921,7 @@
         if (nm) m += '\nName: ' + nm;
         if (note) m += '\nNotes: ' + note;
         if (COURIERS.length) m += '\nDelivery: ' + shipSummary();
-        if (payChoice) m += '\nPayment: ' + payChoice;
+        if (payChoice) { var pm = payByName(payChoice); m += '\nPayment: ' + payChoice + (pm && PAY_ASK[payKind(pm)] ? ' (' + PAY_ASK[payKind(pm)] + ')' : ''); }
         return m;
       };
       // data-wa-message lets refreshLoc() update the link when the delivery location changes
