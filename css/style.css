@@ -11,15 +11,15 @@
   --color-accent-ink: #1A6B0E;  /* darker accent for link text on light backgrounds */
   --color-teal: #1BCCBF;        /* decorative only, never for text */
   --color-text: #1A2238;
-  --color-bg: #F5F5F5;          /* white smoke: softer than pure white */
-  --color-bg-alt: #ECEEF1;      /* tint for alternating sections */
+  --color-bg: #EEEEEE;          /* light grey page, so white section panels stand out */
+  --color-bg-alt: #EEEEEE;      /* sections are separated by panels, not tinted bands */
 
   /* Derived */
   --color-heading: var(--color-primary);
   --color-muted: #4A5670;
-  --color-surface: #FAFAFA;     /* cards and panels, a touch lighter than the page */
-  --color-surface-2: #E8ECF1;
-  --color-border: #D3DAE4;
+  --color-surface: #FFFFFF;     /* section panels, cards and the buy box */
+  --color-surface-2: #F0F2F5;
+  --color-border: #DCDFE4;
   --color-header: #0A2A66;
   --color-subnav: #0B3A85;
   --color-footer: #071D47;
@@ -775,9 +775,9 @@ h1[tabindex="-1"]:focus { outline: none; }
 .chip img { display: inline-block; width: 20px; height: 20px; vertical-align: middle; }
 .pmedia__emoji img { position: static; width: 60px; height: 60px; }
 .data-saver .pmedia__emoji img { display: block; }
-/* Product photos: in light mode their white backgrounds blend into the soft page tone */
+/* Product photos: in light mode their white backgrounds blend into the card */
 .pmedia > img { object-fit: contain; background: transparent; mix-blend-mode: multiply; }
-.pmedia { background: var(--color-bg); }
+.pmedia { background: var(--color-surface); }
 /* The category icon behind each photo is only a fallback: hide it while the photo shows */
 html:not(.data-saver) .pmedia:has(> img:not(.is-broken)) > .pmedia__emoji { visibility: hidden; }
 @media (prefers-color-scheme: dark) { .pmedia > img { background: #f7f9fc; mix-blend-mode: normal; } .pmedia { background: var(--color-surface-2); } }
@@ -1299,3 +1299,22 @@ a.app-btn[href]:hover { border-color: #F5C542; box-shadow: 0 0 0 1px rgb(245 197
 .site-footer::before { content: ""; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: var(--gold-gloss); }
 .theme-zambia .site-footer::before { display: none; }
 .footer-extras .footer-pay, .footer-extras .footer-apps { margin-top: 0; }
+
+/* ---------- Sections as white panels on a light grey page ----------
+   Each content section sits on its own rounded panel with a thin gold top line, so the
+   sections stand clearly apart from the page. Full-width banners keep their own colour:
+   the hero, the Sell on Zed Supply band and the blue page headers. */
+.section { padding-block: clamp(0.4rem, 1.2vw, 0.75rem); }
+.section--alt { background: transparent; }
+main .section:not(.sell-band) > .container {
+  position: relative; width: calc(100% - 32px);
+  padding-block: clamp(1.1rem, 3vw, 1.75rem);
+  background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius);
+  box-shadow: 0 1px 2px rgb(10 42 102 / 0.05), 0 6px 18px rgb(10 42 102 / 0.06);
+}
+@media (min-width: 768px) { main .section:not(.sell-band) > .container { width: calc(100% - 48px); max-width: calc(1320px - 48px); } }
+main .section:not(.sell-band) > .container::before { content: ""; position: absolute; top: -1px; left: 18px; right: 18px; height: 2px; border-radius: 2px; background: var(--gold-gloss); }
+.theme-zambia main .section:not(.sell-band) > .container::before { background: var(--zm-stripe); }
+.sell-band { margin-block: clamp(0.4rem, 1.2vw, 0.75rem); }
+main > #home > .section:last-child, main > .section:last-child { padding-bottom: clamp(1rem, 3vw, 1.75rem); }
+@media (prefers-color-scheme: dark) { main .section:not(.sell-band) > .container { box-shadow: 0 1px 2px rgb(0 0 0 / 0.3), 0 6px 18px rgb(0 0 0 / 0.25); } }
