@@ -512,6 +512,17 @@ a.tile { text-decoration: none; }
 .pdp__media { position: relative; }
 .pdp__media .pmedia { border-radius: var(--radius); }
 .pdp__media .pmedia__emoji { font-size: 7rem; }
+.pzoom-ready { cursor: zoom-in; }
+.pzoom-ready:focus-visible { outline: 3px solid var(--color-focus); outline-offset: 4px; }
+.pzoom-hint { margin: .75rem .5rem .25rem; color: var(--color-muted); font-size: .8rem; text-align: center; }
+.pzoom-panel {
+  position: fixed; z-index: 180; overflow: hidden; pointer-events: auto;
+  border: 1px solid rgb(183 144 64 / .65); border-radius: var(--radius);
+  background: #F7F9FC;
+  box-shadow: 0 20px 48px rgb(10 42 102 / .24), 0 0 0 4px rgb(255 255 255 / .45);
+}
+.pzoom-panel > img { position: absolute; left: 0; top: 0; max-width: none; object-fit: fill; pointer-events: none; user-select: none; }
+@media print { .pzoom-panel, .pzoom-hint { display: none !important; } }
 .pdp h1 { font-size: clamp(1.4rem, 4.5vw, 2rem); }
 .pdp .price__now { font-size: 2rem; }
 .buybox { padding: 1.1rem; border: 1px solid var(--color-border); border-radius: var(--radius); display: grid; gap: 0.75rem; background: var(--color-surface); }

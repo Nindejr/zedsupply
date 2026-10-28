@@ -1048,6 +1048,11 @@
      STORE (index.html only)
      ===================================================================== */
   var home = $('#home'), view = $('#view');
+  var productZoomCleanup = null;
+  function clearProductZoom() {
+    if (productZoomCleanup) productZoomCleanup();
+    productZoomCleanup = null;
+  }
   var homeTitle = document.title;
 
   /* ---------- Advertising banner (carousel) ---------- */
@@ -1409,6 +1414,7 @@
   }
 
   function show(html, title) {
+    clearProductZoom();
     stopAds();
     home.hidden = true;
     view.hidden = false;
@@ -1699,6 +1705,7 @@
       if (cAmt) cAmt.addEventListener('input', function () { var n = Number(cAmt.value); if (n >= Number(cAmt.min) && n <= Number(cAmt.max)) { cRange.value = n; update(); } });
       qty.addEventListener('input', update);
       update();
+      if (window.ZSProductZoom) productZoomCleanup = window.ZSProductZoom.mount($('.pdp__media .pmedia'));
       add.addEventListener('click', function () {
         if (!cur.ok) return;
         var o = cur.opt, hasAny = Object.keys(o).length;
@@ -2461,6 +2468,7 @@
   }
 
   function route() {
+    clearProductZoom();
     view.onclick = null;
     var h = location.hash;
     if (h.indexOf('#/') !== 0 || h === '#/') {
