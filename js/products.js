@@ -35,6 +35,9 @@
   var EDITED = ['title', 'category', 'brand', 'priceZMW', 'wasZMW', 'stock', 'image', 'alt', 'tags', 'description', 'attributes', 'options', 'variants', 'inBox', 'commit'];
 
   function num(v) { var n = Number(v); return isFinite(n) ? n : NaN; }
+  function money(v) { return Math.round((num(v) + Number.EPSILON) * 100) / 100; }
+  function validMoney(v) { var n = num(v); return n >= 0 && n <= 9999999999.99 && Math.abs(n * 100 - Math.round(n * 100)) < 0.0001; }
+  function validMeasure(v) { var n = num(v); return n > 0 && n <= 9999999.999 && Math.abs(n * 1000 - Math.round(n * 1000)) < 0.000001; }
   function text(v, max) { return String(v == null ? '' : v).replace(/\s+/g, ' ').trim().slice(0, max || 200); }
   function copy(o) { return JSON.parse(JSON.stringify(o)); }
 
@@ -60,7 +63,7 @@
     return out;
   }
   function hasOptions(p) { return options(p).length > 0; }
-  function comboKey(sel) { return (sel.colour || '') + '|' + (sel.size || ''); }
+  function comboKey(sel) { return JSON.stringify([sel.colour || '', sel.size || '']); }
   function variants(p) { return (p.variants || []).map(function (v) { return { sku: v.sku, colour: v.colour || '', size: v.size || '', stock: Math.max(0, parseInt(v.stock, 10) || 0), priceZMW: v.priceZMW > 0 ? Number(v.priceZMW) : 0, image: v.image || '' }; }); }
   // sel: { colour, size }; an axis the product doesn't have is ignored
   function findVariant(p, sel) {
@@ -94,14 +97,16 @@
     (colours.length ? colours : ['']).forEach(function (c) {
       (sizes.length ? sizes : ['']).forEach(function (s) {
         var was = keep[comboKey({ colour: c, size: s })] || {};
-        out.push({ sku: was.sku || '', colour: c, size: s, stock: was.stock != null ? was.stock : 0, priceZMW: was.priceZMW || '' });
+        out.push({ sku: was.sku || '', colour: c, size: s, stock: was.stock != null ? was.stock : 0, priceZMW: was.priceZMW || '', image: was.image || '' });
       });
     });
     return out;
   }
   function skuFor(id, v) {
     var part = function (s) { return String(s || '').toUpperCase().replace(/[^A-Z0-9]+/g, '').slice(0, 4); };
-    return ['ZS', part(id) || 'NEW', part(v.colour), part(v.size)].filter(Boolean).join('-');
+    var hash = 0, key = comboKey(v);
+    for (var i = 0; i < key.length; i++) hash = (hash * 33 + key.charCodeAt(i)) >>> 0;
+    return ['ZS', part(id) || 'NEW', part(v.colour), part(v.size), hash.toString(36).toUpperCase()].filter(Boolean).join('-');
   }
 
   /* ---------- In the box ---------- */
@@ -131,11 +136,11 @@
   function quote(p, base, sel) {
     sel = sel || {};
     var adds = inBox(p).addons.filter(function (a) { return (sel.addons || []).indexOf(a.index) !== -1; });
-    var addTotal = adds.reduce(function (s, a) { return s + a.price; }, 0);
+    var addTotal = money(adds.reduce(function (s, a) { return s + Math.round(a.price * 100); }, 0) / 100);
     var range = commitRange(p, base), commit = 0;
-    if (sel.commit && range) commit = Math.round(Math.min(range.max, Math.max(range.min, num(sel.commit) || range.max)));
+    if (sel.commit && range) commit = money(Math.min(range.max, Math.max(range.min, num(sel.commit) || range.max)));
     var unit = commit || base;
-    return { unit: unit, addons: adds, addTotal: addTotal, each: unit + addTotal, commit: commit, range: range };
+    return { unit: unit, addons: adds, addTotal: addTotal, each: money(unit + addTotal), commit: commit, range: range };
   }
   // Short text for the cart, orders and WhatsApp: "White, 42 · + Wall charger · Your offer K490"
   function describe(p, opt) {
@@ -144,7 +149,7 @@
     var picked = [opt.colour, opt.size].filter(Boolean).join(', ');
     if (picked) bits.push(picked);
     inBox(p).addons.forEach(function (a) { if ((opt.addons || []).indexOf(a.index) !== -1) bits.push('+ ' + a.item); });
-    if (opt.commit) bits.push('Your offer K' + Math.round(opt.commit).toLocaleString('en-US'));
+    if (opt.commit) bits.push('Your offer K' + money(opt.commit).toLocaleString('en-US', { minimumFractionDigits: money(opt.commit) % 1 ? 2 : 0, maximumFractionDigits: 2 }));
     return bits.join(' · ');
   }
 
@@ -182,13 +187,13 @@
     else if (String(d.title).length > 120) add('title', 'Keep the product name to 120 characters or fewer.');
     if (deptIds.indexOf(d.category) === -1) add('category', 'Choose a department.');
     if (d.brand && brandIds.indexOf(d.brand) === -1) add('brand', 'Choose a brand from the list, or none.');
-    if (!(price > 0)) add('priceZMW', 'Enter a price above K0.');
-    if (d.wasZMW && !(num(d.wasZMW) > price)) add('wasZMW', 'The "was" price must be higher than the price. Leave it empty if there is no genuine previous price.');
+    if (!(price > 0) || !validMoney(price)) add('priceZMW', 'Enter a price above K0 with at most two decimal places.');
+    if (d.wasZMW && (!(num(d.wasZMW) > price) || !validMoney(d.wasZMW))) add('wasZMW', 'The "was" price must be higher than the price and use at most two decimal places.');
     if (STOCK.indexOf(d.stock) === -1) add('stock', 'Choose a stock status.');
 
     var a = d.attributes || {};
     if (a.size) {
-      if (!(num(a.size.value) > 0)) add('size', 'Enter a size above 0, or leave it empty.');
+      if (!validMeasure(a.size.value)) add('size', 'Enter a positive size with at most three decimal places, or leave it empty.');
       if (!UNITS[a.size.unit]) add('size', 'Choose a unit for the size.');
     }
     (a.ageRange || []).forEach(function (x) { if (AGE_IDS.indexOf(x) === -1) add('ageRange', 'Unknown age range: ' + x + '.'); });
@@ -197,12 +202,14 @@
     var o = d.options || {}, seen = {};
     (o.colour || []).forEach(function (c) {
       if (!text(c.name)) add('colour', 'Name each colour.');
+      else if (c.name !== text(c.name, 40)) add('colour', 'Use a colour name of at most 40 characters with no extra spaces.');
       else if (seen['c' + c.name.toLowerCase()]) add('colour', 'The colour "' + c.name + '" is listed twice.');
       seen['c' + String(c.name).toLowerCase()] = 1;
       if (!/^#[0-9a-f]{6}$/i.test(c.hex || '')) add('colour', 'Pick a swatch colour for ' + (c.name || 'each colour') + '.');
     });
     (o.size || []).forEach(function (s) {
       var l = sizeLabel(s);
+      if (s && typeof s === 'object' && (!validMeasure(s.value) || !UNITS[s.unit])) add('sizes', 'Each measured size needs a positive value with at most three decimal places and a supported unit.');
       if (!l) add('sizes', 'Sizes can\'t be empty.');
       else if (seen['s' + l.toLowerCase()]) add('sizes', 'The size "' + l + '" is listed twice.');
       seen['s' + l.toLowerCase()] = 1;
@@ -217,10 +224,11 @@
         if (keys[comboKey(v)]) add('variants', name + ' appears twice.');
         keys[comboKey(v)] = 1;
         if (!text(v.sku)) add('variants', 'Enter a SKU for ' + name + '.');
+        else if (v.sku !== text(v.sku, 40)) add('variants', 'Use a SKU of at most 40 characters with no extra spaces.');
         else if (skus[v.sku.toUpperCase()]) add('variants', 'The SKU ' + v.sku + ' is used twice.');
         skus[String(v.sku).toUpperCase()] = 1;
-        if (!(parseInt(v.stock, 10) >= 0) || String(v.stock).indexOf('.') !== -1) add('variants', 'Stock for ' + name + ' must be a whole number, 0 or more.');
-        if (v.priceZMW !== '' && v.priceZMW != null && !(num(v.priceZMW) > 0)) add('variants', 'The price for ' + name + ' must be above K0, or left empty.');
+        if (v.stock == null || v.stock === '' || !Number.isInteger(num(v.stock)) || num(v.stock) < 0 || num(v.stock) > 2147483647) add('variants', 'Stock for ' + name + ' must be a whole number, 0 or more.');
+        if (v.priceZMW !== '' && v.priceZMW != null && (!(num(v.priceZMW) > 0) || !validMoney(v.priceZMW))) add('variants', 'The price for ' + name + ' must be above K0 with at most two decimal places, or left empty.');
       });
     } else if (vs.length) add('variants', 'Add colours or sizes before the variations table.');
 
@@ -229,13 +237,13 @@
       if (!text(c.item)) add('inBox', 'Name each item in the box.');
       else if (items[c.item.toLowerCase()]) add('inBox', '"' + c.item + '" is listed twice in the box.');
       items[String(c.item).toLowerCase()] = 1;
-      if (c.addonZMW != null && c.addonZMW !== '' && !(num(c.addonZMW) >= 0)) add('inBox', 'The add-on price for ' + (c.item || 'an item') + ' must be K0 or more.');
+      if (c.addonZMW != null && c.addonZMW !== '' && !validMoney(c.addonZMW)) add('inBox', 'The add-on price for ' + (c.item || 'an item') + ' must be K0 or more with at most two decimal places.');
     });
 
     if (d.commit) {
       var mn = num(d.commit.min), mx = num(d.commit.max);
-      if (!(mn > 0)) add('commitMin', 'Enter the lowest price you will accept.');
-      if (!(mx > mn)) add('commitMax', 'The target price must be higher than the lowest price.');
+      if (!(mn > 0) || !validMoney(mn)) add('commitMin', 'Enter the lowest price you will accept, with at most two decimal places.');
+      if (!(mx > mn) || !validMoney(mx)) add('commitMax', 'The target price must be higher than the lowest price, with at most two decimal places.');
       if (mx > price) add('commitMax', 'The target price can\'t be above the Buy now price of K' + price + '.');
     }
     return errors;
@@ -245,10 +253,10 @@
   function clean(d) {
     var p = {
       id: d.id, title: text(d.title, 120), category: d.category, seller: d.seller, brand: d.brand || '',
-      priceZMW: Math.round(num(d.priceZMW)), stock: d.stock, image: d.image || '', alt: text(d.alt || d.title, 160),
+      priceZMW: money(d.priceZMW), stock: d.stock, image: d.image || '', alt: text(d.alt || d.title, 160),
       tags: text(d.tags, 200), description: String(d.description || '').trim().slice(0, 2000), reviews: d.reviews || []
     };
-    if (d.wasZMW) p.wasZMW = Math.round(num(d.wasZMW));
+    if (d.wasZMW) p.wasZMW = money(d.wasZMW);
     if (d.added) p.added = d.added;
     if (d.match) p.match = d.match;
     var a = d.attributes || {}, attrs = {};
@@ -268,15 +276,16 @@
         var row = { sku: text(v.sku, 40).toUpperCase(), stock: parseInt(v.stock, 10) || 0 };
         if (v.colour) row.colour = v.colour;
         if (v.size) row.size = v.size;
-        if (num(v.priceZMW) > 0) row.priceZMW = Math.round(num(v.priceZMW));
+        if (num(v.priceZMW) > 0) row.priceZMW = money(v.priceZMW);
+        if (v.image) row.image = v.image;
         return row;
       });
     }
     var box = (d.inBox || []).filter(function (c) { return text(c.item); }).map(function (c) {
-      return c.addonZMW != null && c.addonZMW !== '' ? { item: text(c.item, 80), addonZMW: Math.round(num(c.addonZMW)) } : { item: text(c.item, 80) };
+      return c.addonZMW != null && c.addonZMW !== '' ? { item: text(c.item, 80), addonZMW: money(c.addonZMW) } : { item: text(c.item, 80) };
     });
     if (box.length) p.inBox = box;
-    if (d.commit) p.commit = { min: Math.round(num(d.commit.min)), max: Math.round(num(d.commit.max)) };
+    if (d.commit) p.commit = { min: money(d.commit.min), max: money(d.commit.max) };
     return p;
   }
 
@@ -312,6 +321,7 @@
       // Editing a catalogue product saves a local copy with the same id, which takes its place.
       // Fields the form doesn't edit (reviews, sales, match, deal, sample) carry over.
       update: function (id, draft, ctx) {
+        if (!this.get(id) && !(ctx.products || []).some(function (p) { return p.id === id; })) return fail([{ field: 'id', message: 'That product does not exist.' }]);
         var errors = validate(draft, ctx);
         if (errors.length) return fail(errors);
         var was = copy(this.get(id) || (ctx.products || []).filter(function (x) { return x.id === id; })[0] || {});

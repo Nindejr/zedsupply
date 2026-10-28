@@ -90,7 +90,11 @@
   function $(sel, scope) { return (scope || document).querySelector(sel); }
   function $$(sel, scope) { return Array.prototype.slice.call((scope || document).querySelectorAll(sel)); }
   function esc(t) { return String(t == null ? '' : t).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
-  function kwacha(n) { return 'K' + Math.round(n).toLocaleString('en-US'); }
+  // Whole Kwacha show as K490; amounts with ngwee always show two places, K492.80
+  function kwacha(n) {
+    var v = Math.round((Number(n) + Number.EPSILON) * 100) / 100, cents = v % 1 !== 0;
+    return 'K' + v.toLocaleString('en-US', { minimumFractionDigits: cents ? 2 : 0, maximumFractionDigits: 2 });
+  }
   function pad(n) { return (n < 10 ? '0' : '') + n; }
   var now = new Date();
   var today = now.getFullYear() + '-' + pad(now.getMonth() + 1) + '-' + pad(now.getDate());
@@ -273,7 +277,7 @@
   function priceOf(p) {
     if (p.source === 'china') return { now: chinaCost(p.priceCNY, p.weightKg, 1).total, was: 0, off: 0, promo: null, deal: null };
     var base = p.priceZMW, promo = livePromoFor(p), deal = dealFor(p), nowP = base, was = p.wasZMW || 0;
-    if (promo) { nowP = Math.round(base * (1 - promo.discount / 100)); was = Math.max(was, base); }
+    if (promo) { nowP = Math.round(base * (1 - promo.discount / 100) * 100) / 100; was = Math.max(was, base); }
     if (deal && deal.price < nowP) { nowP = deal.price; promo = null; was = Math.max(was, base); } else deal = null;
     return { now: nowP, was: was > nowP ? was : 0, off: was > nowP ? Math.round((1 - nowP / was) * 100) : 0, promo: promo, deal: deal };
   }
@@ -398,10 +402,18 @@
   // The same product with different options is a separate line.
   function lineKey(l) { return l.id + (l.opt ? '|' + JSON.stringify(l.opt) : ''); }
   function addToCart(id, qty, opt) {
+    var p = product(id), v = p ? variantOf(p, opt) : null;
+    if (!p || !Number.isInteger(qty) || qty < 1 || qty > 99) { toast('Choose a whole quantity from 1 to 99.'); return false; }
+    if (ZP.hasOptions(p)) {
+      var already = cart().filter(function (l) { var cv = l.id === id ? variantOf(p, l.opt) : null; return cv && v && cv.sku === v.sku; })
+        .reduce(function (sum, l) { return sum + l.qty; }, 0);
+      if (!v || qty + already > v.stock) { toast('That variation does not have enough stock for your cart.'); return false; }
+    }
     var c = cart(), line = null, key = lineKey({ id: id, opt: opt });
     for (var i = 0; i < c.length; i++) if (lineKey(c[i]) === key) line = c[i];
     if (line) line.qty = Math.min(99, line.qty + qty); else c.push(opt ? { id: id, qty: qty, opt: opt } : { id: id, qty: qty });
     setCart(c);
+    return true;
   }
   // Price of one item on a cart line: the variant's own price, add-ons and any commit offer
   function variantOf(p, opt) { return opt && ZP.hasOptions(p) ? ZP.findVariant(p, opt) : null; }
@@ -840,7 +852,7 @@
     if (add) {
       var id = add.getAttribute('data-add'), qtyEl = add.getAttribute('data-qty-from') ? $(add.getAttribute('data-qty-from')) : null;
       var p = product(id);
-      addToCart(id, qtyEl ? Math.max(1, parseInt(qtyEl.value, 10) || 1) : 1);
+      if (!addToCart(id, qtyEl ? Math.max(1, parseInt(qtyEl.value, 10) || 1) : 1)) return;
       toast('Added to cart: ' + esc(p ? p.title : '') + ' <a href="' + R + 'cart">View cart</a>');
       return;
     }
@@ -1286,8 +1298,8 @@
         '<div class="check"><input type="radio" name="pmode" id="pm-commit" value="commit"><label for="pm-commit">Name your price</label></div></fieldset>' +
       '<div class="commit" id="commit-box" hidden>' +
         '<label for="commit-range">Name your commitment price (Range: ' + kwacha(range.min) + ' – ' + kwacha(range.max) + ')</label>' +
-        '<input type="range" id="commit-range" min="' + range.min + '" max="' + range.max + '" step="1" value="' + range.max + '" aria-describedby="commit-hint">' +
-        '<div class="commit__amt"><span aria-hidden="true">K</span><label for="commit-amt" class="visually-hidden">Your price in Kwacha, per item</label><input id="commit-amt" type="number" min="' + range.min + '" max="' + range.max + '" step="1" value="' + range.max + '" inputmode="numeric"><span class="pmeta">per item</span></div>' +
+        '<input type="range" id="commit-range" min="' + range.min + '" max="' + range.max + '" step="0.01" value="' + range.max + '" aria-describedby="commit-hint">' +
+        '<div class="commit__amt"><span aria-hidden="true">K</span><label for="commit-amt" class="visually-hidden">Your price in Kwacha, per item</label><input id="commit-amt" type="number" min="' + range.min + '" max="' + range.max + '" step="0.01" value="' + range.max + '" inputmode="decimal"><span class="pmeta">per item</span></div>' +
         '<p class="hint" id="commit-hint">The seller accepts your price or replies on WhatsApp before you pay. Add-ons are charged at their listed price.</p>' +
       '</div>';
   }
@@ -1307,7 +1319,7 @@
       '<fieldset class="rate"><legend>Your rating</legend><div class="rate__stars">' + [5, 4, 3, 2, 1].map(function (n) {
         return '<input type="radio" name="rev-rating" id="rr' + n + '" value="' + n + '"' + (n === cur ? ' checked' : '') + '><label for="rr' + n + '" title="' + n + ' – ' + labels[n] + '"><span aria-hidden="true">★</span><span class="visually-hidden">' + n + (n === 1 ? ' star' : ' stars') + ', ' + labels[n] + '</span></label>';
       }).join('') + '</div></fieldset>' +
-      '<div class="field"><label for="rev-head">Headline</label><input id="rev-head" maxlength="120" placeholder="Sum it up in a few words" value="' + esc(mine && mine.title ? mine.title : '') + '"></div>' +
+      '<div class="field"><label for="rev-head">Headline</label><input id="rev-head" required maxlength="120" placeholder="Sum it up in a few words" value="' + esc(mine && mine.title ? mine.title : '') + '"></div>' +
       '<div class="field"><label for="rev-text">Your review</label><textarea id="rev-text" required maxlength="600" placeholder="What did you like or dislike? How was delivery?">' + esc(mine ? mine.text : '') + '</textarea></div>' +
       '<p class="hint">Prototype: your review is saved on this device only.</p><p class="form-status" role="status" tabindex="-1"></p>' +
       '<button class="btn btn--primary" type="submit">' + (mine ? 'Update review' : 'Post review') + '</button></form>';
@@ -1556,7 +1568,7 @@
       addRecent(p.id);
       var s = seller(p.seller), b = brand(p.brand), d = dept(p.category), r = ratingOf(p), u = user();
       var sel = ZP.hasOptions(p) ? ZP.defaultSelection(p) : {}, v0 = variantOf(p, sel), pr = basePriceOf(p, v0);
-      var range = p.source === 'china' ? null : ZP.commitRange(p, pr.now);
+      var range = p.source === 'china' ? null : ZP.commitRange(p, p.priceZMW);
       var revs = reviewsFor(p), mine = revs.filter(function (v) { return v.mine; })[0];
       var bought = orders().filter(function (o) { return !o.sample && Number(o.status) >= 1 && (o.items || []).some(function (it) { return it.id === p.id; }); })[0];
       var similar = p.source === 'china' ? [] : similarTo(p, 3);
@@ -1619,16 +1631,33 @@
       };
       var update = function () {
         var o = pick(), n = Math.max(1, parseInt(qty.value, 10) || 1), lq = lineQuote(p, o), v = lq.v, q = lq.q;
+        if (cRange) {
+          $('#pm-commit').disabled = !q.range;
+          $('label[for="pm-commit"]').textContent = q.range ? 'Name your price' : 'Offers unavailable for this selection';
+          if (!q.range && o.commit != null) {
+            $('#pm-fixed').checked = true; commitBox.hidden = true; delete o.commit;
+            lq = lineQuote(p, o); q = lq.q;
+          } else if (q.commit) { o.commit = q.commit; cAmt.value = cRange.value = q.commit; }
+        }
         var axes = ZP.options(p), missing = axes.filter(function (x) { return !o[x.key]; });
         var out = (p.variants || []).length && axes.length && (!v || v.stock <= 0);
-        cur = { opt: o, q: q, v: v, n: n, ok: !missing.length && !out };
+        var quantityOK = Number.isInteger(Number(qty.value)) && Number(qty.value) >= 1 && n <= 99 && (!v || n <= v.stock);
+        cur = { opt: o, q: q, v: v, n: n, ok: !missing.length && !out && quantityOK };
         // Prices: the main column shows the item price, the buy box adds add-ons and the buyer's own price
         $('[data-price-main]').innerHTML = priceHTML(lq.pr);
         $('[data-price-box]').innerHTML = q.commit ? '<p class="price"><span class="price__now"><span class="visually-hidden">Your price </span>' + kwacha(q.each) + '</span><span class="price__was"><span class="visually-hidden">listed at </span>' + kwacha(lq.pr.now + q.addTotal) + '</span></p>' : priceHTML({ now: q.each, was: lq.pr.was ? lq.pr.was + q.addTotal : 0 });
         $('#pdp-total').textContent = (q.addTotal ? kwacha(q.unit) + ' + ' + kwacha(q.addTotal) + ' add-ons. ' : '') + (q.commit ? 'Your offer, pending the seller. ' : '') + (n > 1 || q.addTotal || q.commit ? 'Total for ' + n + ': ' + kwacha(q.each * n) : '');
         $('[data-stock]').innerHTML = stockHTML(p, v);
         var sku = $('[data-sku]'); if (sku) sku.textContent = v ? ' · SKU ' + v.sku : '';
-        if (v && v.image) { var img = $('.pdp__media img'); if (img) img.src = v.image; }
+        if (!root.classList.contains('data-saver')) {
+          var imageBox = $('.pdp__media .pmedia'), img = $('.pdp__media .pmedia > img');
+          var imagePath = (v && v.image) || p.image;
+          if (imagePath) {
+            if (!img) { img = document.createElement('img'); img.width = img.height = 600; img.decoding = 'async'; imageBox.appendChild(img); }
+            img.alt = p.title + (v ? ' · ' + [v.colour, v.size].filter(Boolean).join(', ') : '');
+            if (img.getAttribute('src') !== imagePath) { img.classList.remove('is-broken'); img.src = imagePath; }
+          } else if (img) img.remove();
+        }
         axes.forEach(function (x) {
           var lab = $('[data-opt-label="' + x.key + '"]'); if (lab) lab.textContent = o[x.key] || 'choose one';
           if (!(p.variants || []).length) return;
@@ -1638,9 +1667,12 @@
             $('[data-out-note]', r.parentNode).textContent = soldOut ? ' (sold out)' : '';
           });
         });
-        if (cRange && q.range) { cRange.max = cAmt.max = q.range.max; cRange.min = cAmt.min = q.range.min; }
+        if (cRange && q.range) {
+          cRange.max = cAmt.max = q.range.max; cRange.min = cAmt.min = q.range.min;
+          $('label[for="commit-range"]').textContent = 'Name your commitment price (Range: ' + kwacha(q.range.min) + ' – ' + kwacha(q.range.max) + ')';
+        }
         add.disabled = !cur.ok;
-        add.textContent = out ? 'Sold out' : missing.length ? 'Choose ' + missing.map(function (x) { return x.name.toLowerCase(); }).join(' and ') : q.commit ? 'Add to cart at ' + kwacha(q.each) : 'Add to cart';
+        add.textContent = out ? 'Sold out' : missing.length ? 'Choose ' + missing.map(function (x) { return x.name.toLowerCase(); }).join(' and ') : !quantityOK ? 'Choose a quantity from 1 to ' + (v ? Math.min(99, v.stock) : 99) : q.commit ? 'Add to cart at ' + kwacha(q.each) : 'Add to cart';
         buy.classList.toggle('is-disabled', !cur.ok);
         buy.setAttribute('aria-disabled', String(!cur.ok));
         var bits = ZP.describe(p, o), m = q.commit
@@ -1658,7 +1690,7 @@
         }
         if (e.target === cAmt) {
           // Typed prices outside the range snap to the nearest end of it
-          cAmt.value = Math.min(Number(cAmt.max), Math.max(Number(cAmt.min), Math.round(Number(cAmt.value) || Number(cAmt.max))));
+          cAmt.value = Math.min(Number(cAmt.max), Math.max(Number(cAmt.min), Math.round((Number(cAmt.value) || Number(cAmt.max)) * 100) / 100));
           cRange.value = cAmt.value;
         }
         if (e.target.closest('.popts, .inbox, .pmode') || e.target === cAmt) update();
@@ -1670,7 +1702,7 @@
       add.addEventListener('click', function () {
         if (!cur.ok) return;
         var o = cur.opt, hasAny = Object.keys(o).length;
-        addToCart(p.id, cur.n, hasAny ? o : undefined);
+        if (!addToCart(p.id, cur.n, hasAny ? o : undefined)) return;
         toast('Added to cart: ' + esc(p.title) + (hasAny ? ' (' + esc(ZP.describe(p, o)) + ')' : '') + ' <a href="#/cart">View cart</a>');
       });
       buy.addEventListener('click', function (e) { if (!cur.ok) e.preventDefault(); });
@@ -1693,9 +1725,10 @@
         var picked = $('input[name="rev-rating"]:checked', rf), st = $('.form-status', rf);
         if (!picked) { st.className = 'form-status is-error'; st.textContent = 'Choose a star rating from 1 to 5.'; st.focus(); return; }
         if (!$('#rev-text').value.trim()) { st.className = 'form-status is-error'; st.textContent = 'Write a few words about your experience.'; $('#rev-text').focus(); return; }
+        var headline = cleanText($('#rev-head').value, 120);
+        if (!headline) { st.className = 'form-status is-error'; st.textContent = 'Add a short headline for your review.'; $('#rev-head').focus(); return; }
         var all = store.get('reviews', {});
         all[p.id] = (all[p.id] || []).filter(function (v) { return !v.mine; });
-        var headline = cleanText($('#rev-head').value, 120);
         all[p.id].push({ name: u.name, rating: Number(picked.value), date: today, title: headline, text: $('#rev-text').value.trim(), mine: true, verified: false });
         store.set('reviews', all);
         toast(mine ? 'Your review has been updated' : 'Thanks for your review');
@@ -1789,6 +1822,15 @@
       });
       syncCo();
       co.addEventListener('click', function (e) {
+        var reserved = {}, unavailable = items.some(function (it) {
+          if (!ZP.hasOptions(it.p)) return false;
+          var current = variantOf(it.p, it.opt);
+          if (!current) return true;
+          var key = JSON.stringify([it.p.id, current.sku]);
+          reserved[key] = (reserved[key] || 0) + it.qty;
+          return reserved[key] > current.stock;
+        });
+        if (unavailable) { e.preventDefault(); toast('A variation is unavailable or its quantity exceeds stock. Update your cart before checkout.'); return; }
         if (hasCardNumber($('#co-name').value + ' ' + $('#co-note').value)) { e.preventDefault(); toast(esc(CARD_WARNING)); $('#co-note').focus(); return; }
         var list = orders();
         list.unshift({ ref: ref, date: today, items: items.map(function (it) { return it.opt ? { id: it.p.id, qty: it.qty, price: it.each, opt: it.opt, label: it.label } : { id: it.p.id, qty: it.qty, price: it.each }; }), total: total, status: 0, deliverTo: locFull(), pay: payChoice, ship: COURIERS.length ? shipSummary() : '', shipId: shipChoice });
@@ -2120,7 +2162,7 @@
           var addon = c.addonZMW != null && c.addonZMW !== '';
           return '<div class="lf-row lf-row--box"><label class="visually-hidden" for="lf-bi-' + i + '">Item</label><input id="lf-bi-' + i + '" data-box-item placeholder="e.g. Charging cable" maxlength="80" value="' + esc(c.item || '') + '">' +
             '<label class="visually-hidden" for="lf-bk-' + i + '">Included or add-on</label><select id="lf-bk-' + i + '" data-box-kind><option value="included">Included</option><option value="addon"' + (addon ? ' selected' : '') + '>Optional add-on</option></select>' +
-            '<label class="visually-hidden" for="lf-bp-' + i + '">Add-on price in Kwacha</label><input id="lf-bp-' + i + '" data-box-price type="number" min="0" step="1" inputmode="numeric" placeholder="K price"' + (addon ? ' value="' + esc(c.addonZMW) + '"' : ' hidden') + '>' +
+            '<label class="visually-hidden" for="lf-bp-' + i + '">Add-on price in Kwacha</label><input id="lf-bp-' + i + '" data-box-price type="number" min="0" step="0.01" inputmode="decimal" placeholder="K price"' + (addon ? ' value="' + esc(c.addonZMW) + '"' : ' hidden') + '>' +
             '<button class="link-btn" type="button" data-del-box="' + i + '">Remove<span class="visually-hidden"> ' + esc(c.item || 'item') + '</span></button></div>';
         }).join('') + '</div><button class="btn btn--secondary btn--sm" type="button" data-add-box>Add an item</button></fieldset>';
         return out || '<p class="pmeta">No extra details for this department.</p>';
@@ -2145,7 +2187,7 @@
               return '<tr>' + (withC ? '<th scope="row"><span class="swatch swatch--sm" style="--sw:' + esc(hex) + '" aria-hidden="true"></span> ' + esc(v.colour) + '</th>' : '') + (withS ? (withC ? '<td>' : '<th scope="row">') + esc(v.size) + (withC ? '</td>' : '</th>') : '') +
                 '<td><input data-v-sku="' + i + '" maxlength="40" value="' + esc(v.sku || '') + '" aria-label="SKU for ' + esc(name) + '"></td>' +
                 '<td><input data-v-stock="' + i + '" type="number" min="0" step="1" inputmode="numeric" value="' + esc(v.stock) + '" aria-label="Stock for ' + esc(name) + '"></td>' +
-                '<td><input data-v-price="' + i + '" type="number" min="1" step="1" inputmode="numeric" value="' + esc(v.priceZMW || '') + '" placeholder="Main price" aria-label="Price for ' + esc(name) + ' in Kwacha"></td></tr>';
+                '<td><input data-v-price="' + i + '" type="number" min="0.01" step="0.01" inputmode="decimal" value="' + esc(v.priceZMW || '') + '" placeholder="Main price" aria-label="Price for ' + esc(name) + ' in Kwacha"></td></tr>';
             }).join('') + '</tbody></table></div><button class="btn btn--secondary btn--sm" type="button" data-fill-sku>Fill in empty SKUs</button></div>';
         }
         return out || '<p class="pmeta">This department doesn\'t use colours or sizes.</p>';
@@ -2170,13 +2212,13 @@
           '<section class="lf-sec" aria-labelledby="lf-h2"><h2 class="h3" id="lf-h2">Details</h2><div id="lf-attrs">' + attrsHTML() + '</div></section>' +
           '<section class="lf-sec" aria-labelledby="lf-h3"><h2 class="h3" id="lf-h3">Variations</h2><div id="lf-vars">' + varsHTML() + '</div></section>' +
           '<section class="lf-sec" aria-labelledby="lf-h4"><h2 class="h3" id="lf-h4">Price and stock</h2>' +
-            '<div class="field-row">' + fieldHTML('priceZMW', 'Price (K) *', '<input id="lf-priceZMW" type="number" min="1" step="1" inputmode="numeric" required value="' + esc(dr.priceZMW) + '">', 'The Buy now price.') +
-              fieldHTML('wasZMW', 'Was price (K)', '<input id="lf-wasZMW" type="number" min="1" step="1" inputmode="numeric" value="' + esc(dr.wasZMW || '') + '">', 'Only a genuine previous price.') + '</div>' +
+            '<div class="field-row">' + fieldHTML('priceZMW', 'Price (K) *', '<input id="lf-priceZMW" type="number" min="0.01" step="0.01" inputmode="decimal" required value="' + esc(dr.priceZMW) + '">', 'The Buy now price.') +
+              fieldHTML('wasZMW', 'Was price (K)', '<input id="lf-wasZMW" type="number" min="0.01" step="0.01" inputmode="decimal" value="' + esc(dr.wasZMW || '') + '">', 'Only a genuine previous price.') + '</div>' +
             fieldHTML('stock', 'Stock status', '<select id="lf-stock">' + [['in', 'In stock'], ['low', 'Only a few left'], ['request', 'Sourced on request']].map(function (o) { return '<option value="' + o[0] + '"' + (o[0] === dr.stock ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('') + '</select>', 'With variations, buyers see the stock from the table above instead.') +
             '<div class="lf-switch"><input type="checkbox" role="switch" id="lf-commit"' + (commitOn ? ' checked' : '') + ' aria-describedby="lf-commit-hint"><label for="lf-commit">Enable buyer offer and commit pricing</label></div>' +
             '<p class="hint" id="lf-commit-hint">Buyers can name a price between your lowest and target prices. You confirm each offer on WhatsApp. Buyers see the range, including your lowest price.</p>' +
-            '<div class="field-row" id="lf-commit-fields"' + (commitOn ? '' : ' hidden') + '>' + fieldHTML('commitMin', 'Lowest price you\'ll accept (K) *', '<input id="lf-commitMin" type="number" min="1" step="1" inputmode="numeric" value="' + esc(dr.commit ? dr.commit.min : '') + '">') +
-              fieldHTML('commitMax', 'Target price (K) *', '<input id="lf-commitMax" type="number" min="1" step="1" inputmode="numeric" value="' + esc(dr.commit ? dr.commit.max : dr.priceZMW) + '">', 'Usually your Buy now price. It can\'t be higher.') + '</div>' +
+            '<div class="field-row" id="lf-commit-fields"' + (commitOn ? '' : ' hidden') + '>' + fieldHTML('commitMin', 'Lowest price you\'ll accept (K) *', '<input id="lf-commitMin" type="number" min="0.01" step="0.01" inputmode="decimal" value="' + esc(dr.commit ? dr.commit.min : '') + '">') +
+              fieldHTML('commitMax', 'Target price (K) *', '<input id="lf-commitMax" type="number" min="0.01" step="0.01" inputmode="decimal" value="' + esc(dr.commit ? dr.commit.max : dr.priceZMW) + '">', 'Usually your Buy now price. It can\'t be higher.') + '</div>' +
           '</section>' +
           '<p class="form-status" role="status" tabindex="-1"></p>' +
           '<div class="btn-row"><button class="btn btn--primary" type="submit">' + (editing ? 'Save changes' : 'Add product') + '</button><a class="btn btn--secondary" href="#/seller">Cancel</a>' +
