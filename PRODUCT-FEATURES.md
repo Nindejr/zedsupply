@@ -2,13 +2,30 @@
 
 The storefront is a static HTML/CSS/JavaScript application. The features below work in the browser prototype; seller edits, carts and new feedback remain local to that browser. PostgreSQL migrations describe the future backend. There are no authenticated product/review API endpoints or shared inventory service yet.
 
+## The request, point by point
+
+Checked end to end in the browser: a seller lists a product with each feature, then a buyer finds, chooses, prices, buys and reviews it.
+
+| Requested | Seller can | Buyer sees and does |
+| --- | --- | --- |
+| Size in litres or other metrics | Enter one measured value, or sizes to choose from, in any unit above | Size badges; size/capacity filter comparing equivalent units (1 l = 1,000 ml, 1 TB = 1,000 GB) |
+| Colour | Name each colour and pick its swatch | Colour swatches; sold-out combinations crossed out; colour filter |
+| Brand options | Link a brand store and give the manufacturer or brand name | Brand-store and manufacturer filters; the same item from other sellers to compare. Different brands are separate listings, as on Amazon |
+| Price range adjuster | Switch on offers and set the lowest and target price | A slider and amount box, "Name your commitment price (Range: K… – K…)"; the seller confirms on WhatsApp |
+| Star reviews, up to 5 | — | Rate 1–5 with a headline; average, star breakdown; filter reviews by stars, keyword, verified; filter products by rating |
+| Other conditions based on the product | Item condition with notes, and department-suggested details such as expiry, storage, warranty, fit | Condition panel and specifications table; condition filter |
+| Age range checkboxes | Tick Infant, Kid, Teen, Adult, Senior | Age shown in specifications; age filter |
+| Included components, or optional ones | List what's in the box, marking each Included or Optional add-on with a price | "In the box" with ticks; ticking an add-on updates the price |
+| More, as on Amazon | Up to two extra choices (Storage, Pack size…), stock and SKU per combination, key features, specifications, extra photos | Choices with their own price and stock, "From" prices, key features, photo thumbnails, image magnifier |
+
 ## Seller workflow
 
 Category templates suggest relevant fields without restricting a seller to those suggestions. **Add other relevant product details** exposes additional groups. Empty optional fields stay absent; condition is never silently assumed to be new.
 
 | Detail | Supported behaviour |
 | --- | --- |
-| Measurement | Numeric size, volume, weight or length with ml, litres, grams, kg, mm, cm, metres or inches. Size choices can also use labels such as S/M/L. A listing uses either a single measured size or selectable size choices. |
+| Measurement | A number and unit. Volume: ml, cl, litres. Weight: g, kg, oz, lb. Length: mm, cm, m, in, ft. Storage: MB, GB, TB. Battery capacity: mAh, Ah. Power: W, kW. Energy: Wh, kWh. Voltage: V. Size choices can also use labels such as S/M/L or 42. When every choice is the same kind of measurement, buyers see its name, for example "Storage: 128 GB". A listing uses either one measured value or selectable size choices. |
+| Photos | A main photo plus up to six more (other angles, labels, contents, in use), each with a description for screen readers. Buyers switch between them with thumbnails; the magnifier follows the photo shown. |
 | Colour | Display name and hex value; buyers use colour swatches. |
 | Brand | Existing brand-store association plus a manufacturer/brand-name field. Different brands belong in separate listings. |
 | Age group | Infant, Kid, Teen, Adult and Senior; multiple selections where appropriate. |
@@ -18,7 +35,8 @@ Category templates suggest relevant fields without restricting a seller to those
 | Included components | Included items and optional add-ons with separate price modifiers. Do not charge again for included items. |
 | Additional choices | Up to two named axes, for example Storage, Pack size, Material or Fit. Each permits up to 30 distinct labels. Brands and conditions are separate listings. |
 | Inventory | Colour × size × additional choices generate a matrix, capped at 256 combinations. Each combination has a unique SKU, stock and optional price. Existing matching rows retain their data; newly formed combinations start with zero stock. |
-| Pricing | Fixed price, or optional buyer commitment pricing with explicit minimum and maximum. Variant prices and optional accessories update the displayed total. Money retains two decimal places. |
+| Pricing | Fixed price, or optional buyer commitment pricing with explicit minimum and maximum. A variation with its own price gets the range in proportion (K2,300–K2,500 on a K2,500 phone becomes K2,668–K2,900 on its K2,900 version). Variant prices and optional accessories update the displayed total. Money retains two decimal places. |
+| Conditions by product | Department templates suggest what matters for that kind of product: best-before/expiry and storage instructions for food, health and farm products; warranty for electronics, solar, tools and parts; fit (make, model, year) for car parts; item condition where second-hand sales are common. |
 
 Example category guidance:
 

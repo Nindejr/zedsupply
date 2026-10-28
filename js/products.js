@@ -24,8 +24,26 @@
     mm: { dim: 'length', base: 1, label: 'mm', name: 'Millimetres (mm)' },
     cm: { dim: 'length', base: 10, label: 'cm', name: 'Centimetres (cm)' },
     m:  { dim: 'length', base: 1000, label: 'm', name: 'Metres (m)' },
-    in: { dim: 'length', base: 25.4, label: 'in', name: 'Inches (in)' }
+    in: { dim: 'length', base: 25.4, label: 'in', name: 'Inches (in)' },
+    cl: { dim: 'volume', base: 10, label: 'cl', name: 'Centilitres (cl)' },
+    oz: { dim: 'mass', base: 28.349523125, label: 'oz', name: 'Ounces (oz)' },
+    lb: { dim: 'mass', base: 453.59237, label: 'lb', name: 'Pounds (lb)' },
+    ft: { dim: 'length', base: 304.8, label: 'ft', name: 'Feet (ft)' },
+    // Capacities buyers compare on phones, power banks and solar kits.
+    // Storage uses decimal units, as manufacturers label it (1 TB = 1,000 GB).
+    mb:  { dim: 'storage', base: 1, label: 'MB', name: 'Megabytes (MB)' },
+    gb:  { dim: 'storage', base: 1000, label: 'GB', name: 'Gigabytes (GB)' },
+    tb:  { dim: 'storage', base: 1000000, label: 'TB', name: 'Terabytes (TB)' },
+    mah: { dim: 'charge', base: 1, label: 'mAh', name: 'Milliamp hours (mAh)' },
+    ah:  { dim: 'charge', base: 1000, label: 'Ah', name: 'Amp hours (Ah)' },
+    w:   { dim: 'power', base: 1, label: 'W', name: 'Watts (W)' },
+    kw:  { dim: 'power', base: 1000, label: 'kW', name: 'Kilowatts (kW)' },
+    wh:  { dim: 'energy', base: 1, label: 'Wh', name: 'Watt hours (Wh)' },
+    kwh: { dim: 'energy', base: 1000, label: 'kWh', name: 'Kilowatt hours (kWh)' },
+    v:   { dim: 'voltage', base: 1, label: 'V', name: 'Volts (V)' }
   };
+  // What a measurement is called on the product page and in the seller form
+  var DIMENSIONS = { volume: 'Volume', mass: 'Weight', length: 'Size', storage: 'Storage', charge: 'Battery capacity', power: 'Power', energy: 'Energy capacity', voltage: 'Voltage' };
   var AGES = [['infant', 'Infant'], ['kid', 'Kid'], ['teen', 'Teen'], ['adult', 'Adult'], ['senior', 'Senior']];
   var AGE_IDS = AGES.map(function (a) { return a[0]; });
   var STOCK = ['in', 'low', 'request'];
@@ -33,8 +51,9 @@
   var CONDITIONS = [['new', 'New'], ['open_box', 'Open box'], ['refurbished', 'Refurbished'], ['used', 'Used']];
   var MAX_COMBINATIONS = 256;
   var LOW_STOCK = 3;           // a variant with this many or fewer shows "Only n left"
+  var MAX_PHOTOS = 6;          // extra photos after the main one, so up to 7 in all
   // Fields the seller form owns; everything else on a product is left as it was
-  var EDITED = ['title', 'category', 'brand', 'priceZMW', 'wasZMW', 'stock', 'image', 'alt', 'tags', 'description', 'attributes', 'options', 'variants', 'inBox', 'commit'];
+  var EDITED = ['title', 'category', 'brand', 'priceZMW', 'wasZMW', 'stock', 'image', 'alt', 'tags', 'description', 'attributes', 'options', 'variants', 'inBox', 'commit', 'images'];
 
   function num(v) { var n = Number(v); return isFinite(n) ? n : NaN; }
   function money(v) { return Math.round((num(v) + Number.EPSILON) * 100) / 100; }
@@ -53,7 +72,7 @@
   // Reads '500 ml' or '1.5l' as { value, unit }; anything else stays a label
   function parseSize(v) {
     var m = String(v).trim().match(/^((?:\d+(?:\.\d+)?|\.\d+))\s*([a-z]+)$/i);
-    var aliases = { litre: 'l', litres: 'l', liter: 'l', liters: 'l', millilitre: 'ml', millilitres: 'ml', milliliter: 'ml', milliliters: 'ml', gram: 'g', grams: 'g', kilogram: 'kg', kilograms: 'kg', inch: 'in', inches: 'in', centimetre: 'cm', centimetres: 'cm', centimeter: 'cm', centimeters: 'cm', millimetre: 'mm', millimetres: 'mm', millimeter: 'mm', millimeters: 'mm', metre: 'm', metres: 'm', meter: 'm', meters: 'm' };
+    var aliases = { litre: 'l', litres: 'l', liter: 'l', liters: 'l', millilitre: 'ml', millilitres: 'ml', milliliter: 'ml', milliliters: 'ml', gram: 'g', grams: 'g', kilogram: 'kg', kilograms: 'kg', inch: 'in', inches: 'in', centimetre: 'cm', centimetres: 'cm', centimeter: 'cm', centimeters: 'cm', millimetre: 'mm', millimetres: 'mm', millimeter: 'mm', millimeters: 'mm', metre: 'm', metres: 'm', meter: 'm', meters: 'm', centilitre: 'cl', centilitres: 'cl', centiliter: 'cl', centiliters: 'cl', ounce: 'oz', ounces: 'oz', pound: 'lb', pounds: 'lb', lbs: 'lb', foot: 'ft', feet: 'ft', megabyte: 'mb', megabytes: 'mb', gigabyte: 'gb', gigabytes: 'gb', terabyte: 'tb', terabytes: 'tb', watt: 'w', watts: 'w', kilowatt: 'kw', kilowatts: 'kw', volt: 'v', volts: 'v' };
     var unit = m ? (aliases[m[2].toLowerCase()] || m[2].toLowerCase()) : '';
     return m && UNITS[unit] ? { value: Number(m[1]), unit: unit } : text(v, 40);
   }
@@ -63,7 +82,12 @@
   function options(p) {
     var o = p.options || {}, out = [];
     if (o.colour && o.colour.length) out.push({ key: 'colour', name: 'Colour', values: o.colour.map(function (c) { return { label: c.name, hex: c.hex }; }) });
-    if (o.size && o.size.length) out.push({ key: 'size', name: 'Size', values: o.size.map(function (s) { return { label: sizeLabel(s), size: s }; }) });
+    if (o.size && o.size.length) {
+      // Named after what is measured when every choice is the same kind: "Storage: 128 GB", "Volume: 500 ml"
+      var dims = o.size.map(function (s) { var m = typeof s === 'string' ? parseSize(s) : s; return m && typeof m === 'object' && UNITS[m.unit] ? UNITS[m.unit].dim : ''; });
+      var same = dims[0] && dims.every(function (d) { return d === dims[0]; }) ? DIMENSIONS[dims[0]] : 'Size';
+      out.push({ key: 'size', name: same, values: o.size.map(function (s) { return { label: sizeLabel(s), size: s }; }) });
+    }
     (o.extra || []).forEach(function (axis) {
       out.push({ key: axis.key, name: axis.name, values: (axis.values || []).map(function (v) { return { label: v }; }) });
     });
@@ -142,12 +166,15 @@
 
   /* ---------- Buyer commit pricing ----------
      now: today's Buy now price (after promotions and deals). The range closes at whichever
-     is lower, the seller's max or today's price, so committing never costs more than buying. */
-  function commitRange(p, now) {
+     is lower, the seller's max or today's price, so committing never costs more than buying.
+     v (optional): the chosen variation. One with its own price gets the seller's range in
+     proportion, so K2,300–K2,500 on a K2,500 phone is K2,668–K2,900 on its K2,900 version. */
+  function commitRange(p, now, v) {
     var c = p.commit;
     if (!c || !(c.min > 0) || !(c.max > c.min)) return null;
-    var max = Math.min(Number(c.max), now || Infinity);
-    return max > c.min ? { min: Number(c.min), max: max } : null;
+    var k = v && v.priceZMW > 0 && p.priceZMW > 0 ? v.priceZMW / p.priceZMW : 1;
+    var min = money(c.min * k), max = Math.min(money(c.max * k), now || Infinity);
+    return max > min ? { min: min, max: max } : null;
   }
 
   /* ---------- Price for one item ----------
@@ -157,7 +184,7 @@
     sel = sel || {};
     var adds = inBox(p).addons.filter(function (a) { return (sel.addons || []).indexOf(a.index) !== -1; });
     var addTotal = money(adds.reduce(function (s, a) { return s + Math.round(a.price * 100); }, 0) / 100);
-    var range = commitRange(p, base), commit = 0;
+    var range = commitRange(p, base, hasOptions(p) ? findVariant(p, sel) : null), commit = 0;
     if (sel.commit && range) commit = money(Math.min(range.max, Math.max(range.min, num(sel.commit) || range.max)));
     var unit = commit || base;
     return { unit: unit, addons: adds, addTotal: addTotal, each: money(unit + addTotal), commit: commit, range: range };
@@ -318,6 +345,14 @@
       if (!(mx > mn) || !validMoney(mx)) add('commitMax', 'The target price must be higher than the lowest price, with at most two decimal places.');
       if (mx > price) add('commitMax', 'The target price can\'t be above the Buy now price of K' + price + '.');
     }
+    if (d.images != null) {
+      if (!Array.isArray(d.images) || d.images.length > MAX_PHOTOS) add('images', 'Add up to ' + MAX_PHOTOS + ' more photos.');
+      else d.images.forEach(function (im, i) {
+        if (!im || typeof im !== 'object' || !text(im.src, 2000000)) add('images', 'Photo ' + (i + 2) + ' is missing its picture.');
+        else if (!text(im.alt)) add('images', 'Describe what photo ' + (i + 2) + ' shows, for buyers using screen readers.');
+        else if (String(im.alt).length > 160) add('images', 'Keep the description of photo ' + (i + 2) + ' to 160 characters or fewer.');
+      });
+    }
     return errors;
   }
 
@@ -363,6 +398,10 @@
     });
     if (box.length) p.inBox = box;
     if (d.commit) p.commit = { min: money(d.commit.min), max: money(d.commit.max) };
+    var photos = (d.images || []).filter(function (im) { return im && im.src; }).slice(0, MAX_PHOTOS).map(function (im) { return { src: im.src, alt: text(im.alt, 160) }; });
+    // Extra photos but no main one: the first becomes the main photo
+    if (!p.image && photos.length) { var first = photos.shift(); p.image = first.src; p.alt = first.alt; }
+    if (photos.length) p.images = photos;
     return p;
   }
 
@@ -371,6 +410,7 @@
     var out = copy(p);
     delete out.local; delete out.updated;
     if (/^data:/.test(out.image || '')) out.image = 'assets/products/' + out.id + '.webp';
+    (out.images || []).forEach(function (im, i) { if (/^data:/.test(im.src)) im.src = 'assets/products/' + out.id + '-' + (i + 2) + '.webp'; });
     return JSON.stringify(out, null, 2).replace(/"([A-Za-z_$][\w$]*)":/g, '$1:').replace(/"((?:[^"\\']|\\.)*)"/g, function (m, s) { return '\'' + s.replace(/\\"/g, '"') + '\''; });
   }
 
@@ -416,7 +456,7 @@
   }
 
   window.ZSProduct = {
-    UNITS: UNITS, AGES: AGES, FIELDS: FIELDS, CONDITIONS: CONDITIONS, MAX_COMBINATIONS: MAX_COMBINATIONS, LOW_STOCK: LOW_STOCK,
+    UNITS: UNITS, DIMENSIONS: DIMENSIONS, AGES: AGES, FIELDS: FIELDS, CONDITIONS: CONDITIONS, MAX_COMBINATIONS: MAX_COMBINATIONS, LOW_STOCK: LOW_STOCK, MAX_PHOTOS: MAX_PHOTOS,
     sizeLabel: sizeLabel, parseSize: parseSize, sizeBase: sizeBase,
     options: options, hasOptions: hasOptions, variants: variants, findVariant: findVariant, comboKey: comboKey,
     valueInStock: valueInStock, defaultSelection: defaultSelection, totalStock: totalStock, stockState: stockState,

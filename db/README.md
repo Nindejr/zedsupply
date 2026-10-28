@@ -51,8 +51,11 @@ Apply once, in order, using a migration runner or `psql -v ON_ERROR_STOP=1`:
 2. `migrations/002_attributes_reviews_commit_pricing.sql`
 3. `migrations/003_integrity_hardening.sql`
 4. `migrations/004_product_details.sql`
+5. `migrations/005_units_and_photos.sql` (adds enum values outside a transaction first, then the rest in one transaction)
 
 Migration 004 adds optional item condition, required notes for non-new items, validated feature bullets and additional category-template fields. Extra variation axes use the existing custom-option relationships. See [the detailed product brief](../PRODUCT-FEATURES.md) for frontend field mapping and acceptance criteria.
+
+Migration 005 adds units for storage (MB, GB, TB), battery capacity (mAh, Ah), power (W, kW), energy (Wh, kWh), voltage (V), plus cl, oz, lb and ft, and a `product_images` table for up to six extra photos per product. It also scales a buyer's offer range to a variation's own price, matching the browser.
 
 Migration 003 corrects committed migration 002 without rewriting migration history. Existing invalid prices, mixed-product options or incomplete combinations abort the transaction. Existing offers are backfilled from the current seller range; if historical terms differ or the product no longer has a range, reconcile those records from authoritative order/offer history before migrating. Do not guess historical prices.
 

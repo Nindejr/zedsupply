@@ -142,18 +142,18 @@ window.ZS_CATALOGUE = {
      sizeUnits: the units in the size dropdown, first is the default. Leave it empty for
      letter or shoe sizes typed by the seller. specs: suggested specification names. */
   attributeTemplates: {
-    tech:       { fields: ['colour', 'inBox', 'manufacturer', 'specs', 'condition', 'features'], sizeUnits: ['in', 'cm', 'mm'], specs: ['Model', 'Battery', 'Storage', 'Compatibility', 'Warranty'] },
-    solar:      { fields: ['inBox', 'manufacturer', 'specs'], specs: ['Panel output', 'Battery capacity', 'Warranty'] },
+    tech:       { fields: ['colour', 'size', 'inBox', 'manufacturer', 'specs', 'condition', 'features'], sizeUnits: ['gb', 'tb', 'mah', 'in'], specs: ['Model', 'Battery', 'Storage', 'Compatibility', 'Warranty'] },
+    solar:      { fields: ['size', 'inBox', 'manufacturer', 'specs', 'condition'], sizeUnits: ['w', 'kw', 'wh', 'kwh', 'ah', 'v'], specs: ['Panel output', 'Battery capacity', 'Battery type', 'Warranty', 'Installation'] },
     fashion:    { fields: ['colour', 'size', 'ageRange', 'specs'], sizeUnits: [], specs: ['Material', 'Care instructions', 'Fit'] },
     home:       { fields: ['colour', 'size', 'inBox', 'specs'], sizeUnits: ['l', 'ml', 'cm'], specs: ['Material', 'Power', 'Warranty'] },
-    business:   { fields: ['inBox', 'manufacturer', 'specs'], specs: ['Power', 'Output', 'Warranty'] },
+    business:   { fields: ['inBox', 'manufacturer', 'specs', 'condition'], specs: ['Power', 'Output', 'Warranty'] },
     office:     { fields: ['colour', 'size', 'ageRange', 'specs'], sizeUnits: ['cm', 'mm'], specs: ['Pack size'] },
-    agri:       { fields: ['size', 'manufacturer', 'specs'], sizeUnits: ['kg', 'g', 'l', 'ml'], specs: ['Crop or use', 'Active ingredient'] },
-    auto:       { fields: ['inBox', 'manufacturer', 'specs'], specs: ['Fits (make, model, year)', 'Part number'] },
-    hardware:   { fields: ['size', 'inBox', 'specs'], sizeUnits: ['mm', 'cm', 'm', 'kg', 'l'], specs: ['Material', 'Power'] },
+    agri:       { fields: ['size', 'manufacturer', 'specs'], sizeUnits: ['kg', 'g', 'l', 'ml'], specs: ['Crop or use', 'Active ingredient', 'Best before / expiry', 'Storage instructions'] },
+    auto:       { fields: ['inBox', 'manufacturer', 'specs', 'condition'], specs: ['Fits (make, model, year)', 'Part number', 'Warranty'] },
+    hardware:   { fields: ['size', 'inBox', 'specs', 'condition'], sizeUnits: ['mm', 'cm', 'm', 'kg', 'l', 'w', 'v'], specs: ['Material', 'Power', 'Warranty'] },
     baby:       { fields: ['colour', 'size', 'ageRange', 'inBox', 'specs'], sizeUnits: [], specs: ['Material', 'Safety standard'] },
-    health:     { fields: ['size', 'ageRange', 'inBox', 'specs'], sizeUnits: ['ml', 'g', 'l', 'kg'], specs: ['Ingredients'] },
-    essentials: { fields: ['size', 'specs'], sizeUnits: ['l', 'ml', 'kg', 'g'], specs: ['Pack size', 'Ingredients'] }
+    health:     { fields: ['size', 'ageRange', 'inBox', 'specs'], sizeUnits: ['ml', 'g', 'l', 'kg'], specs: ['Ingredients', 'Best before / expiry', 'Storage instructions'] },
+    essentials: { fields: ['size', 'specs'], sizeUnits: ['l', 'ml', 'kg', 'g'], specs: ['Pack size', 'Ingredients', 'Best before / expiry', 'Storage instructions'] }
   },
 
   // Seasons sellers can choose for a promotion
@@ -199,7 +199,8 @@ window.ZS_CATALOGUE = {
                condition:    'new' | 'open_box' | 'refurbished' | 'used'; omit if unknown.
                conditionNotes: description of wear, repairs or packaging; required unless new.
                features:     up to eight strings, 160 characters each, displayed as feature bullets.
-               size:         { value: 1.7, unit: 'l' }  one size only. Units: 'ml', 'l', 'g', 'kg', 'mm', 'cm', 'm', 'in'
+               size:         { value: 1.7, unit: 'l' }  one size only. Units: 'ml', 'cl', 'l', 'g', 'kg', 'oz', 'lb', 'mm', 'cm', 'm', 'in', 'ft',
+                             'mb', 'gb', 'tb' (storage), 'mah', 'ah' (battery), 'w', 'kw' (power), 'wh', 'kwh' (energy), 'v'
                ageRange:     ['kid', 'teen']            any of 'infant', 'kid', 'teen', 'adult', 'senior'
                manufacturer: 'Maker name'               only when it differs from the brand store
                specs:        { 'Battery': '20,000 mAh', 'Warranty': '12 months' }
@@ -223,6 +224,9 @@ window.ZS_CATALOGUE = {
                verified: true only for a confirmed order delivered to that customer.
                The average and star breakdown are worked out from these when the page loads.
      image: square photo, 600×600, WebP or JPEG under 80KB, in assets/products/
+     images (optional): up to 6 more photos of the same item, shown as thumbnails under the main
+       photo, e.g. [{ src: 'assets/products/L004-2.webp', alt: 'Side view showing the USB-C port' }].
+       Each needs alt text saying what it shows. Same size and framing as the main photo.
      Keep product images faithful to the actual item, including its colour and contents.
      Use consistent square framing and a clean background; do not add campaign text.
      Decorative 3D category artwork belongs in department and campaign panels, not

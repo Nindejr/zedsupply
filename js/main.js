@@ -1283,11 +1283,20 @@
         }).join('') + '</div></fieldset>';
     }).join('');
   }
+  // Photo thumbnails under the main photo: the main photo first, then the seller's extra photos
+  function thumbsHTML(p) {
+    var photos = (p.image ? [{ src: p.image, alt: p.alt || p.title }] : []).concat(p.images || []);
+    if (photos.length < 2 || root.classList.contains('data-saver')) return '';
+    return '<ul class="pthumbs" aria-label="Product photos">' + photos.map(function (ph, i) {
+      return '<li><button class="pthumb" type="button" data-photo="' + esc(ph.src) + '" data-alt="' + esc(ph.alt) + '" aria-pressed="' + (i === 0) + '">' +
+        '<img src="' + esc(ph.src) + '" alt="" width="64" height="64" loading="lazy" decoding="async"><span class="visually-hidden">Show photo ' + (i + 1) + ' of ' + photos.length + ': ' + esc(ph.alt) + '</span></button></li>';
+    }).join('') + '</ul>';
+  }
   function specsHTML(p) {
     var a = p.attributes || {}, rows = [];
     if (a.manufacturer) rows.push(['Manufacturer', esc(a.manufacturer)]);
     if (a.condition) rows.push(['Condition', esc(ZP.conditionLabel(p))]);
-    if (a.size) rows.push([ZP.UNITS[a.size.unit] && ZP.UNITS[a.size.unit].dim === 'volume' ? 'Volume' : ZP.UNITS[a.size.unit] && ZP.UNITS[a.size.unit].dim === 'mass' ? 'Weight' : 'Size', esc(ZP.sizeLabel(a.size))]);
+    if (a.size) rows.push([ZP.UNITS[a.size.unit] ? ZP.DIMENSIONS[ZP.UNITS[a.size.unit].dim] : 'Size', esc(ZP.sizeLabel(a.size))]);
     if (ZP.ages(p).length) rows.push(['Age range', ZP.AGES.filter(function (x) { return ZP.ages(p).indexOf(x[0]) !== -1; }).map(function (x) { return x[1]; }).join(', ')]);
     ZP.options(p).forEach(function (o) { rows.push([esc(o.name), o.values.map(function (v) { return esc(v.label); }).join(', ')]); });
     Object.keys(a.specs || {}).forEach(function (k) { rows.push([esc(k), esc(a.specs[k])]); });
@@ -1485,7 +1494,7 @@
       '<div class="field"><label for="lst-max">Maximum price (K)</label><input id="lst-max" type="number" min="0" step="0.01" inputmode="decimal"></div>' +
       '<div class="field"><label for="lst-stars">Customer rating</label><select id="lst-stars"><option value="">All ratings</option><option value="4">4 stars and up</option><option value="3">3 stars and up</option><option value="5">5 stars</option></select></div>' +
       (opts.list.some(function (p) { return p.commit; }) ? '<label class="inline-check"><input id="lst-offers" type="checkbox"> Accepts buyer offers</label>' : '') + '</div>' +
-      (measureUnits.length ? '<fieldset class="measurement-filter"><legend>Measured size / volume / weight</legend><p class="hint">Equivalent units are compared together, such as 1 litre and 1,000 ml.</p><div class="listing-filters__grid"><div class="field"><label for="lst-unit">Unit</label><select id="lst-unit"><option value="">Any measurement</option>' + measureUnits.map(function (u) { return '<option value="' + u + '">' + esc(ZP.UNITS[u].name) + '</option>'; }).join('') + '</select></div><div class="field"><label for="lst-measure-min">Minimum</label><input id="lst-measure-min" type="number" min="0" step="any" inputmode="decimal" disabled></div><div class="field"><label for="lst-measure-max">Maximum</label><input id="lst-measure-max" type="number" min="0" step="any" inputmode="decimal" disabled></div></div></fieldset>' : '') +
+      (measureUnits.length ? '<fieldset class="measurement-filter"><legend>Size, capacity or weight</legend><p class="hint">Equivalent units are compared together, such as 1 litre and 1,000 ml, or 1 TB and 1,000 GB.</p><div class="listing-filters__grid"><div class="field"><label for="lst-unit">Unit</label><select id="lst-unit"><option value="">Any measurement</option>' + measureUnits.map(function (u) { return '<option value="' + u + '">' + esc(ZP.UNITS[u].name) + '</option>'; }).join('') + '</select></div><div class="field"><label for="lst-measure-min">Minimum</label><input id="lst-measure-min" type="number" min="0" step="any" inputmode="decimal" disabled></div><div class="field"><label for="lst-measure-max">Maximum</label><input id="lst-measure-max" type="number" min="0" step="any" inputmode="decimal" disabled></div></div></fieldset>' : '') +
       '<p class="form-status is-error" id="lst-filter-error" role="status"></p><button id="lst-clear" class="btn btn--secondary btn--sm" type="button">Clear filters</button></details><ul class="grid" id="lst-grid"></ul>';
     show(html, opts.docTitle || opts.title);
     var value = function (id) { var el = $('#' + id); return el ? el.value : ''; };
@@ -1646,7 +1655,7 @@
       var inCompare = compareList().indexOf(p.id) !== -1;
       var html = crumbs([[d.name, '#/dept/' + p.category], [p.title]]) +
         '<div class="pdp">' +
-          '<div class="pdp__media"><div class="pflags">' + (pr.off ? '<span class="flag-sale">-' + pr.off + '%</span>' : '') + (p.sample ? '<span class="tag-sample">Sample</span>' : '') + '</div>' + likeBtn(p) + '<div class="pmedia">' + media(p) + '</div></div>' +
+          '<div class="pdp__media"><div class="pflags">' + (pr.off ? '<span class="flag-sale">-' + pr.off + '%</span>' : '') + (p.sample ? '<span class="tag-sample">Sample</span>' : '') + '</div>' + likeBtn(p) + '<div class="pmedia">' + media(p) + '</div>' + thumbsHTML(p) + '</div>' +
           '<div>' +
             '<h1>' + esc(p.title) + '</h1>' +
             '<p class="pmeta">' + (b ? 'Brand: <a href="#/brand/' + b.id + '">' + esc(b.name) + '</a> · ' : '') + (s ? 'Sold by <a href="#/store/' + s.id + '">' + esc(s.name) + '</a>' + verifiedHTML(s) : '') + '</p>' +
@@ -1691,7 +1700,7 @@
       // Everything the buyer picks (options, add-ons, their own price) updates the prices,
       // stock, buttons and the WhatsApp message together.
       var qty = $('#pdp-qty'), buy = $('#buy-now'), add = $('#pdp-add'), commitBox = $('#commit-box');
-      var cRange = $('#commit-range'), cAmt = $('#commit-amt'), cur = null;
+      var cRange = $('#commit-range'), cAmt = $('#commit-amt'), cur = null, shownPhoto = null;
       var pick = function () {
         var o = {};
         ZP.options(p).forEach(function (x) { var c = $('input[name="po-' + x.key + '"]:checked'); if (c) o[x.key] = c.value; });
@@ -1721,14 +1730,18 @@
         $('#pdp-total').textContent = (q.addTotal ? kwacha(q.unit) + ' + ' + kwacha(q.addTotal) + ' add-ons. ' : '') + (q.commit ? 'Your offer, pending the seller. ' : '') + (n > 1 || q.addTotal || q.commit ? 'Total for ' + n + ': ' + kwacha(q.each * n) : '');
         $('[data-stock]').innerHTML = stockHTML(p, v);
         var sku = $('[data-sku]'); if (sku) sku.textContent = v ? ' · SKU ' + v.sku : '';
-        if (!root.classList.contains('data-saver')) {
+        // The chosen option's photo shows when the option changes; a thumbnail the buyer
+        // picked stays until then, so changing the quantity doesn't undo it
+        var imagePath = (v && v.image) || p.image;
+        if (!root.classList.contains('data-saver') && imagePath !== shownPhoto) {
+          shownPhoto = imagePath;
           var imageBox = $('.pdp__media .pmedia'), img = $('.pdp__media .pmedia > img');
-          var imagePath = (v && v.image) || p.image;
           if (imagePath) {
             if (!img) { img = document.createElement('img'); img.width = img.height = 600; img.decoding = 'async'; imageBox.appendChild(img); }
-            img.alt = p.title + (v ? ' · ' + [v.colour, v.size].filter(Boolean).join(', ') : '');
+            img.alt = (p.alt || p.title) + (v ? ' · ' + ZP.describe(p, { colour: v.colour, size: v.size }) : '');
             if (img.getAttribute('src') !== imagePath) { img.classList.remove('is-broken'); img.src = imagePath; }
           } else if (img) img.remove();
+          $$('.pthumb').forEach(function (t) { t.setAttribute('aria-pressed', String(t.getAttribute('data-photo') === imagePath)); });
         }
         axes.forEach(function (x) {
           var lab = $('[data-opt-label="' + x.key + '"]'); if (lab) lab.textContent = o[x.key] || 'choose one';
@@ -1782,6 +1795,12 @@
       view.onclick = function (e) {
         var j = e.target.closest('[data-jump]');
         if (j) { e.preventDefault(); $('#' + j.getAttribute('data-jump')).scrollIntoView(); }
+        var th = e.target.closest('.pthumb');
+        if (th) {
+          var main = $('.pdp__media .pmedia > img');
+          if (main) { main.classList.remove('is-broken'); main.src = th.getAttribute('data-photo'); main.alt = th.getAttribute('data-alt'); }
+          $$('.pthumb').forEach(function (t) { t.setAttribute('aria-pressed', String(t === th)); });
+        }
       };
       $('#pdp-compare').addEventListener('click', function () {
         var added = toggleCompare(p.id), btn = $('#pdp-compare');
@@ -2228,11 +2247,18 @@
       addSuggestedSpecs();
 
       var fieldHTML = function (fid, label, input, hint) { return '<div class="field" id="lf-f-' + fid + '"><label for="lf-' + fid + '">' + label + '</label>' + input + (hint ? '<p class="hint">' + hint + '</p>' : '') + '</div>'; };
+      var photosHTML = function () {
+        var list = dr.images || [];
+        return list.length ? '<ul class="lf-photos">' + list.map(function (im, i) {
+          return '<li><img src="' + esc(im.src) + '" alt="" width="72" height="72"><div class="field"><label for="lf-pa-' + i + '">Photo ' + (i + 2) + ' shows *</label><input id="lf-pa-' + i + '" data-photo-alt="' + i + '" maxlength="160" placeholder="e.g. Side view showing the USB-C port" value="' + esc(im.alt) + '"></div>' +
+            '<button class="link-btn" type="button" data-del-photo="' + i + '">Remove<span class="visually-hidden"> photo ' + (i + 2) + '</span></button></li>';
+        }).join('') + '</ul>' : '';
+      };
       var attrsHTML = function () {
         var t = tpl(), out = '';
         if (!dr.category) return '<p class="pmeta">Choose a department to see the details buyers look for in it.</p>';
         if (has('size') && Array.isArray(t.sizeUnits) && !t.sizeUnits.length) out += '<div class="check"><input id="lf-measured" type="checkbox" data-measured' + (enabledFields.measured || dr.attributes.size ? ' checked' : '') + '><label for="lf-measured">Also specify a measured size, such as cm or ml</label></div>';
-        if (has('size') && units().length) out += '<div class="field-row lf-size" id="lf-f-size"><div class="field"><label for="lf-size">' + (ZP.UNITS[units()[0]].dim === 'volume' ? 'Volume' : ZP.UNITS[units()[0]].dim === 'mass' ? 'Weight' : 'Size') + ' (one size only)</label><input id="lf-size" type="number" min="0" step="any" inputmode="decimal" value="' + esc(dr.attributes.size ? dr.attributes.size.value : '') + '"><p class="hint">Leave empty if buyers choose a size below.</p></div>' +
+        if (has('size') && units().length) out += '<div class="field-row lf-size" id="lf-f-size"><div class="field"><label for="lf-size">Size, capacity or weight (one value only)</label><input id="lf-size" type="number" min="0" step="any" inputmode="decimal" value="' + esc(dr.attributes.size ? dr.attributes.size.value : '') + '"><p class="hint">Leave empty if buyers choose a size below.</p></div>' +
           '<div class="field"><label for="lf-unit">Unit</label><select id="lf-unit">' + units().map(function (u) { return '<option value="' + u + '"' + (dr.attributes.size && dr.attributes.size.unit === u ? ' selected' : '') + '>' + esc(ZP.UNITS[u].name) + '</option>'; }).join('') + '</select></div></div>';
         if (has('ageRange')) out += '<fieldset class="field" id="lf-f-ageRange"><legend>Age range</legend><div class="checks checks--ages">' + ZP.AGES.map(function (a) {
           return '<div class="check"><input type="checkbox" id="lf-age-' + a[0] + '" value="' + a[0] + '" data-age' + ((dr.attributes.ageRange || []).indexOf(a[0]) !== -1 ? ' checked' : '') + '><label for="lf-age-' + a[0] + '">' + a[1] + '</label></div>';
@@ -2287,7 +2313,12 @@
       var html = crumbs([['Seller Centre', '#/seller'], [editing ? 'Edit product' : 'Add a product']]) +
         head(editing ? 'Edit ' + esc(editing.title) : 'Add a product', 'Selling as ' + esc(s.name) + '. Fields marked * are required.') +
         (q && q.get('saved') && editing ? '<div class="notice notice--secure" role="status"><p><strong>Saved.</strong> <a href="#/product/' + esc(editing.id) + '">View the product page</a>. Prototype: saved in this browser only.</p>' +
-          '<details><summary>Copy for catalogue.js</summary><p class="pmeta">To publish it for everyone, paste this into the products list in js/catalogue.js' + (/^data:/.test(editing.image || '') ? ' and save the photo as ' + esc('assets/products/' + editing.id + '.webp') : '') + '.</p><textarea class="lf-code" readonly rows="10" aria-label="Catalogue entry">' + esc(ZP.catalogueEntry(editing)) + ',</textarea><button class="btn btn--secondary btn--sm" type="button" data-copy-entry>Copy</button></details></div>' : '') +
+          '<details><summary>Copy for catalogue.js</summary><p class="pmeta">To publish it for everyone, paste this into the products list in js/catalogue.js' + (function () {
+            // Photos uploaded here live in this browser; for the live store they become files in assets/products/
+            var files = (/^data:/.test(editing.image || '') ? ['assets/products/' + editing.id + '.webp'] : [])
+              .concat((editing.images || []).map(function (im, i) { return /^data:/.test(im.src) ? 'assets/products/' + editing.id + '-' + (i + 2) + '.webp' : ''; }).filter(Boolean));
+            return files.length ? ' and save the photo' + (files.length === 1 ? ' as ' : 's as ') + esc(files.join(', ')) : '';
+          })() + '.</p><textarea class="lf-code" readonly rows="10" aria-label="Catalogue entry">' + esc(ZP.catalogueEntry(editing)) + ',</textarea><button class="btn btn--secondary btn--sm" type="button" data-copy-entry>Copy</button></details></div>' : '') +
         '<form class="form form--card lf" id="lf" novalidate>' +
           '<div class="lf-errors" id="lf-errors" tabindex="-1" hidden></div>' +
           '<section class="lf-sec" aria-labelledby="lf-h1"><h2 class="h3" id="lf-h1">Basics</h2>' +
@@ -2299,6 +2330,8 @@
             '<div class="field-row">' + fieldHTML('image', 'Photo', '<input id="lf-image" type="file" accept="image/jpeg,image/png,image/webp">', 'A square photo of the actual item on a plain background. We crop it to 600 × 600.') +
               fieldHTML('alt', 'Photo description', '<input id="lf-alt" maxlength="160" value="' + esc(dr.alt || '') + '">', 'What the photo shows, for buyers using screen readers.') + '</div>' +
             (dr.image ? '<img class="lf-photo" id="lf-photo" src="' + esc(dr.image) + '" alt="Current photo" width="120" height="120">' : '<img class="lf-photo" id="lf-photo" alt="" width="120" height="120" hidden>') +
+            '<div class="field" id="lf-f-images"><label for="lf-images">More photos (up to ' + ZP.MAX_PHOTOS + ')</label><input id="lf-images" type="file" accept="image/jpeg,image/png,image/webp" multiple aria-describedby="lf-images-hint">' +
+              '<p class="hint" id="lf-images-hint">Other angles, close-ups, labels, what\'s in the box or the item in use. Photos of the actual item only.</p><div id="lf-photos">' + photosHTML() + '</div></div>' +
           '</section>' +
           '<section class="lf-sec" aria-labelledby="lf-h2"><h2 class="h3" id="lf-h2">Details</h2><div id="lf-optional">' + fieldsHTML() + '</div><div id="lf-attrs">' + attrsHTML() + '</div></section>' +
           '<section class="lf-sec" aria-labelledby="lf-h3"><h2 class="h3" id="lf-h3">Variations</h2><div id="lf-vars">' + varsHTML() + '</div></section>' +
@@ -2336,7 +2369,8 @@
           var kind = $$('[data-box-kind]', form)[i].value, price = $$('[data-box-price]', form)[i].value;
           return kind === 'addon' ? { item: it.value, addonZMW: price === '' ? 0 : price } : { item: it.value };
         });
-        if ($('#lf-f-colour')) dr.options.colour = $$('[data-col-name]', form).map(function (n, i) { return { name: n.value.trim(), hex: $$('[data-col-hex]', form)[i].value }; });
+        (dr.images || []).forEach(function (im, i) { var alt = $('[data-photo-alt="' + i + '"]', form); if (alt) im.alt = alt.value.trim(); });
+        if ($('#lf-f-colour')) dr.options.colour =$$('[data-col-name]', form).map(function (n, i) { return { name: n.value.trim(), hex: $$('[data-col-hex]', form)[i].value }; });
         (dr.options.extra || []).forEach(function (axis) {
           var name = $('[data-extra-name="' + axis.key + '"]', form), values = $('[data-extra-values="' + axis.key + '"]', form);
           if (name) axis.name = name.value.trim();
@@ -2375,6 +2409,24 @@
         else if (t.id === 'lf-commit') {
           $('#lf-commit-fields').hidden = !t.checked;
           if (t.checked) { if (!$('#lf-commitMax').value) $('#lf-commitMax').value = $('#lf-priceZMW').value; $('#lf-commitMin').focus(); }
+        } else if (t.id === 'lf-images') {
+          collect();
+          dr.images = dr.images || [];
+          var files = Array.prototype.slice.call(t.files || []), room = ZP.MAX_PHOTOS - dr.images.length, st2 = $('.form-status', form), added = 0, failed = 0;
+          if (files.length > room) { st2.className = 'form-status is-error'; st2.textContent = 'You can add ' + room + ' more photo' + (room === 1 ? '' : 's') + '; the rest were left out.'; }
+          files = files.slice(0, Math.max(0, room));
+          // One at a time, so the photos keep the order they were chosen in
+          var nextPhoto = function () {
+            if (!files.length) {
+              t.value = '';
+              if (failed) { st2.className = 'form-status is-error'; st2.textContent = failed + ' photo' + (failed === 1 ? ' couldn\'t' : 's couldn\'t') + ' be used. Choose JPEG, PNG or WebP files under 10 MB.'; }
+              $('#lf-photos').innerHTML = photosHTML();
+              var first = $('[data-photo-alt="' + (dr.images.length - added) + '"]', form); if (first) first.focus();
+              return;
+            }
+            bannerFromFile(files.shift(), 600, 600, function (img) { if (img) { dr.images.push({ src: img, alt: '' }); added++; } else failed++; nextPhoto(); });
+          };
+          nextPhoto();
         } else if (t.id === 'lf-image') {
           bannerFromFile(t.files[0], 600, 600, function (img) {
             var st = $('.form-status', form);
@@ -2401,6 +2453,7 @@
         var n = function (attr) { return Number(t.getAttribute(attr)); };
         if (t.hasAttribute('data-add-extra')) { collect(); dr.options.extra = dr.options.extra || []; var key = dr.options.extra.some(function (a) { return a.key === 'custom_1'; }) ? 'custom_2' : 'custom_1'; dr.options.extra.push({ key: key, name: '', values: [] }); rebuildMatrix(); redraw('#lf-extra-name-' + (dr.options.extra.length - 1)); }
         else if (t.hasAttribute('data-del-extra')) { collect(); dr.options.extra.splice(n('data-del-extra'), 1); rebuildMatrix(); redraw('[data-add-extra]'); }
+        else if (t.hasAttribute('data-del-photo')) { collect(); dr.images.splice(n('data-del-photo'), 1); $('#lf-photos').innerHTML = photosHTML(); $('#lf-images').focus(); }
         else if (t.hasAttribute('data-add-spec')) { collect(); specRows.push(['', '']); redraw('#lf-sk-' + (specRows.length - 1)); }
         else if (t.hasAttribute('data-del-spec')) { collect(); specRows.splice(n('data-del-spec'), 1); redraw('[data-add-spec]'); }
         else if (t.hasAttribute('data-add-box')) { collect(); dr.inBox.push({ item: '' }); redraw('#lf-bi-' + (dr.inBox.length - 1)); }
