@@ -11,8 +11,8 @@
   --color-accent-ink: #1A6B0E;  /* darker accent for link text on light backgrounds */
   --color-teal: #1BCCBF;        /* decorative only, never for text */
   --color-text: #1A2238;
-  --color-bg: #EEEEEE;          /* light grey page, so white section panels stand out */
-  --color-bg-alt: #EEEEEE;      /* sections are separated by panels, not tinted bands */
+  --color-bg: #E3E6E6;          /* light grey page, as on amazon.com, so white sections stand out */
+  --color-bg-alt: #E3E6E6;      /* sections are separated by white blocks, not tinted bands */
 
   /* Derived */
   --color-heading: var(--color-primary);
@@ -1300,21 +1300,26 @@ a.app-btn[href]:hover { border-color: #F5C542; box-shadow: 0 0 0 1px rgb(245 197
 .theme-zambia .site-footer::before { display: none; }
 .footer-extras .footer-pay, .footer-extras .footer-apps { margin-top: 0; }
 
-/* ---------- Sections as white panels on a light grey page ----------
-   Each content section sits on its own rounded panel with a thin gold top line, so the
-   sections stand clearly apart from the page. Full-width banners keep their own colour:
-   the hero, the Sell on Zed Supply band and the blue page headers. */
-.section { padding-block: clamp(0.4rem, 1.2vw, 0.75rem); }
+/* ---------- Sections as white blocks on a light grey page (laid out like amazon.com) ----------
+   Each content section is a flat white block with square corners and 20px of padding,
+   separated by grey gaps. Products inside a section sit straight on the white, without card
+   outlines. Zed Supply touches stay: a thin gold line on top and the gold heading underline.
+   Full-width banners keep their own colour: the hero, the Sell on Zed Supply band and the
+   blue page headers. */
+.section { padding-block: 10px; }
 .section--alt { background: transparent; }
 main .section:not(.sell-band) > .container {
-  position: relative; width: calc(100% - 32px);
-  padding-block: clamp(1.1rem, 3vw, 1.75rem);
-  background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius);
-  box-shadow: 0 1px 2px rgb(10 42 102 / 0.05), 0 6px 18px rgb(10 42 102 / 0.06);
+  position: relative; width: calc(100% - 20px);
+  padding-block: 20px;
+  background: var(--color-surface); border: 0; border-radius: 0; box-shadow: none;
 }
-@media (min-width: 768px) { main .section:not(.sell-band) > .container { width: calc(100% - 48px); max-width: calc(1320px - 48px); } }
-main .section:not(.sell-band) > .container::before { content: ""; position: absolute; top: -1px; left: 18px; right: 18px; height: 2px; border-radius: 2px; background: var(--gold-gloss); }
+@media (min-width: 768px) { main .section:not(.sell-band) > .container { width: calc(100% - 40px); max-width: calc(1320px - 40px); padding-inline: 20px; } }
+main .section:not(.sell-band) > .container::before { content: ""; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: var(--gold-gloss); }
 .theme-zambia main .section:not(.sell-band) > .container::before { background: var(--zm-stripe); }
-.sell-band { margin-block: clamp(0.4rem, 1.2vw, 0.75rem); }
-main > #home > .section:last-child, main > .section:last-child { padding-bottom: clamp(1rem, 3vw, 1.75rem); }
-@media (prefers-color-scheme: dark) { main .section:not(.sell-band) > .container { box-shadow: 0 1px 2px rgb(0 0 0 / 0.3), 0 6px 18px rgb(0 0 0 / 0.25); } }
+.sell-band { margin-block: 10px; }
+main > #home > .section:last-child, main > .section:last-child { padding-bottom: 20px; }
+/* Products inside a section: no card outline, the photo on a pale tile */
+main .section .pcard { border-color: transparent; border-radius: 0; background: transparent; }
+main .section .pcard .pmedia { border-radius: 6px; background: #F7F8F8; }
+main .section .pcard:hover .ptitle { text-decoration: underline; }
+@media (prefers-color-scheme: dark) { main .section .pcard .pmedia { background: var(--color-surface-2); } }
