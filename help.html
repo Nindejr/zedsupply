@@ -64,9 +64,9 @@
   <meta name="twitter:image" content="https://nindejr.github.io/zedsupply/assets/og-image.jpg">
   <meta name="twitter:image:alt" content="Zed Supply logo with the tagline Everything Within Reach">
 
-  <link rel="icon" type="image/png" href="assets/favicon.png">
-  <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon.png">
-  <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon.png?v=2">
+  <link rel="icon" type="image/svg+xml" sizes="any" href="assets/favicon.svg?v=2">
+  <link rel="apple-touch-icon" href="assets/apple-touch-icon.png?v=2">
   <link rel="stylesheet" href="css/style.css">
   <script src="js/catalogue.js" defer></script>
   <script src="js/couriers.js" defer></script>
@@ -506,73 +506,109 @@
   <!-- site-footer -->
   <button class="back-top" type="button" data-back-top>Back to top</button>
   <footer class="site-footer">
-    <div class="container footer-grid">
-      <div class="footer-brand">
-        <a href="index.html"><img src="assets/brand/logo-original-3d-dark.webp" alt="Zed Supply, Everything Within Reach" width="379" height="96" loading="lazy" decoding="async"></a>
-        <p>Zambia's marketplace for everyday products, business supplies and more.</p>
+    <!-- Footer, laid out like a large marketplace footer: link columns, brand row, services grid, legal line -->
+    <div class="container footer-cols">
+      <nav aria-labelledby="f-know">
+        <h2 id="f-know">Get to know us</h2>
+        <ul class="footer-list">
+          <li><a href="help.html#about">About Zed Supply</a></li>
+          <li><a href="help.html#business">Zed Supply for Business</a></li>
+          <li><a href="help.html#contact">Contact us</a></li>
+          <li><a href="privacy.html">Privacy policy</a></li>
+        </ul>
+      </nav>
+      <nav aria-labelledby="f-sell">
+        <h2 id="f-sell">Make money with us</h2>
+        <ul class="footer-list">
+          <li><a href="index.html#/sell">Sell on Zed Supply</a></li>
+          <li><a href="index.html#/seller">Seller Centre</a></li>
+          <li><a href="index.html#/seller">Run a promotion or deal</a></li>
+          <li><a href="index.html#/stock">Stock planner</a></li>
+          <li><a href="help.html#shipping-tips">Shipping tips for sellers</a></li>
+          <li><a href="help.html#selling">Seller help</a></li>
+        </ul>
+      </nav>
+      <nav aria-labelledby="f-shop">
+        <h2 id="f-shop">Shop with us</h2>
+        <ul class="footer-list">
+          <li><a href="index.html#/departments">All categories</a></li>
+          <li><a href="index.html#/deals">Today's deals</a></li>
+          <li><a href="index.html#/trending">Trending now</a></li>
+          <li><a href="index.html#/top-picks">Top picks</a></li>
+          <li><a href="index.html#/brands">Brand stores</a></li>
+          <li><a href="index.html#/compare">Compare products</a></li>
+        </ul>
+      </nav>
+      <nav aria-labelledby="f-help">
+        <h2 id="f-help">Let us help you</h2>
+        <ul class="footer-list">
+          <li><a href="index.html#/account">Your account</a></li>
+          <li><a href="index.html#/orders">Your orders</a></li>
+          <li><a href="index.html#/track">Track an order</a></li>
+          <li><a href="help.html#delivery">Delivery and couriers</a></li>
+          <li><a href="help.html#returns">Returns</a></li>
+          <li><a href="help.html">Help centre</a></li>
+        </ul>
+      </nav>
+    </div>
+
+    <div class="footer-mid">
+      <div class="container footer-mid__inner">
+        <a class="footer-mid__logo" href="index.html"><img src="assets/brand/logo-original-3d-dark.webp" alt="Zed Supply, Everything Within Reach" width="379" height="96" loading="lazy" decoding="async"></a>
+        <ul class="footer-pills" aria-label="Store settings">
+          <li><img src="assets/brand/zambia-flag.svg" alt="" width="20" height="14"> Zambia</li>
+          <li><span aria-hidden="true">K</span> Kwacha (ZMW)</li>
+          <li>English</li>
+        </ul>
         <ul class="social">
           <li><a href="https://wa.me/260979050042" target="_blank" rel="noopener noreferrer" aria-label="Chat with Zed Supply on WhatsApp"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M17.47 14.38c-.3-.15-1.76-.87-2.03-.97-.27-.1-.47-.15-.67.15-.2.3-.77.97-.94 1.16-.17.2-.35.22-.64.08-.3-.15-1.26-.46-2.39-1.48-.88-.79-1.48-1.76-1.65-2.06-.17-.3-.02-.46.13-.6.13-.14.3-.35.45-.52.15-.18.2-.3.3-.5.1-.2.05-.37-.03-.52-.07-.15-.67-1.61-.92-2.21-.24-.58-.49-.5-.67-.51h-.57c-.2 0-.52.07-.79.37-.27.3-1.04 1.02-1.04 2.48s1.07 2.88 1.21 3.07c.15.2 2.1 3.2 5.08 4.49.71.31 1.26.49 1.7.63.71.22 1.36.19 1.87.12.57-.09 1.76-.72 2-1.41.25-.7.25-1.29.18-1.41-.08-.13-.28-.2-.57-.35m-5.42 7.4h-.01a9.87 9.87 0 0 1-5.03-1.38l-.36-.21-3.74.98 1-3.65-.24-.37a9.86 9.86 0 0 1-1.51-5.26c0-5.45 4.44-9.88 9.89-9.88 2.64 0 5.12 1.03 6.99 2.9a9.83 9.83 0 0 1 2.89 6.99c0 5.45-4.44 9.88-9.88 9.88m8.41-18.3A11.82 11.82 0 0 0 12.05 0C5.5 0 .16 5.34.16 11.89c0 2.1.55 4.14 1.59 5.95L.06 24l6.3-1.65a11.88 11.88 0 0 0 5.68 1.45h.01c6.55 0 11.89-5.34 11.89-11.89a11.82 11.82 0 0 0-3.48-8.41Z"/></svg></a></li>
           <li><a href="https://www.facebook.com/profile.php?id=61594975557604" target="_blank" rel="noopener noreferrer" aria-label="Zed Supply on Facebook"><svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M16 8.05C16 3.6 12.42 0 8 0S0 3.6 0 8.05c0 4.02 2.93 7.35 6.75 7.95v-5.62H4.72V8.05h2.03V6.27c0-2.01 1.2-3.13 3.02-3.13.88 0 1.8.16 1.8.16v1.98h-1.01c-1 0-1.31.62-1.31 1.26v1.51h2.22l-.35 2.33H9.25V16C13.07 15.4 16 12.07 16 8.05"/></svg></a></li>
           <!-- Add Instagram, LinkedIn or TikTok here when you have them, and to sameAs in the head. -->
         </ul>
-        <div class="footer-pay">
-          <p class="footer-pay__label">Pay with mobile money</p>
-          <div data-pay-methods><p class="footer-pay__list">MTN MoMo · Airtel Money · Zamtel Mobile Money</p></div>
-        </div>
-        <!-- App store buttons: they link once the app addresses are set in js/catalogue.js (settings.apps) -->
-        <div class="footer-apps">
-          <p class="footer-pay__label">Get the Zed Supply app</p>
-          <ul class="app-btns">
-            <li><a class="app-btn is-soon" data-app="ios"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6" y="2" width="12" height="20" rx="2.5"/><path d="M11 18h2"/></svg><span class="app-btn__text"><small>Download on the</small>App Store</span><span class="app-btn__soon">Coming soon</span></a></li>
-            <li><a class="app-btn is-soon" data-app="android"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3.5v17l13-8.5z"/></svg><span class="app-btn__text"><small>Get it on</small>Google Play</span><span class="app-btn__soon">Coming soon</span></a></li>
-            <li><a class="app-btn is-soon" data-app="huawei"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 7h14l-1.2 12.2a2 2 0 0 1-2 1.8H8.2a2 2 0 0 1-2-1.8z"/><path d="M9 10V6a3 3 0 0 1 6 0v4"/></svg><span class="app-btn__text"><small>Explore it on</small>AppGallery</span><span class="app-btn__soon">Coming soon</span></a></li>
-          </ul>
+      </div>
+    </div>
+
+    <div class="footer-services">
+      <div class="container">
+        <ul class="fsvc">
+          <li><a href="https://wa.me/260979050042" target="_blank" rel="noopener noreferrer"><strong>WhatsApp ordering</strong><span>Check out and confirm on WhatsApp</span></a></li>
+          <li><a href="help.html#payments"><strong>Mobile money</strong><span>MTN MoMo, Airtel Money, Zamtel</span></a></li>
+          <li><a href="index.html#request"><strong>Product requests</strong><span>Tell us what you need, we source it</span></a></li>
+          <li><a href="help.html#business"><strong>Zed Supply for Business</strong><span>Office and institutional supplies</span></a></li>
+          <li><a href="help.html#couriers"><strong>Couriers</strong><span>ZICTA-licensed delivery options</span></a></li>
+          <li><a href="index.html#/promotions"><strong>Seller promotions</strong><span>Seasonal and store deals</span></a></li>
+          <li><a href="index.html#/stock"><strong>Stock planner</strong><span>Free tool for sellers</span></a></li>
+          <li><a href="index.html#/world"><strong>Shop the World</strong><span>Coming soon: China and beyond</span></a></li>
+        </ul>
+        <div class="footer-extras">
+          <div class="footer-pay">
+            <p class="footer-pay__label">Pay with mobile money</p>
+            <div data-pay-methods><p class="footer-pay__list">MTN MoMo · Airtel Money · Zamtel Mobile Money</p></div>
+          </div>
+          <!-- App store buttons: they link once the app addresses are set in js/catalogue.js (settings.apps) -->
+          <div class="footer-apps">
+            <p class="footer-pay__label">Get the Zed Supply app</p>
+            <ul class="app-btns">
+              <li><a class="app-btn is-soon" data-app="ios"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6" y="2" width="12" height="20" rx="2.5"/><path d="M11 18h2"/></svg><span class="app-btn__text"><small>Download on the</small>App Store</span><span class="app-btn__soon">Coming soon</span></a></li>
+              <li><a class="app-btn is-soon" data-app="android"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3.5v17l13-8.5z"/></svg><span class="app-btn__text"><small>Get it on</small>Google Play</span><span class="app-btn__soon">Coming soon</span></a></li>
+              <li><a class="app-btn is-soon" data-app="huawei"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 7h14l-1.2 12.2a2 2 0 0 1-2 1.8H8.2a2 2 0 0 1-2-1.8z"/><path d="M9 10V6a3 3 0 0 1 6 0v4"/></svg><span class="app-btn__text"><small>Explore it on</small>AppGallery</span><span class="app-btn__soon">Coming soon</span></a></li>
+            </ul>
+          </div>
         </div>
       </div>
-      <nav aria-labelledby="f-shop">
-        <h2 id="f-shop">Shop</h2>
-        <ul class="footer-list">
-          <li><a href="index.html#/departments">All categories</a></li>
-          <li><a href="index.html#/deals">Today's deals</a></li>
-          <li><a href="index.html#/promotions">Promotions</a></li>
-          <li><a href="index.html#/brands">Brand stores</a></li>
-          <li><a href="index.html#/world">Shop the World</a></li>
-        </ul>
-      </nav>
-      <nav aria-labelledby="f-sell">
-        <h2 id="f-sell">Sell</h2>
-        <ul class="footer-list">
-          <li><a href="index.html#/sell">Sell on Zed Supply</a></li>
-          <li><a href="index.html#/seller">Seller Centre</a></li>
-          <li><a href="index.html#/seller">Run a promotion</a></li>
-          <li><a href="help.html#selling">Seller help</a></li>
-        </ul>
-      </nav>
-      <nav aria-labelledby="f-help">
-        <h2 id="f-help">Help</h2>
-        <ul class="footer-list">
-          <li><a href="help.html">Help centre</a></li>
-          <li><a href="index.html#/track">Track an order</a></li>
-          <li><a href="help.html#delivery">Delivery</a></li>
+    </div>
+
+    <div class="footer-legal">
+      <div class="container">
+        <ul class="footer-legal__links">
+          <li><a href="privacy.html">Privacy policy</a></li>
+          <li><button class="link-btn footer-cookie" type="button" data-cookie-settings>Cookie settings</button></li>
           <li><a href="help.html#returns">Returns</a></li>
           <li><a href="help.html#contact">Contact us</a></li>
         </ul>
-      </nav>
-      <div>
-        <h2>Zed Supply</h2>
-        <ul class="footer-list">
-          <li><a href="help.html#about">About us</a></li>
-          <li><a href="help.html#business">Zed Supply for Business</a></li>
-          <li><a href="tel:+260979050042">+260 97 905 0042</a></li>
-          <li><a href="mailto:expresszambezi@gmail.com">expresszambezi@gmail.com</a></li>
-          <li><span class="placeholder">[STREET ADDRESS]</span>, Lusaka</li>
-        </ul>
+        <p>&copy; <span data-year>2026</span> Zed Supply. All rights reserved. · Lusaka, Zambia · <a href="tel:+260979050042">+260 97 905 0042</a> · <a href="mailto:expresszambezi@gmail.com">expresszambezi@gmail.com</a></p>
+        <p>Company reg. (PACRA): <span class="placeholder">[REG NUMBER]</span> · TPIN: <span class="placeholder">[TPIN]</span> · <span class="placeholder">[STREET ADDRESS]</span>, Lusaka</p>
       </div>
-    </div>
-    <div class="container footer-legal">
-      <p>&copy; <span data-year>2026</span> Zed Supply. All rights reserved.</p>
-      <p>Company reg. (PACRA): <span class="placeholder">[REG NUMBER]</span> · TPIN: <span class="placeholder">[TPIN]</span></p>
-      <p><a href="privacy.html">Privacy policy</a> · <button class="link-btn footer-cookie" type="button" data-cookie-settings>Cookie settings</button></p>
     </div>
   </footer>
   <!-- /site-footer -->

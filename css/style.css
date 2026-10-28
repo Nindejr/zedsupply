@@ -11,15 +11,15 @@
   --color-accent-ink: #1A6B0E;  /* darker accent for link text on light backgrounds */
   --color-teal: #1BCCBF;        /* decorative only, never for text */
   --color-text: #1A2238;
-  --color-bg: #FFFFFF;
-  --color-bg-alt: #F3F7FC;      /* tint for alternating sections */
+  --color-bg: #F5F5F5;          /* white smoke: softer than pure white */
+  --color-bg-alt: #ECEEF1;      /* tint for alternating sections */
 
   /* Derived */
   --color-heading: var(--color-primary);
   --color-muted: #4A5670;
-  --color-surface: #FFFFFF;
-  --color-surface-2: #E9F0F8;
-  --color-border: #D5DFEC;
+  --color-surface: #FAFAFA;     /* cards and panels, a touch lighter than the page */
+  --color-surface-2: #E8ECF1;
+  --color-border: #D3DAE4;
   --color-header: #0A2A66;
   --color-subnav: #0B3A85;
   --color-footer: #071D47;
@@ -592,7 +592,7 @@ fieldset.field { border: 0; padding: 0; margin: 0; }
 input, select, textarea {
   width: 100%; min-height: 46px; padding: 0.6rem 0.8rem;
   font: inherit; font-size: 16px; color: var(--color-text);   /* 16px stops phones zooming in when a field is tapped */
-  background: var(--color-bg); border: 1.5px solid #8A97AD; border-radius: var(--radius-sm);
+  background: var(--color-surface); border: 1.5px solid #8A97AD; border-radius: var(--radius-sm);
 }
 @media (min-width: 768px) { input, select, textarea { font-size: 1rem; } }
 textarea { min-height: 120px; resize: vertical; }
@@ -662,25 +662,53 @@ a.contact-method:hover { border-color: var(--color-secondary); }
 .not-found__links h2 { font-size: clamp(1.2rem, 3.5vw, 1.5rem); }
 
 /* ---------- Footer ---------- */
-.back-top { display: block; width: 100%; min-height: 48px; border: 0; background: #0E2F6E; color: #FFFFFF; font-weight: 600; cursor: pointer; }
-.back-top:hover { background: #12397F; }
-.site-footer { background: var(--color-footer); color: #C8D3E6; padding-top: 2.5rem; font-size: 0.93rem; }
-.site-footer a { color: #FFFFFF; }
-.site-footer h2 { font-size: 0.95rem; letter-spacing: 0.06em; text-transform: uppercase; color: #FFFFFF; margin-bottom: 0.6rem; }
-.footer-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1.75rem 1.25rem; padding-bottom: 2rem; }
-.footer-grid > * { min-width: 0; overflow-wrap: anywhere; }
-@media (min-width: 1024px) { .footer-grid { grid-template-columns: 1.3fr repeat(4, 1fr); } }
-.footer-brand { grid-column: 1 / -1; }
-@media (min-width: 1024px) { .footer-brand { grid-column: auto; } }
-.footer-brand img { width: 150px; height: auto; margin-bottom: 0.75rem; }
-.footer-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.2rem; }
-.footer-list a { display: inline-block; padding-block: 0.3rem; text-decoration: none; }
-.footer-list a:hover { text-decoration: underline; }
-.social { list-style: none; display: flex; gap: 0.5rem; margin: 0.75rem 0 0; padding: 0; }
-.social a { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 50%; background: rgb(255 255 255 / 0.08); }
-.social svg { width: 22px; height: 22px; }
-.footer-legal { border-top: 1px solid rgb(255 255 255 / 0.12); padding-block: 1.1rem; display: flex; flex-wrap: wrap; gap: 0.5rem 1.5rem; justify-content: space-between; font-size: 0.85rem; }
-.footer-legal p { margin: 0; max-width: none; }
+/* Layout follows a large marketplace footer: Back to top, four link columns, a brand row,
+   a darker band of services, then a small centred legal line. Colours stay Zed Supply's. */
+.back-top { display: block; width: 100%; min-height: 48px; border: 0; background: #12397F; color: #FFFFFF; font-size: 0.93rem; font-weight: 600; cursor: pointer; }
+.back-top:hover { background: #1A4A9A; }
+.site-footer { position: relative; background: var(--color-footer); color: #C8D3E6; font-size: 0.93rem; }
+.site-footer a { color: #E4EAF5; text-decoration: none; }
+.site-footer a:hover { color: #FFFFFF; text-decoration: underline; }
+.site-footer h2 { font-size: 1.15rem; font-weight: 700; color: #FFFFFF; margin: 0 0 0.6rem; }
+
+/* 1. Four link columns */
+.footer-cols { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1.75rem 1.25rem; padding-block: 2.5rem 2.25rem; }
+@media (min-width: 900px) { .footer-cols { grid-template-columns: repeat(4, minmax(0, max-content)); justify-content: center; column-gap: clamp(2.5rem, 8vw, 7rem); } }
+.footer-cols > * { min-width: 0; }
+.footer-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.1rem; }
+.footer-list a { display: inline-block; padding-block: 0.25rem; }
+
+/* 2. Brand row: logo, store settings, social */
+.footer-mid { border-top: 1px solid rgb(255 255 255 / 0.12); }
+.footer-mid__inner { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 1rem 2rem; padding-block: 1.75rem; }
+.footer-mid__logo img { width: 150px; height: auto; display: block; }
+.footer-pills { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.footer-pills li { display: inline-flex; align-items: center; gap: 0.4rem; min-height: 36px; padding: 0.3rem 0.8rem; border: 1px solid rgb(255 255 255 / 0.35); border-radius: 6px; color: #E4EAF5; font-size: 0.86rem; max-width: none; }
+.footer-pills img { width: 20px; height: auto; border-radius: 2px; }
+.footer-pills span { font-weight: 700; color: #FFE08A; }
+.social { list-style: none; display: flex; gap: 0.5rem; margin: 0; padding: 0; }
+.social li { max-width: none; }
+.social a { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 50%; background: rgb(255 255 255 / 0.08); border: 1px solid rgb(255 255 255 / 0.18); }
+.social a:hover { border-color: #F5C542; }
+.social svg { width: 20px; height: 20px; }
+
+/* 3. Services band: short title and one line each */
+.footer-services { background: #050F2A; padding-block: 1.75rem; border-top: 1px solid rgb(255 255 255 / 0.06); }
+.fsvc { list-style: none; margin: 0 auto; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem 1.25rem; max-width: 1100px; }
+@media (min-width: 700px) { .fsvc { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+.fsvc li { max-width: none; }
+.fsvc a { display: flex; flex-direction: column; gap: 0.1rem; font-size: 0.82rem; line-height: 1.3; }
+.fsvc strong { color: #E4EAF5; font-weight: 700; }
+.fsvc span { color: #9AA8C2; }
+.fsvc a:hover { text-decoration: none; }
+.fsvc a:hover strong { color: #FFFFFF; text-decoration: underline; }
+.footer-extras { display: flex; flex-wrap: wrap; justify-content: center; gap: 1.25rem 3rem; max-width: 1100px; margin: 1.5rem auto 0; padding-top: 1.25rem; border-top: 1px solid rgb(255 255 255 / 0.08); }
+
+/* 4. Legal line */
+.footer-legal { background: #050F2A; padding-block: 0 1.4rem; text-align: center; font-size: 0.8rem; color: #9AA8C2; }
+.footer-legal p { margin: 0.25rem auto 0; max-width: none; }
+.footer-legal__links { list-style: none; margin: 0 0 0.35rem; padding: 0; display: flex; flex-wrap: wrap; justify-content: center; gap: 0.25rem 1.25rem; }
+.footer-legal__links li { max-width: none; }
 .site-footer .placeholder { background: #4A3B00; color: #FFE38A; }
 
 /* ---------- Data saver: hide product photos to save mobile data ---------- */
@@ -739,13 +767,22 @@ h1[tabindex="-1"]:focus { outline: none; }
 .season-art img:last-child { transform: rotate(7deg); }
 @media (max-width: 599.98px) { .ad__art:has(.season-art) { top: 16px; right: 12px; width: 26%; opacity: .22; } .season-art { display: block; } .season-art img:not(:first-child) { display: none; } }
 .emoji img { width: 24px; height: 24px; }
+.drawer li a:has(.emoji) { gap: 0.9rem; min-height: 66px; padding-block: 0.55rem; font-weight: 600; }
+.drawer .emoji { display: grid; place-items: center; width: 48px; height: 48px; border-radius: 14px; background: linear-gradient(145deg, var(--color-surface), var(--color-surface-2)); border: 1px solid #D6C79F; box-shadow: inset 0 1px 0 rgb(255 255 255 / .7), 0 3px 8px rgb(10 42 102 / .08); }
+.drawer .emoji img { width: 42px; height: 42px; background: transparent; border-radius: 0; }
+.drawer li a:has(.emoji):hover .emoji { border-color: #B68A37; box-shadow: inset 0 1px 0 rgb(255 255 255 / .7), 0 4px 12px rgb(10 42 102 / .16); }
+@media (prefers-color-scheme: dark) { .drawer .emoji { border-color: rgb(214 199 159 / .45); box-shadow: inset 0 1px 0 rgb(255 255 255 / .1), 0 3px 8px rgb(0 0 0 / .3); background: linear-gradient(145deg, #E9EEF5, #C9D4E3); } }
 .chip img { display: inline-block; width: 20px; height: 20px; vertical-align: middle; }
 .pmedia__emoji img { position: static; width: 60px; height: 60px; }
 .data-saver .pmedia__emoji img { display: block; }
-.pmedia > img { object-fit: contain; background: #f7f9fc; }
+/* Product photos: in light mode their white backgrounds blend into the soft page tone */
+.pmedia > img { object-fit: contain; background: transparent; mix-blend-mode: multiply; }
+.pmedia { background: var(--color-bg); }
+/* The category icon behind each photo is only a fallback: hide it while the photo shows */
+html:not(.data-saver) .pmedia:has(> img:not(.is-broken)) > .pmedia__emoji { visibility: hidden; }
+@media (prefers-color-scheme: dark) { .pmedia > img { background: #f7f9fc; mix-blend-mode: normal; } .pmedia { background: var(--color-surface-2); } }
 .empty__art { margin: 0 auto 1rem; opacity: .7; }
 .brand__logo { width: 96px; height: 96px; padding: 4px; object-fit: contain; border-radius: 22px; background: #edf5fc; margin-bottom: .8rem; }
-.footer-brand img { width: 220px; }
 @media (prefers-color-scheme: dark) {
  .dept__icon { background: radial-gradient(ellipse at 50% 70%, #24496b 0%, #15324f 56%, transparent 74%); }
  .pmedia__emoji, .emoji img, .chip img { background: #e9f0f8; border-radius: 8px; }
@@ -1257,3 +1294,8 @@ a.app-btn[href]:hover { border-color: #F5C542; box-shadow: 0 0 0 1px rgb(245 197
 .cdir .cmp { max-height: 28rem; overflow: auto; }
 .cdir .cmp thead th { position: sticky; top: 0; z-index: 2; }
 .checks--scroll { max-height: 18rem; overflow-y: auto; padding: 0.25rem; border: 1px solid var(--color-border); border-radius: var(--radius-sm); grid-template-columns: 1fr !important; }
+
+/* Footer: gold line along the top (the flag stripe takes over during Independence) */
+.site-footer::before { content: ""; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: var(--gold-gloss); }
+.theme-zambia .site-footer::before { display: none; }
+.footer-extras .footer-pay, .footer-extras .footer-apps { margin-top: 0; }

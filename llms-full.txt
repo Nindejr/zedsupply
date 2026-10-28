@@ -463,17 +463,17 @@ The link may be mistyped, or the page may have moved. The shop is still here: se
 
 ## Footer
 
-Zambia's marketplace for everyday products, business supplies and more.
-
-- Pay with mobile money: MTN MoMo, Airtel Money, Zamtel Mobile Money
-- Shop: All categories, Today's deals, Promotions, Brand stores, Shop the World
-- Sell: Sell on Zed Supply, Seller Centre, Run a promotion, Seller help
-- Help: Help centre, Track an order, Delivery, Returns, Contact us
-- Zed Supply: About us, Zed Supply for Business
+- Get to know us: About Zed Supply, Zed Supply for Business, Contact us, Privacy policy
+- Make money with us: Sell on Zed Supply, Seller Centre, Run a promotion or deal, Stock planner, Shipping tips for sellers, Seller help
+- Shop with us: All categories, Today's deals, Trending now, Top picks, Brand stores, Compare products
+- Let us help you: Your account, Your orders, Track an order, Delivery and couriers, Returns, Help centre
+- Store settings: Zambia, Kwacha (ZMW), English
+- Services: WhatsApp ordering, Mobile money (MTN MoMo, Airtel Money, Zamtel Mobile Money), Product requests, Zed Supply for Business, Couriers, Seller promotions, Stock planner, Shop the World (coming soon)
+- Get the Zed Supply app: App Store, Google Play and AppGallery (coming soon)
 - WhatsApp: https://wa.me/260979050042
 - Facebook: https://www.facebook.com/profile.php?id=61594975557604
 - Phone: +260 97 905 0042
 - Email: expresszambezi@gmail.com
 - Lusaka, Zambia
 - © 2026 Zed Supply. All rights reserved.
-- Privacy policy, Cookie settings
+- Privacy policy, Cookie settings, Returns, Contact us
