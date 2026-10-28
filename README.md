@@ -2,6 +2,9 @@
 
 Zed Supply, an online marketplace for Lusaka, Zambia: https://nindejr.github.io/zedsupply/
 
+See [product features and implementation brief](PRODUCT-FEATURES.md) for seller
+attributes, variants, buyer filters, reviews and the remaining backend work.
+
 ## Product image magnifier
 
 Product detail pages include a side-panel image magnifier on screens wide enough

@@ -1611,4 +1611,25 @@ main .section .pcard .pmedia, .pcard .pmedia { background: rgb(235 243 251 / .45
 .lf-photo[hidden] { display: none; }
 .lf-code { width: 100%; font-family: Consolas, "Courier New", monospace; font-size: 0.8rem; }
 .checks--ages { grid-template-columns: repeat(auto-fill, minmax(8rem, 1fr)) !important; }
+.lf-optional, .listing-filters { padding: 1rem; margin-bottom: 1rem; border: 1px solid var(--glass-border); border-radius: var(--radius); background: var(--panel-glass); box-shadow: var(--float-shadow); }
+.lf-optional summary, .listing-filters summary { cursor: pointer; font-weight: 700; color: var(--color-heading); }
+.lf-optional[open] summary, .listing-filters[open] summary { margin-bottom: .9rem; }
+.listing-filters__grid, .review-filters { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 11rem), 1fr)); gap: .75rem; align-items: end; }
+.listing-filters__grid > *, .review-filters > * { min-width: 0; }
+.listing-filters input, .listing-filters select { max-width: 100%; }
+.listing-filters .field, .review-filters .field { margin: 0; }
+.measurement-filter { margin: 1rem 0 0; padding: .85rem 0 0; border: 0; border-top: 1px solid var(--color-border); min-width: 0; }
+.measurement-filter legend { font-weight: 700; color: var(--color-heading); }
+.listing-filters .form-status:empty { display: none; }
+.listing-filters > .btn { margin-top: .85rem; }
+.product-condition { padding: .8rem 1rem; border: 1px solid var(--glass-border); border-radius: var(--radius); background: var(--panel-glass); margin-bottom: 1rem; }
+.product-condition .h3 { margin-top: 0; }
+.product-condition p { margin-bottom: 0; overflow-wrap: anywhere; }
+.product-features ul { padding-left: 1.3rem; }
+.product-features li { margin-bottom: .35rem; overflow-wrap: anywhere; }
+.review-filters { margin: .5rem 0; }
+.specs { table-layout: fixed; }
+.specs th, .specs td { overflow-wrap: anywhere; }
+.lf-extra { display: grid; gap: .75rem; }
+.lf-extra .lf-row > label { font-size: .85rem; font-weight: 600; }
 @media (prefers-reduced-motion: reduce) { .lf-switch input, .lf-switch input::after { transition: none; } }

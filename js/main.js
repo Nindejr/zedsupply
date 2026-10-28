@@ -795,8 +795,13 @@
     return '<button class="like" type="button" data-like="' + esc(p.id) + '" aria-pressed="' + isLiked(p.id) + '" aria-label="Save ' + esc(p.title) + ' to wishlist">' + icon(I.heart) + '</button>';
   }
   // rank: optional position in a trending or top-picks list
-  function card(p, rank) {
-    var pr = priceOf(p), s = seller(p.seller), others = sameItem(p);
+  function card(p, rank, displayedPrice) {
+    var pr = displayedPrice || priceOf(p), s = seller(p.seller), others = sameItem(p);
+    if (!displayedPrice && ZP.hasOptions(p)) {
+      var pricedVariants = ZP.variants(p), available = pricedVariants.filter(function (v) { return v.stock > 0; });
+      if (available.length) pricedVariants = available;
+      if (pricedVariants.length) pr = pricedVariants.map(function (v) { return basePriceOf(p, v); }).sort(function (a,b) { return a.now-b.now; })[0];
+    }
     var otherSellers = others.filter(function (x) { return x.seller && x.seller !== p.seller; }).length;
     return '<li><article class="pcard">' +
       '<div class="pflags">' + (rank ? '<span class="rank">#' + rank + '<span class="visually-hidden"> in this list</span></span>' : '') + (pr.off ? '<span class="flag-sale">-' + pr.off + '%</span>' : '') +
@@ -807,13 +812,13 @@
         '<a class="ptitle" href="' + R + 'product/' + esc(p.id) + '">' + esc(p.title) + '</a>' +
         '<p class="pmeta">' + (s ? 'Sold by ' + esc(s.name) : (p.source === 'china' ? 'Shop the World' : esc(dept(p.category).name))) + '</p>' +
         (otherSellers ? '<p class="pmeta"><a href="' + R + 'compare?ids=' + [p.id].concat(others.map(function (x) { return x.id; })).map(encodeURIComponent).join(',') + '">Compare ' + (otherSellers + 1) + ' sellers</a></p>' : '') +
-        starsHTML(p) + priceHTML(pr) + (p.commit && ZP.commitRange(p, pr.now) ? '<p class="pmeta pcommit">Or name your price from ' + kwacha(ZP.commitRange(p, pr.now).min) + '</p>' : '') + stockHTML(p) +
+        ((p.attributes || {}).condition ? '<p class="pmeta">Condition: ' + esc(ZP.conditionLabel(p)) + '</p>' : '') + starsHTML(p) + (ZP.hasOptions(p) ? '<span class="pmeta">From</span>' : '') + priceHTML(pr) + (p.commit && ZP.commitRange(p, pr.now) ? '<p class="pmeta pcommit">Or name your price from ' + kwacha(ZP.commitRange(p, pr.now).min) + '</p>' : '') + stockHTML(p) +
         (ZP.hasOptions(p) || ZP.inBox(p).addons.length || p.commit
           ? '<a class="btn btn--primary btn--sm" href="' + R + 'product/' + esc(p.id) + '">' + (ZP.hasOptions(p) ? 'Choose options' : 'See options') + '<span class="visually-hidden">: ' + esc(p.title) + '</span></a>'
           : '<button class="btn btn--primary btn--sm" type="button" data-add="' + esc(p.id) + '">Add to cart<span class="visually-hidden">: ' + esc(p.title) + '</span></button>') +
       '</div></article></li>';
   }
-  function cards(list, ranked) { return list.map(function (p, i) { return card(p, ranked ? i + 1 : 0); }).join(''); }
+  function cards(list, ranked, priceFor) { return list.map(function (p, i) { return card(p, ranked ? i + 1 : 0, priceFor ? priceFor(p) : null); }).join(''); }
   function promoCard(pr, level) {
     var h = level === 2 ? 'h2' : 'h3';
     var s = seller(pr.seller), se = season(pr.season), st = promoStatus(pr);
@@ -1281,9 +1286,10 @@
   function specsHTML(p) {
     var a = p.attributes || {}, rows = [];
     if (a.manufacturer) rows.push(['Manufacturer', esc(a.manufacturer)]);
+    if (a.condition) rows.push(['Condition', esc(ZP.conditionLabel(p))]);
     if (a.size) rows.push([ZP.UNITS[a.size.unit] && ZP.UNITS[a.size.unit].dim === 'volume' ? 'Volume' : ZP.UNITS[a.size.unit] && ZP.UNITS[a.size.unit].dim === 'mass' ? 'Weight' : 'Size', esc(ZP.sizeLabel(a.size))]);
     if (ZP.ages(p).length) rows.push(['Age range', ZP.AGES.filter(function (x) { return ZP.ages(p).indexOf(x[0]) !== -1; }).map(function (x) { return x[1]; }).join(', ')]);
-    ZP.options(p).forEach(function (o) { rows.push([o.key === 'colour' ? 'Colours' : 'Sizes', o.values.map(function (v) { return esc(v.label); }).join(', ')]); });
+    ZP.options(p).forEach(function (o) { rows.push([esc(o.name), o.values.map(function (v) { return esc(v.label); }).join(', ')]); });
     Object.keys(a.specs || {}).forEach(function (k) { rows.push([esc(k), esc(a.specs[k])]); });
     return rows.length ? '<h2 class="h3">Specifications</h2><table class="specs"><tbody>' + rows.map(function (r) { return '<tr><th scope="row">' + r[0] + '</th><td>' + r[1] + '</td></tr>'; }).join('') + '</tbody></table>' : '';
   }
@@ -1329,17 +1335,18 @@
       '<p class="hint">Prototype: your review is saved on this device only.</p><p class="form-status" role="status" tabindex="-1"></p>' +
       '<button class="btn btn--primary" type="submit">' + (mine ? 'Update review' : 'Post review') + '</button></form>';
   }
-  function reviewList(revs, sort) {
-    var list = revs.slice();
+  function reviewList(revs, sort, filters) {
+    filters = filters || {};
+    var list = revs.filter(function (r) { return (!filters.star || Number(r.rating) === filters.star) && (!filters.verified || r.verified) && (!filters.query || [r.title, r.text].join(' ').toLowerCase().indexOf(filters.query) !== -1); });
     if (sort === 'high') list.sort(function (a, b) { return b.rating - a.rating; });
     else if (sort === 'low') list.sort(function (a, b) { return a.rating - b.rating; });
     else if (sort === 'verified') list.sort(function (a, b) { return (b.verified ? 1 : 0) - (a.verified ? 1 : 0) || (a.date < b.date ? 1 : -1); });
     else list.sort(function (a, b) { return a.date < b.date ? 1 : a.date > b.date ? -1 : 0; });
-    return list.map(function (v) {
+    return list.length ? list.map(function (v) {
       var stars = Math.min(5, Math.max(0, Number(v.rating) || 0));
       return '<div class="review"><span class="stars__icons" aria-hidden="true">' + starString(stars) + '</span><span class="visually-hidden">' + stars + ' out of 5</span> <strong>' + esc(v.name) + '</strong> <small>' + niceDate(v.date) + '</small>' +
         (v.verified ? ' <span class="verified-buy">' + icon(I.check) + 'Verified purchase</span>' : '') + (v.mine ? ' <span class="tag-mine">Your review</span>' : '') + (v.title ? '<h3 class="review__title">' + esc(v.title) + '</h3>' : '') + '<p>' + esc(v.text) + '</p></div>';
-    }).join('');
+    }).join('') : '<p class="pmeta">No reviews match these filters.</p>';
   }
   function pickMonths() { return [thisMonth, lastMonth].filter(function (k) { return topPicks(k).length; }); }
   // "View more", "More categories" and month tabs work the same on the homepage and their own pages
@@ -1441,41 +1448,97 @@
   function ticks(list) { return '<ul class="ticks">' + list.map(function (t) { return '<li>' + icon(I.check) + t + '</li>'; }).join('') + '</ul>'; }
 
   /* Product listing with sort and filters: departments, search, deals, brands, stores, promotions */
-  // Colour and age filters appear only when products in the list have them
+  // Attribute facets appear only when represented in this result set.
   function facetSelect(id, label, values) {
     return values.length ? '<label for="' + id + '" class="visually-hidden">' + label + '</label><select id="' + id + '"><option value="">' + label + ': all</option>' +
       values.map(function (v) { return '<option value="' + esc(v[0]) + '">' + esc(v[1]) + '</option>'; }).join('') + '</select>' : '';
   }
   function listing(opts) {
-    var colourSet = {}, ageSet = {};
-    opts.list.forEach(function (p) { ZP.colours(p).forEach(function (c) { colourSet[c] = 1; }); ZP.ages(p).forEach(function (a) { ageSet[a] = 1; }); });
-    var colourVals = Object.keys(colourSet).sort().map(function (c) { return [c, c]; });
-    var ageVals = ZP.AGES.filter(function (a) { return ageSet[a[0]]; });
+    // Nothing listed yet (the live store before sellers join): no filters, just ask us to source it
+    if (!opts.list.length) {
+      show(crumbs(opts.crumbs) + head(opts.title, opts.sub) + (opts.extra || '') + '<ul class="grid"><li class="grid__full">' + empty('Nothing listed here yet. Tell us what you need and we\'ll find it.', askBtn('Hi Zed Supply, I\'m looking for: ')) + '</li></ul>', opts.docTitle || opts.title);
+      return;
+    }
+    var colourSet = Object.create(null), ageSet = {}, sizeSet = Object.create(null), makerSet = Object.create(null), brandSet = {}, conditionSet = {}, dimensions = {};
+    opts.list.forEach(function (p) {
+      ZP.colours(p).forEach(function (c) { colourSet[c] = c; });
+      ZP.ages(p).forEach(function (a) { ageSet[a] = 1; });
+      var a = p.attributes || {};
+      if (p.brand && brand(p.brand)) brandSet[p.brand] = brand(p.brand).name;
+      if (a.manufacturer) makerSet[a.manufacturer.toLowerCase()] = a.manufacturer;
+      if (a.condition) conditionSet[a.condition] = 1;
+      (a.size ? [a.size] : []).concat((p.options || {}).size || []).forEach(function (s) { sizeSet[ZP.sizeToken(s)] = ZP.sizeLabel(s); });
+      ZP.measures(p).forEach(function (s) { if (ZP.UNITS[s.unit]) dimensions[ZP.UNITS[s.unit].dim] = true; });
+    });
+    var values = function (set) { return Object.keys(set).map(function (k) { return [k, set[k]]; }).sort(function (a,b) { return a[1].localeCompare(b[1]); }); };
+    var measureUnits = Object.keys(ZP.UNITS).filter(function (u) { return dimensions[ZP.UNITS[u].dim]; });
     var html = crumbs(opts.crumbs) + head(opts.title, opts.sub) + (opts.extra || '') +
       '<div class="toolbar"><p class="result-count" id="lst-count" role="status"></p><div class="toolbar__filters">' +
-        '<label class="inline-check"><input type="checkbox" id="lst-promo"> On promotion</label>' +
-        '<label class="inline-check"><input type="checkbox" id="lst-stock"> In stock</label>' +
-        facetSelect('lst-colour', 'Colour', colourVals) + facetSelect('lst-age', 'Age', ageVals) +
-        '<label for="lst-sort" class="visually-hidden">Sort by</label><select id="lst-sort"><option value="">Sort: Relevance</option><option value="asc">Price: low to high</option><option value="desc">Price: high to low</option><option value="rating">Top rated</option></select>' +
-      '</div></div><ul class="grid" id="lst-grid"></ul>';
+      '<label class="inline-check"><input type="checkbox" id="lst-promo"> On promotion</label><label class="inline-check"><input type="checkbox" id="lst-stock"> In stock</label>' +
+      '<label for="lst-sort" class="visually-hidden">Sort by</label><select id="lst-sort"><option value="">Sort: Relevance</option><option value="asc">Price: low to high</option><option value="desc">Price: high to low</option><option value="rating">Top rated</option></select></div></div>' +
+      '<details class="listing-filters"' + (window.matchMedia && matchMedia('(min-width: 900px)').matches ? ' open' : '') + '><summary>Refine products</summary><div class="listing-filters__grid">' +
+      facetSelect('lst-colour', 'Colour', values(colourSet)) + facetSelect('lst-age', 'Age', ZP.AGES.filter(function (a) { return ageSet[a[0]]; })) +
+      facetSelect('lst-size', 'Size / capacity', values(sizeSet)) + facetSelect('lst-brand', 'Brand store', values(brandSet)) +
+      facetSelect('lst-maker', 'Manufacturer / brand name', values(makerSet)) +
+      facetSelect('lst-condition', 'Condition', ZP.CONDITIONS.filter(function (c) { return conditionSet[c[0]]; })) +
+      '<div class="field"><label for="lst-min">Minimum price (K)</label><input id="lst-min" type="number" min="0" step="0.01" inputmode="decimal"></div>' +
+      '<div class="field"><label for="lst-max">Maximum price (K)</label><input id="lst-max" type="number" min="0" step="0.01" inputmode="decimal"></div>' +
+      '<div class="field"><label for="lst-stars">Customer rating</label><select id="lst-stars"><option value="">All ratings</option><option value="4">4 stars and up</option><option value="3">3 stars and up</option><option value="5">5 stars</option></select></div>' +
+      (opts.list.some(function (p) { return p.commit; }) ? '<label class="inline-check"><input id="lst-offers" type="checkbox"> Accepts buyer offers</label>' : '') + '</div>' +
+      (measureUnits.length ? '<fieldset class="measurement-filter"><legend>Measured size / volume / weight</legend><p class="hint">Equivalent units are compared together, such as 1 litre and 1,000 ml.</p><div class="listing-filters__grid"><div class="field"><label for="lst-unit">Unit</label><select id="lst-unit"><option value="">Any measurement</option>' + measureUnits.map(function (u) { return '<option value="' + u + '">' + esc(ZP.UNITS[u].name) + '</option>'; }).join('') + '</select></div><div class="field"><label for="lst-measure-min">Minimum</label><input id="lst-measure-min" type="number" min="0" step="any" inputmode="decimal" disabled></div><div class="field"><label for="lst-measure-max">Maximum</label><input id="lst-measure-max" type="number" min="0" step="any" inputmode="decimal" disabled></div></div></fieldset>' : '') +
+      '<p class="form-status is-error" id="lst-filter-error" role="status"></p><button id="lst-clear" class="btn btn--secondary btn--sm" type="button">Clear filters</button></details><ul class="grid" id="lst-grid"></ul>';
     show(html, opts.docTitle || opts.title);
+    var value = function (id) { var el = $('#' + id); return el ? el.value : ''; };
+    var checked = function (id) { var el = $('#' + id); return !!el && el.checked; };
+    var rangeNumber = function (id) { var v = value(id); return v === '' ? null : Number(v); };
+    var filterState;
+    function eligibleVariants(p) {
+      return ZP.matchingVariants(p, { inStock: filterState.stock, colour: filterState.colour, size: filterState.size,
+        dimension: filterState.unit ? ZP.UNITS[filterState.unit].dim : '', min: filterState.measureMin, max: filterState.measureMax });
+    }
+    function selectedPrice(p) {
+      var variants = eligibleVariants(p);
+      var prices = variants.length ? variants.map(function (v) { return basePriceOf(p, v); }) : [priceOf(p)];
+      prices = prices.filter(function (pr) { return (filterState.min == null || pr.now >= filterState.min) && (filterState.max == null || pr.now <= filterState.max) && (!filterState.offers || ZP.commitRange(p, pr.now)); });
+      if (!prices.length) return null;
+      prices.sort(function (a,b) { return a.now-b.now; });
+      return prices[0];
+    }
     var draw = function () {
-      var list = opts.list.slice();
-      if ($('#lst-promo').checked) list = list.filter(function (p) { var pr = priceOf(p); return pr.promo || pr.was; });
-      if ($('#lst-stock').checked) list = list.filter(function (p) { var st = ZP.stockState(p); return st === 'in' || st === 'low'; });
-      var col = $('#lst-colour') ? $('#lst-colour').value : '', age = $('#lst-age') ? $('#lst-age').value : '';
-      if (col) list = list.filter(function (p) { return ZP.variants(p).some(function (v) { return v.colour === col && v.stock > 0; }) || (!(p.variants || []).length && ZP.colours(p).indexOf(col) !== -1); });
-      if (age) list = list.filter(function (p) { return ZP.ages(p).indexOf(age) !== -1; });
-      var sort = $('#lst-sort').value;
-      if (sort === 'asc' || sort === 'desc') list.sort(function (a, b) { var d = priceOf(a).now - priceOf(b).now; return sort === 'asc' ? d : -d; });
-      if (sort === 'rating') list.sort(function (a, b) { return (ratingOf(b) || { avg: 0 }).avg - (ratingOf(a) || { avg: 0 }).avg; });
-      $('#lst-grid').innerHTML = list.length ? cards(list) : '<li class="grid__full">' + empty('Nothing listed here yet. Tell us what you need and we\'ll find it.', askBtn('Hi Zed Supply, I\'m looking for: ')) + '</li>';
-      $('#lst-count').textContent = list.length + (list.length === 1 ? ' product' : ' products');
+      var unit = value('lst-unit'), mn = rangeNumber('lst-measure-min'), mx = rangeNumber('lst-measure-max');
+      if ($('#lst-measure-min')) { $('#lst-measure-min').disabled = $('#lst-measure-max').disabled = !unit; }
+      var min = rangeNumber('lst-min'), max = rangeNumber('lst-max'), error = '';
+      if ((min != null && min < 0) || (max != null && max < 0) || (min != null && max != null && min > max)) error = 'Enter a valid price range: minimum must not exceed maximum.';
+      if (unit && ((mn != null && mn < 0) || (mx != null && mx < 0) || (mn != null && mx != null && mn > mx))) error = 'Enter a valid measurement range: minimum must not exceed maximum.';
+      $('#lst-filter-error').textContent = error;
+      if (error) { $('#lst-grid').innerHTML = ''; $('#lst-count').textContent = 'Check your filter range'; return; }
+      filterState = { colour:value('lst-colour'), size:value('lst-size'), stock:checked('lst-stock'), min:min, max:max, unit:unit,
+        measureMin:unit && mn != null ? mn*ZP.UNITS[unit].base : null, measureMax:unit && mx != null ? mx*ZP.UNITS[unit].base : null, offers:checked('lst-offers') };
+      var list = opts.list.filter(function (p) {
+        var a=p.attributes||{}, age=value('lst-age'), maker=value('lst-maker'), stars=Number(value('lst-stars'))||0;
+        if (value('lst-brand') && p.brand !== value('lst-brand')) return false;
+        if (maker && String(a.manufacturer||'').toLowerCase()!==maker) return false;
+        if (value('lst-condition') && a.condition!==value('lst-condition')) return false;
+        if (age && ZP.ages(p).indexOf(age)===-1) return false;
+        if (stars && (ratingOf(p)||{avg:0}).avg<stars) return false;
+        if (checked('lst-promo') && !onDeal(p)) return false;
+        if (filterState.stock && ['in','low'].indexOf(ZP.stockState(p))===-1) return false;
+        if (filterState.colour && ZP.colours(p).indexOf(filterState.colour)===-1) return false;
+        if (filterState.size && !(p.options||{}).size && (!a.size || ZP.sizeToken(a.size)!==filterState.size)) return false;
+        if (filterState.unit && !(p.options||{}).size && !ZP.measureMatches(p,ZP.UNITS[filterState.unit].dim,filterState.measureMin,filterState.measureMax)) return false;
+        if (ZP.hasOptions(p) && !eligibleVariants(p).length) return false;
+        return !!selectedPrice(p);
+      });
+      var sort=value('lst-sort');
+      if(sort==='asc'||sort==='desc') list.sort(function(a,b){var n=selectedPrice(a).now-selectedPrice(b).now;return sort==='asc'?n:-n;});
+      if(sort==='rating') list.sort(function(a,b){return (ratingOf(b)||{avg:0}).avg-(ratingOf(a)||{avg:0}).avg;});
+      $('#lst-grid').innerHTML=list.length?cards(list,false,selectedPrice):'<li class="grid__full">'+empty('No products match these filters. Try a wider range or clear the filters.','')+'</li>';
+      $('#lst-count').textContent=list.length+(list.length===1?' product':' products');
     };
-    ['lst-promo', 'lst-stock', 'lst-sort', 'lst-colour', 'lst-age'].forEach(function (id) { var el = $('#' + id); if (el) el.addEventListener('change', draw); });
+    $$('.toolbar input, .toolbar select, .listing-filters input, .listing-filters select',view).forEach(function(el){el.addEventListener(el.type==='number'?'input':'change',draw);});
+    $('#lst-clear').addEventListener('click',function(){$$('.toolbar input, .toolbar select, .listing-filters input, .listing-filters select',view).forEach(function(el){if(el.type==='checkbox')el.checked=false;else el.value='';});draw();});
     draw();
   }
-
   var STATUS = ['Order sent on WhatsApp', 'Confirmed by Zed Supply', 'Packed by the seller', 'Out for delivery', 'Delivered'];
   function orders() { return store.get('orders', []); }
   function findOrder(ref) {
@@ -1592,6 +1655,8 @@
             (range ? '<p class="pmeta pcommit">Or name your own price from ' + kwacha(range.min) + ' in the buy box.</p>' : '') +
             (pr.promo ? '<p class="notice">Part of <a href="#/promo/' + pr.promo.id + '">' + esc(pr.promo.title) + '</a>: ' + pr.promo.discount + '% off until ' + niceDate(pr.promo.ends) + '.</p>' : '') +
             (ZP.hasOptions(p) ? '<div class="popts" id="pdp-opts">' + optionsHTML(p, sel) + '</div>' : '') +
+            ((p.attributes || {}).features && p.attributes.features.length ? '<section class="product-features" aria-labelledby="features-title"><h2 id="features-title" class="h3">Key features</h2><ul>' + p.attributes.features.map(function (f) { return '<li>' + esc(f) + '</li>'; }).join('') + '</ul></section>' : '') +
+            ((p.attributes || {}).condition ? '<section class="product-condition" aria-labelledby="condition-title"><h2 id="condition-title" class="h3">Item condition: ' + esc(ZP.conditionLabel(p)) + '</h2>' + (p.attributes.conditionNotes ? '<p>' + esc(p.attributes.conditionNotes) + '</p>' : '') + '</section>' : '') +
             inBoxHTML(p) +
             '<h2 class="h3">About this product</h2><p>' + (p.description ? esc(p.description) : '<span class="placeholder">[PRODUCT DESCRIPTION: add a description field in catalogue.js]</span>') + '</p>' +
             specsHTML(p) +
@@ -1615,11 +1680,12 @@
         (similar.length ? '<section class="section" aria-labelledby="cmp-title"><div class="section-head"><h2 id="cmp-title">Compare with similar items</h2>' +
           '<a href="#/compare?ids=' + [p.id].concat(similarIds).map(encodeURIComponent).join(',') + '">Open full comparison</a></div>' + compareTable([p].concat(similar), false) + '</section>' : '') +
         '<section class="reviews" id="reviews" aria-labelledby="rev-title"><div>' +
-          '<h2 id="rev-title">Customer reviews</h2>' + (r ? '<div class="rsum"><p class="rsum__avg"><strong>' + r.avg.toFixed(1) + '</strong><span class="visually-hidden"> out of 5</span></p><div>' + starsHTML(p) + '<p class="reviews__avg">' + r.count + (r.count === 1 ? ' global rating' : ' global ratings') + '</p></div></div>' + ratingBars(revs) : '<p>No reviews yet. Be the first to rate it.</p>') +
+          '<h2 id="rev-title">Customer reviews</h2>' + (r ? '<div class="rsum"><p class="rsum__avg"><strong>' + r.avg.toFixed(1) + '</strong><span class="visually-hidden"> out of 5</span></p><div>' + starsHTML(p) + '<p class="reviews__avg">' + r.count + (r.count === 1 ? ' rating' : ' ratings') + '</p></div></div>' + ratingBars(revs) : '<p>No reviews yet. Be the first to rate it.</p>') +
           (u ? reviewForm(mine, bought)
             : '<p><a class="btn btn--secondary" href="#/account">Sign in to rate and review</a></p>') +
         '</div><div>' + (revs.length > 1 ? '<div class="field reviews__sort"><label for="rev-sort">Sort reviews</label><select id="rev-sort"><option value="new">Most recent</option><option value="high">Highest rated</option><option value="low">Lowest rated</option><option value="verified">Verified purchases first</option></select></div>' : '') +
-          (revs.length ? '<div id="rev-list" class="rev-scroll" tabindex="0" role="region" aria-label="Reviews, ' + revs.length + ' in total">' + reviewList(revs, 'new') + '</div>' : '') + '</div></section>' +
+          (revs.length ? '<div class="review-filters"><div class="field"><label for="rev-star">Star rating</label><select id="rev-star"><option value="">All ratings</option>' + [5,4,3,2,1].map(function (n) { return '<option value="' + n + '">' + n + (n === 1 ? ' star' : ' stars') + '</option>'; }).join('') + '</select></div><div class="field"><label for="rev-find">Search reviews</label><input id="rev-find" type="search" maxlength="80" placeholder="e.g. battery or delivery"></div>' +
+            (revs.some(function (v) { return v.verified; }) ? '<label class="inline-check"><input id="rev-verified" type="checkbox"> Verified purchases only</label>' : '') + '</div><p id="rev-count" role="status" class="pmeta">' + revs.length + (revs.length === 1 ? ' review' : ' reviews') + '</p><div id="rev-list" class="rev-scroll" tabindex="0" role="region" aria-label="Reviews, ' + revs.length + ' in total">' + reviewList(revs, 'new') + '</div>' : '') + '</div></section>' +
         (related.length ? '<section class="section" aria-labelledby="rel-title"><h2 id="rel-title">More in ' + esc(d.name) + '</h2><ul class="row">' + cards(related) + '</ul></section>' : '');
       show(html, p.title);
       // Everything the buyer picks (options, add-ons, their own price) updates the prices,
@@ -1725,7 +1791,14 @@
         toast(added ? 'Added to compare (' + n + ' of ' + COMPARE_MAX + '). <a href="#/compare">Compare now</a>' : 'Removed from compare');
       });
       var sortSel = $('#rev-sort');
-      if (sortSel) sortSel.addEventListener('change', function () { $('#rev-list').innerHTML = reviewList(revs, sortSel.value); });
+      var drawReviews = function () {
+        var holder = $('#rev-list'); if (!holder) return;
+        holder.innerHTML = reviewList(revs, sortSel ? sortSel.value : 'new', { star: Number($('#rev-star').value) || 0, query: $('#rev-find').value.trim().toLowerCase(), verified: $('#rev-verified') && $('#rev-verified').checked });
+        var n = $$('.review', holder).length;
+        $('#rev-count').textContent = n + ' of ' + revs.length + (revs.length === 1 ? ' review' : ' reviews'); holder.setAttribute('aria-label', 'Matching reviews: ' + n);
+      };
+      ['rev-sort', 'rev-star', 'rev-verified'].forEach(function (id) { var input = $('#' + id); if (input) input.addEventListener('change', drawReviews); });
+      var reviewSearch = $('#rev-find'); if (reviewSearch) reviewSearch.addEventListener('input', drawReviews);
       var rf = $('#review-form');
       if (rf) rf.addEventListener('submit', function (e) {
         e.preventDefault();
@@ -2135,16 +2208,20 @@
       var dr = editing ? JSON.parse(JSON.stringify(editing)) : { title: '', category: '', brand: '', priceZMW: '', wasZMW: '', stock: 'in', description: '', tags: '', image: '', alt: '' };
       dr.seller = s.id;
       dr.attributes = dr.attributes || {}; dr.options = dr.options || {}; dr.variants = dr.variants || []; dr.inBox = dr.inBox || [];
+      var enabledFields = {};
+      var fieldNames = { colour: 'Colour choices', size: 'Size / volume / weight', ageRange: 'Age suitability', inBox: 'Included items / add-ons', manufacturer: 'Manufacturer / brand name', specs: 'Custom specifications', condition: 'Item condition', features: 'Key features' };
       var specRows = Object.keys(dr.attributes.specs || {}).map(function (k) { return [k, dr.attributes.specs[k]]; });
       var ctx = { departments: D.departments, brands: D.brands, products: BASE_PRODUCTS };
       var tpl = function () { return (D.attributeTemplates || {})[dr.category] || { fields: dr.category ? ZP.FIELDS : [] }; };
       var used = {
         colour: function () { return (dr.options.colour || []).length; }, size: function () { return (dr.options.size || []).length || dr.attributes.size; },
         ageRange: function () { return (dr.attributes.ageRange || []).length; }, inBox: function () { return dr.inBox.length; },
-        manufacturer: function () { return dr.attributes.manufacturer; }, specs: function () { return specRows.length; }
+        manufacturer: function () { return dr.attributes.manufacturer; }, specs: function () { return specRows.length; },
+        condition: function () { return dr.attributes.condition || dr.attributes.conditionNotes; }, features: function () { return (dr.attributes.features || []).length; }
       };
-      var has = function (f) { return tpl().fields.indexOf(f) !== -1 || !!used[f](); };
-      var units = function () { var u = tpl().sizeUnits; return u && u.length ? u : (dr.attributes.size ? [dr.attributes.size.unit] : []); };
+      var has = function (f) { return enabledFields[f] || tpl().fields.indexOf(f) !== -1 || !!used[f](); };
+      var units = function () { var suggested = tpl().sizeUnits || [], selected = dr.attributes.size ? [dr.attributes.size.unit] : []; if (!suggested.length && !selected.length && !enabledFields.measured && Array.isArray(tpl().sizeUnits)) return []; return suggested.concat(selected, Object.keys(ZP.UNITS)).filter(function (u, i, all) { return all.indexOf(u) === i; }); };
+      var fieldsHTML = function () { return '<details class="lf-optional"><summary>Add other relevant product details</summary><p class="hint">Category suggestions are a starting point. Add only fields that describe this product; existing values are preserved.</p><div class="checks">' + ZP.FIELDS.filter(function (f) { return tpl().fields.indexOf(f) === -1; }).map(function (f) { return '<div class="check"><input type="checkbox" id="lf-enable-' + f + '" data-enable-field="' + f + '"' + (has(f) ? ' checked' : '') + (used[f]() ? ' disabled' : '') + '><label for="lf-enable-' + f + '">' + esc(fieldNames[f]) + '</label></div>'; }).join('') + '</div></details>'; };
       var addSuggestedSpecs = function () {
         (tpl().specs || []).forEach(function (k) { if (!specRows.some(function (r) { return r[0].toLowerCase() === k.toLowerCase(); })) specRows.push([k, '']); });
       };
@@ -2154,12 +2231,15 @@
       var attrsHTML = function () {
         var t = tpl(), out = '';
         if (!dr.category) return '<p class="pmeta">Choose a department to see the details buyers look for in it.</p>';
+        if (has('size') && Array.isArray(t.sizeUnits) && !t.sizeUnits.length) out += '<div class="check"><input id="lf-measured" type="checkbox" data-measured' + (enabledFields.measured || dr.attributes.size ? ' checked' : '') + '><label for="lf-measured">Also specify a measured size, such as cm or ml</label></div>';
         if (has('size') && units().length) out += '<div class="field-row lf-size" id="lf-f-size"><div class="field"><label for="lf-size">' + (ZP.UNITS[units()[0]].dim === 'volume' ? 'Volume' : ZP.UNITS[units()[0]].dim === 'mass' ? 'Weight' : 'Size') + ' (one size only)</label><input id="lf-size" type="number" min="0" step="any" inputmode="decimal" value="' + esc(dr.attributes.size ? dr.attributes.size.value : '') + '"><p class="hint">Leave empty if buyers choose a size below.</p></div>' +
           '<div class="field"><label for="lf-unit">Unit</label><select id="lf-unit">' + units().map(function (u) { return '<option value="' + u + '"' + (dr.attributes.size && dr.attributes.size.unit === u ? ' selected' : '') + '>' + esc(ZP.UNITS[u].name) + '</option>'; }).join('') + '</select></div></div>';
         if (has('ageRange')) out += '<fieldset class="field" id="lf-f-ageRange"><legend>Age range</legend><div class="checks checks--ages">' + ZP.AGES.map(function (a) {
           return '<div class="check"><input type="checkbox" id="lf-age-' + a[0] + '" value="' + a[0] + '" data-age' + ((dr.attributes.ageRange || []).indexOf(a[0]) !== -1 ? ' checked' : '') + '><label for="lf-age-' + a[0] + '">' + a[1] + '</label></div>';
         }).join('') + '</div></fieldset>';
-        if (has('manufacturer')) out += fieldHTML('manufacturer', 'Manufacturer', '<input id="lf-manufacturer" maxlength="80" value="' + esc(dr.attributes.manufacturer || '') + '">', 'Only if it differs from the brand.');
+        if (has('manufacturer')) out += fieldHTML('manufacturer', 'Manufacturer / brand name', '<input id="lf-manufacturer" maxlength="80" value="' + esc(dr.attributes.manufacturer || '') + '">', 'Enter the actual brand or manufacturer. Choose a brand store above only when one exists.');
+        if (has('condition')) out += fieldHTML('condition', 'Item condition', '<select id="lf-condition"><option value="">Not specified</option>' + ZP.CONDITIONS.map(function (c) { return '<option value="' + c[0] + '"' + (dr.attributes.condition === c[0] ? ' selected' : '') + '>' + c[1] + '</option>'; }).join('') + '</select><label for="lf-conditionNotes">Condition details</label><textarea id="lf-conditionNotes" maxlength="1000" placeholder="For used or refurbished items, describe wear, repairs and missing packaging.">' + esc(dr.attributes.conditionNotes || '') + '</textarea>');
+        if (has('features')) out += fieldHTML('features', 'Key features', '<textarea id="lf-features" rows="5" placeholder="One feature per line">' + esc((dr.attributes.features || []).join('\n')) + '</textarea>', 'Up to eight checked facts, 160 characters each. Put warranty, compatibility, material and model details under Specifications.');
         if (has('specs')) out += '<fieldset class="field" id="lf-f-specs"><legend>Specifications</legend><p class="hint">Leave a value empty to skip it. Only list what you have checked on the item.</p><div class="lf-rows">' + specRows.map(function (r, i) {
           return '<div class="lf-row"><label class="visually-hidden" for="lf-sk-' + i + '">Specification name</label><input id="lf-sk-' + i + '" data-spec-key placeholder="Name" maxlength="60" value="' + esc(r[0]) + '">' +
             '<label class="visually-hidden" for="lf-sv-' + i + '">' + esc(r[0] || 'Specification') + ' value</label><input id="lf-sv-' + i + '" data-spec-val placeholder="Value" maxlength="200" value="' + esc(r[1]) + '">' +
@@ -2184,14 +2264,18 @@
         if (has('size')) out += '<fieldset class="field" id="lf-f-sizes"><legend>Sizes the buyer can choose</legend><p class="hint">For example S, M, L, 42, or 500 ml and 1 l. Measured sizes are read with their unit.</p>' +
           (sizes.length ? '<ul class="lf-chips">' + sizes.map(function (sz, i) { return '<li><span>' + esc(ZP.sizeLabel(sz)) + '</span><button type="button" class="lf-chip-x" data-del-size="' + i + '" aria-label="Remove size ' + esc(ZP.sizeLabel(sz)) + '">×</button></li>'; }).join('') + '</ul>' : '') +
           '<div class="lf-row"><label class="visually-hidden" for="lf-newsize">New size</label><input id="lf-newsize" maxlength="20" placeholder="Add a size"><button class="btn btn--secondary btn--sm" type="button" data-add-size>Add size</button></div></fieldset>';
+        out += '<fieldset class="field lf-extra"><legend>Other buyer choices</legend><p class="hint">Use related variations such as Storage, Capacity, Material, Pack size or Fit. Different brands should have separate product listings.</p>' + (dr.options.extra || []).map(function (axis, i) {
+          return '<div class="lf-row"><label for="lf-extra-name-' + i + '">Choice name</label><input id="lf-extra-name-' + i + '" data-extra-name="' + axis.key + '" maxlength="40" placeholder="e.g. Storage" value="' + esc(axis.name) + '"><label for="lf-extra-values-' + i + '">Values</label><input id="lf-extra-values-' + i + '" data-extra-values="' + axis.key + '" placeholder="e.g. 128 GB, 256 GB" value="' + esc(axis.values.join(', ')) + '"><button type="button" class="link-btn" data-del-extra="' + i + '">Remove choice</button></div>';
+        }).join('') + ((dr.options.extra || []).length < 2 ? '<button type="button" class="btn btn--secondary btn--sm" data-add-extra>Add another choice</button>' : '') + '<p class="hint">Up to two extra choice types and ' + ZP.MAX_COMBINATIONS + ' total combinations.</p></fieldset>';
+        if (ZP.combinationCount(dr.options) > ZP.MAX_COMBINATIONS) out += '<p class="form-status is-error">There are too many combinations. Remove some values to generate the stock table.</p>';
         if (dr.variants.length) {
-          var withC = cols.length > 0, withS = sizes.length > 0;
+          var withC = cols.length > 0, matrixAxes = ZP.options(dr);
           out += '<div class="field" id="lf-f-variants"><p class="lf-label" id="lf-vt">Stock for each combination (' + dr.variants.length + ')</p><p class="hint">Stock 0 shows that combination as sold out. Leave the price empty to use the main price.</p>' +
-            '<div class="cmp lf-matrix" tabindex="0" role="region" aria-labelledby="lf-vt"><table><thead><tr>' + (withC ? '<th scope="col">Colour</th>' : '') + (withS ? '<th scope="col">Size</th>' : '') + '<th scope="col">SKU</th><th scope="col">Stock</th><th scope="col">Price (K)</th></tr></thead><tbody>' +
+            '<div class="cmp lf-matrix" tabindex="0" role="region" aria-labelledby="lf-vt"><table><thead><tr>' + matrixAxes.map(function (a) { return '<th scope="col">' + esc(a.name) + '</th>'; }).join('') + '<th scope="col">SKU</th><th scope="col">Stock</th><th scope="col">Price (K)</th></tr></thead><tbody>' +
             dr.variants.map(function (v, i) {
-              var name = [v.colour, v.size].filter(Boolean).join(' / ');
+              var name = matrixAxes.map(function (a) { return v[a.key]; }).join(' / ');
               var hex = withC ? ((cols.filter(function (c) { return c.name === v.colour; })[0] || {}).hex || '') : '';
-              return '<tr>' + (withC ? '<th scope="row"><span class="swatch swatch--sm" style="--sw:' + esc(hex) + '" aria-hidden="true"></span> ' + esc(v.colour) + '</th>' : '') + (withS ? (withC ? '<td>' : '<th scope="row">') + esc(v.size) + (withC ? '</td>' : '</th>') : '') +
+              return '<tr>' + matrixAxes.map(function (a, ai) { var tag = ai === 0 ? 'th' : 'td'; return '<' + tag + (ai === 0 ? ' scope="row"' : '') + '>' + (a.key === 'colour' ? '<span class="swatch swatch--sm" style="--sw:' + esc(hex) + '" aria-hidden="true"></span> ' : '') + esc(v[a.key]) + '</' + tag + '>'; }).join('') +
                 '<td><input data-v-sku="' + i + '" maxlength="40" value="' + esc(v.sku || '') + '" aria-label="SKU for ' + esc(name) + '"></td>' +
                 '<td><input data-v-stock="' + i + '" type="number" min="0" step="1" inputmode="numeric" value="' + esc(v.stock) + '" aria-label="Stock for ' + esc(name) + '"></td>' +
                 '<td><input data-v-price="' + i + '" type="number" min="0.01" step="0.01" inputmode="decimal" value="' + esc(v.priceZMW || '') + '" placeholder="Main price" aria-label="Price for ' + esc(name) + ' in Kwacha"></td></tr>';
@@ -2216,7 +2300,7 @@
               fieldHTML('alt', 'Photo description', '<input id="lf-alt" maxlength="160" value="' + esc(dr.alt || '') + '">', 'What the photo shows, for buyers using screen readers.') + '</div>' +
             (dr.image ? '<img class="lf-photo" id="lf-photo" src="' + esc(dr.image) + '" alt="Current photo" width="120" height="120">' : '<img class="lf-photo" id="lf-photo" alt="" width="120" height="120" hidden>') +
           '</section>' +
-          '<section class="lf-sec" aria-labelledby="lf-h2"><h2 class="h3" id="lf-h2">Details</h2><div id="lf-attrs">' + attrsHTML() + '</div></section>' +
+          '<section class="lf-sec" aria-labelledby="lf-h2"><h2 class="h3" id="lf-h2">Details</h2><div id="lf-optional">' + fieldsHTML() + '</div><div id="lf-attrs">' + attrsHTML() + '</div></section>' +
           '<section class="lf-sec" aria-labelledby="lf-h3"><h2 class="h3" id="lf-h3">Variations</h2><div id="lf-vars">' + varsHTML() + '</div></section>' +
           '<section class="lf-sec" aria-labelledby="lf-h4"><h2 class="h3" id="lf-h4">Price and stock</h2>' +
             '<div class="field-row">' + fieldHTML('priceZMW', 'Price (K) *', '<input id="lf-priceZMW" type="number" min="0.01" step="0.01" inputmode="decimal" required value="' + esc(dr.priceZMW) + '">', 'The Buy now price.') +
@@ -2243,6 +2327,8 @@
         if ($('#lf-size')) { var sv = $('#lf-size').value.trim(); a.size = sv ? { value: Number(sv), unit: $('#lf-unit').value } : undefined; }
         if ($('#lf-f-ageRange')) a.ageRange = $$('[data-age]:checked', form).map(function (c) { return c.value; });
         if ($('#lf-manufacturer')) a.manufacturer = $('#lf-manufacturer').value;
+        if ($('#lf-condition')) { a.condition = $('#lf-condition').value || undefined; a.conditionNotes = $('#lf-conditionNotes').value; }
+        if ($('#lf-features')) a.features = $('#lf-features').value.split('\n').map(function (f) { return f.trim(); }).filter(Boolean);
         if ($('#lf-f-specs')) specRows = $$('[data-spec-key]', form).map(function (k, i) { return [k.value.trim(), $$('[data-spec-val]', form)[i].value.trim()]; });
         a.specs = {};
         specRows.forEach(function (r) { if (r[1]) a.specs[r[0]] = r[1]; });
@@ -2251,6 +2337,11 @@
           return kind === 'addon' ? { item: it.value, addonZMW: price === '' ? 0 : price } : { item: it.value };
         });
         if ($('#lf-f-colour')) dr.options.colour = $$('[data-col-name]', form).map(function (n, i) { return { name: n.value.trim(), hex: $$('[data-col-hex]', form)[i].value }; });
+        (dr.options.extra || []).forEach(function (axis) {
+          var name = $('[data-extra-name="' + axis.key + '"]', form), values = $('[data-extra-values="' + axis.key + '"]', form);
+          if (name) axis.name = name.value.trim();
+          if (values) axis.values = values.value.split(',').map(function (v) { return v.trim(); }).filter(Boolean);
+        });
         dr.variants.forEach(function (v, i) {
           var sk = $('[data-v-sku="' + i + '"]', form); if (!sk) return;
           v.sku = sk.value.trim(); v.stock = $('[data-v-stock="' + i + '"]', form).value; v.priceZMW = $('[data-v-price="' + i + '"]', form).value;
@@ -2260,10 +2351,13 @@
         if (!(dr.options.size || []).length) delete dr.options.size;
       };
       var rebuildMatrix = function () {
-        var o = { colour: (dr.options.colour || []).filter(function (c) { return c.name; }), size: dr.options.size || [] };
+        var o = { colour: (dr.options.colour || []).filter(function (c) { return c.name; }), size: dr.options.size || [], extra: dr.options.extra || [] };
         dr.variants = ZP.matrix(o, dr.variants);
       };
       var redraw = function (focusSel) {
+        var optionalOpen = $('#lf-optional details').open;
+        $('#lf-optional').innerHTML = fieldsHTML();
+        $('#lf-optional details').open = optionalOpen;
         $('#lf-attrs').innerHTML = attrsHTML();
         $('#lf-vars').innerHTML = varsHTML();
         var f = focusSel && $(focusSel, form); if (f) f.focus();
@@ -2272,6 +2366,9 @@
       form.addEventListener('change', function (e) {
         var t = e.target;
         if (t.id === 'lf-category') { collect(); addSuggestedSpecs(); redraw(); }
+        else if (t.hasAttribute('data-enable-field')) { var field = t.getAttribute('data-enable-field'); collect(); enabledFields[field] = t.checked; redraw('#lf-enable-' + field); }
+        else if (t.hasAttribute('data-measured')) { collect(); enabledFields.measured = t.checked; if (!t.checked) delete dr.attributes.size; redraw(); }
+        else if (t.hasAttribute('data-extra-name') || t.hasAttribute('data-extra-values')) { var extraId = t.id; collect(); rebuildMatrix(); redraw('#' + extraId); }
         else if (t.matches('[data-box-kind]')) { var pr = t.parentNode.querySelector('[data-box-price]'); pr.hidden = t.value !== 'addon'; if (!pr.hidden) pr.focus(); }
         else if (t.matches('[data-col-name]')) { collect(); rebuildMatrix(); var idx = $$('[data-col-name]', form).indexOf(t); redraw('#lf-cn-' + idx); }
         else if (t.matches('[data-col-hex]')) { collect(); $('#lf-vars').innerHTML = varsHTML(); }
@@ -2302,7 +2399,9 @@
         var t = e.target.closest('button');
         if (!t || t.type === 'submit') return;
         var n = function (attr) { return Number(t.getAttribute(attr)); };
-        if (t.hasAttribute('data-add-spec')) { collect(); specRows.push(['', '']); redraw('#lf-sk-' + (specRows.length - 1)); }
+        if (t.hasAttribute('data-add-extra')) { collect(); dr.options.extra = dr.options.extra || []; var key = dr.options.extra.some(function (a) { return a.key === 'custom_1'; }) ? 'custom_2' : 'custom_1'; dr.options.extra.push({ key: key, name: '', values: [] }); rebuildMatrix(); redraw('#lf-extra-name-' + (dr.options.extra.length - 1)); }
+        else if (t.hasAttribute('data-del-extra')) { collect(); dr.options.extra.splice(n('data-del-extra'), 1); rebuildMatrix(); redraw('[data-add-extra]'); }
+        else if (t.hasAttribute('data-add-spec')) { collect(); specRows.push(['', '']); redraw('#lf-sk-' + (specRows.length - 1)); }
         else if (t.hasAttribute('data-del-spec')) { collect(); specRows.splice(n('data-del-spec'), 1); redraw('[data-add-spec]'); }
         else if (t.hasAttribute('data-add-box')) { collect(); dr.inBox.push({ item: '' }); redraw('#lf-bi-' + (dr.inBox.length - 1)); }
         else if (t.hasAttribute('data-del-box')) { collect(); dr.inBox.splice(n('data-del-box'), 1); redraw('[data-add-box]'); }

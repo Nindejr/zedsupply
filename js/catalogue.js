@@ -137,13 +137,14 @@ window.ZS_CATALOGUE = {
   ],
 
   /* Listing templates: the extra fields the seller form shows for each department.
-     fields: any of 'colour', 'size', 'ageRange', 'inBox', 'manufacturer', 'specs'.
+     fields: any of 'colour', 'size', 'ageRange', 'inBox', 'manufacturer', 'specs',
+     'condition', 'features'. Sellers can enable other relevant fields themselves.
      sizeUnits: the units in the size dropdown, first is the default. Leave it empty for
      letter or shoe sizes typed by the seller. specs: suggested specification names. */
   attributeTemplates: {
-    tech:       { fields: ['colour', 'inBox', 'manufacturer', 'specs'], specs: ['Model', 'Battery', 'Storage', 'Warranty'] },
+    tech:       { fields: ['colour', 'inBox', 'manufacturer', 'specs', 'condition', 'features'], sizeUnits: ['in', 'cm', 'mm'], specs: ['Model', 'Battery', 'Storage', 'Compatibility', 'Warranty'] },
     solar:      { fields: ['inBox', 'manufacturer', 'specs'], specs: ['Panel output', 'Battery capacity', 'Warranty'] },
-    fashion:    { fields: ['colour', 'size', 'ageRange'], sizeUnits: [], specs: ['Material'] },
+    fashion:    { fields: ['colour', 'size', 'ageRange', 'specs'], sizeUnits: [], specs: ['Material', 'Care instructions', 'Fit'] },
     home:       { fields: ['colour', 'size', 'inBox', 'specs'], sizeUnits: ['l', 'ml', 'cm'], specs: ['Material', 'Power', 'Warranty'] },
     business:   { fields: ['inBox', 'manufacturer', 'specs'], specs: ['Power', 'Output', 'Warranty'] },
     office:     { fields: ['colour', 'size', 'ageRange', 'specs'], sizeUnits: ['cm', 'mm'], specs: ['Pack size'] },
@@ -195,6 +196,9 @@ window.ZS_CATALOGUE = {
        deal:   { price, reason, ends } a lower price for a limited time. reason is one of
                'reduced', 'clearance', 'limited', 'bundle', 'seasonal'; ends is 'YYYY-MM-DD' or ''.
        attributes: the item's specifications. Every part is optional.
+               condition:    'new' | 'open_box' | 'refurbished' | 'used'; omit if unknown.
+               conditionNotes: description of wear, repairs or packaging; required unless new.
+               features:     up to eight strings, 160 characters each, displayed as feature bullets.
                size:         { value: 1.7, unit: 'l' }  one size only. Units: 'ml', 'l', 'g', 'kg', 'mm', 'cm', 'm', 'in'
                ageRange:     ['kid', 'teen']            any of 'infant', 'kid', 'teen', 'adult', 'senior'
                manufacturer: 'Maker name'               only when it differs from the brand store
@@ -202,6 +206,10 @@ window.ZS_CATALOGUE = {
        options: the choices a buyer makes. Each one becomes a column in the variants.
                colour: [{ name: 'Black', hex: '#1F2937' }]   hex must match the real item
                size:   ['S', 'M', 'L']  or measured: [{ value: 500, unit: 'ml' }, { value: 1, unit: 'l' }]
+               extra: [{ key: 'custom_storage', name: 'Storage', values: ['128 GB', '256 GB'] }]
+               Up to two extra axes; stable keys start custom_. Max 256 total combinations.
+               Variation rows and buyer selections carry these keys, e.g. custom_storage: '128 GB'.
+               Different brands are separate products, not variants of the same item.
        variants: needed when options are set; one row per combination.
                [{ sku: 'ZS-L008-WHT-42', colour: 'White', size: '42', stock: 3, priceZMW: 760 }]
                colour and size use the option's name or label ('500 ml'); stock is the number on hand

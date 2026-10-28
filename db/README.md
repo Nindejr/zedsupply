@@ -50,6 +50,9 @@ Apply once, in order, using a migration runner or `psql -v ON_ERROR_STOP=1`:
 1. `migrations/001_core.sql`
 2. `migrations/002_attributes_reviews_commit_pricing.sql`
 3. `migrations/003_integrity_hardening.sql`
+4. `migrations/004_product_details.sql`
+
+Migration 004 adds optional item condition, required notes for non-new items, validated feature bullets and additional category-template fields. Extra variation axes use the existing custom-option relationships. See [the detailed product brief](../PRODUCT-FEATURES.md) for frontend field mapping and acceptance criteria.
 
 Migration 003 corrects committed migration 002 without rewriting migration history. Existing invalid prices, mixed-product options or incomplete combinations abort the transaction. Existing offers are backfilled from the current seller range; if historical terms differ or the product no longer has a range, reconcile those records from authoritative order/offer history before migrating. Do not guess historical prices.
 
@@ -65,7 +68,7 @@ The new rating trigger applies deltas to the product row instead of recounting a
 | --- | --- |
 | 1. Schema and migrations | Present, hardened in 003, and executed with regression fixtures in PostgreSQL 18.6 through PGlite 0.5.12. Native PostgreSQL 15 compatibility and multi-session races were not executed here. |
 | 2. Backend API endpoints | **Not implemented.** `ZSProduct.listings(...)` is an in-browser localStorage helper, not HTTP endpoints, authentication, authorization or shared persistence. |
-| 3. Seller dashboard | Browser prototype supports category templates, colour/size combinations, per-variant SKU/stock/pricing, age checkboxes, components/add-ons and the offer toggle. Its records are local, not multi-vendor backend records. |
+| 3. Seller dashboard | Browser prototype supports optional category-suggested fields, colour/size plus two custom choice axes, per-variant SKU/stock/pricing, condition notes, features, age checkboxes, components/add-ons and the offer toggle. Records remain local. |
 | 4. Buyer product page | Browser prototype includes swatches, sizes, add-ons, offer controls, rating distribution and a scrollable review list. Prices and cart choices are local. Verified-purchase enforcement and cached review aggregates are only in the proposed database. |
 
 Corrected in this review:
@@ -85,7 +88,7 @@ Implement authenticated HTTP endpoints and a real database connection. Resolve t
 
 Recompute all prices, discounts and add-ons on the server. Reserve/decrement stock in the same transaction as checkout with row locks and idempotency keys; browser checks cannot prevent concurrent overselling. Expire stale pending offers. Protect historical order rows and accepted terms through narrowly granted server roles, and make order/add-on snapshots immutable after confirmation.
 
-The review form still allows explicitly unverified browser-only feedback and stores it per device/product, not per authenticated purchase. It therefore does **not** yet fulfil the verified-purchase review workflow. Wire it to the reviews endpoint before calling that workflow complete. Colour and age filters exist; measured-size/unit and manufacturer filters still need implementing if required for the planned buyer search API.
+The review form still allows explicitly unverified browser-only feedback and stores it per device/product, not per authenticated purchase. It therefore does **not** yet fulfil the verified-purchase review workflow. Wire it to the reviews endpoint before calling that workflow complete. Browser filters now cover colour, age, equivalent measured sizes, manufacturer, brand, condition, price, rating and offer eligibility. Server equivalents remain to be implemented.
 
 Suggested next-step routes (design only, not implemented):
 
@@ -96,8 +99,8 @@ Suggested next-step routes (design only, not implemented):
 
 ## Reproducible checks
 
-Run `node --test tests/product-model.test.cjs`. For SQL, apply migrations to an isolated database, then run `psql -v ON_ERROR_STOP=1 -f db/tests/integrity.sql`. The SQL test uses a transaction and rolls back its fixtures. It tests rejected invalid data as well as successful purchase links and aggregate transitions. The temporary PGlite package and browser harness used during this review are removed from the workspace.
+Run `node --test tests/product-model.test.cjs tests/product-details.test.cjs tests/product-zoom.test.cjs`. For SQL, apply all four migrations to an isolated database, then run `psql -v ON_ERROR_STOP=1 -f db/tests/integrity.sql` and `psql -v ON_ERROR_STOP=1 -f db/tests/product_details.sql`. The SQL tests roll back their fixtures and cover invalid data, valid purchase links, aggregates, conditions, features and custom-option relationships.
 
-Review results: all 35 SQL assertions passed before the one-review-per-product change (which swapped the repeat-purchase case for a rejection test; re-run the file after that change); a populated migration-002 database upgraded successfully; invalid legacy data rejected migration 003 and rolled back without partial schema changes; all five product-model tests and the browser workflow checks passed. PGlite ran PostgreSQL 18.6. These checks do not replace a native multi-connection concurrency test.
+Current review: all four migrations and both SQL regression files passed in PostgreSQL 18.6 through PGlite 0.5.12; all 15 model/magnifier tests and 11 browser workflow checks passed. Browser checks covered equivalent litre/ml filtering, condition and variant-price filters, custom choice selection, price updates and seller matrix/SKU/stock retention. Temporary browser and database tooling is removed after verification. These checks do not replace a native multi-connection concurrency test.
 
 References: [PostgreSQL CHECK semantics](https://www.postgresql.org/docs/16/ddl-constraints.html), [transaction isolation](https://www.postgresql.org/docs/16/transaction-iso.html), [PGlite test engine](https://pglite.dev/docs/).
