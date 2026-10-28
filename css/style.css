@@ -1323,3 +1323,41 @@ main .section .pcard { border-color: transparent; border-radius: 0; background: 
 main .section .pcard .pmedia { border-radius: 6px; background: #F7F8F8; }
 main .section .pcard:hover .ptitle { text-decoration: underline; }
 @media (prefers-color-scheme: dark) { main .section .pcard .pmedia { background: var(--color-surface-2); } }
+
+/* ---------- Floating elements: the same feel as the Shop by category tiles ----------
+   At rest a soft shadow lifts each card off the page; on hover it rises a little and picks
+   up a gold edge and a warm gold glow, and its picture lifts. Buttons float too. */
+.pcard, .promo, .brand, .band, .step, .help-topics a, .tiles a, .courier, .fbrand, .sp-summary li, .rate-prompt, .also {
+  box-shadow: 0 1px 2px rgb(10 42 102 / 0.06), 0 8px 20px rgb(10 42 102 / 0.08);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+.pcard:hover, .promo:hover, .brand:hover, .band:hover, .step:hover, .help-topics a:hover, .tiles a:hover, .courier:hover, .fbrand:hover {
+  transform: translateY(-3px);
+  border-color: rgb(245 197 66 / 0.9);
+  box-shadow: 0 0 0 1px rgb(245 197 66 / 0.6), 0 14px 30px rgb(224 168 46 / 0.22), 0 4px 10px rgb(10 42 102 / 0.08);
+}
+/* Product cards inside sections: white, rounded and floating (no hard outline) */
+main .section .pcard { background: var(--color-surface); border: 1px solid transparent; border-radius: var(--radius); }
+.pcard .pmedia img { transition: transform 0.25s ease; }
+.pcard:hover .pmedia img { transform: translateY(-4px) scale(1.04); }
+.promo img, .brand img, .brand__logo { transition: transform 0.25s ease; }
+.promo:hover img, .brand:hover .brand__logo { transform: translateY(-4px) rotate(-3deg) scale(1.04); }
+
+/* Buttons float, and rise a little more on hover */
+.btn { box-shadow: 0 2px 6px rgb(10 42 102 / 0.12); }
+.btn--primary { box-shadow: 0 4px 12px rgb(76 194 26 / 0.3); }
+.btn:hover { transform: translateY(-2px); }
+.btn--primary:hover { box-shadow: 0 8px 20px rgb(76 194 26 / 0.38); }
+.btn--secondary:hover, .btn--light:hover { box-shadow: 0 0 0 2px rgb(245 197 66 / 0.6), 0 8px 18px rgb(10 42 102 / 0.16); }
+.btn:disabled { box-shadow: none; transform: none; }
+
+@media (prefers-color-scheme: dark) {
+  .pcard, .promo, .brand, .band, .step, .help-topics a, .tiles a, .courier, .fbrand, .sp-summary li, .rate-prompt, .also, .btn { box-shadow: 0 1px 2px rgb(0 0 0 / 0.3), 0 8px 20px rgb(0 0 0 / 0.3); }
+  .pcard:hover, .promo:hover, .brand:hover, .band:hover, .step:hover, .help-topics a:hover, .tiles a:hover, .courier:hover, .fbrand:hover { box-shadow: 0 0 0 1px rgb(245 197 66 / 0.5), 0 14px 30px rgb(0 0 0 / 0.45); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pcard:hover, .promo:hover, .brand:hover, .band:hover, .step:hover, .help-topics a:hover, .tiles a:hover, .courier:hover, .fbrand:hover, .btn:hover,
+  .pcard:hover .pmedia img, .promo:hover img, .brand:hover .brand__logo { transform: none; }
+}
+/* Scrolling rows clip anything outside them: leave room for the lift and the glow */
+.row { padding-top: 10px; padding-bottom: 26px; margin-bottom: -12px; }
