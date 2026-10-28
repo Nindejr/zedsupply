@@ -1439,6 +1439,26 @@ main .section .pcard .pmedia, .pcard .pmedia { background: rgb(235 243 251 / .45
 }
 /* Leave space in scrolling rows for the lift and glow. */
 .row { padding-top: 10px; padding-bottom: 26px; margin-bottom: -12px; }
+
+/* Collection and seasonal photography leaves the headline separate from the products. */
+.ad--curated.ad--photo { background: #071D47; }
+.ad--curated.ad--photo::before { background: linear-gradient(90deg, rgb(5 13 34 / .35), transparent 60%); }
+.ad--curated .ad__body { min-width: 0; width: 48%; max-width: 48%; padding-inline: clamp(1.25rem, 4vw, 3.5rem); }
+.ad--curated .ad__body > * { max-width: 100%; }
+.ad--curated .ad__title { font-size: clamp(1.5rem, 3vw, 3rem); }
+.ad__illustration { color: #D7E4F5; font-size: .72rem; line-height: 1.35; }
+.ad--curated.ad--zambia::after { display: none; }
+@media (max-width: 599.98px) {
+  .ads--curated { width: 100%; max-width: 100%; min-width: 0; min-height: 420px; aspect-ratio: 1 / 1; }
+  .ad--curated { align-items: flex-start; }
+  .ad--curated .ad__body { width: 100%; max-width: 100%; padding: 1.25rem 1.25rem 3rem; gap: .35rem; }
+  .ad--curated .ad__title { font-size: clamp(1.45rem, 6vw, 1.9rem); }
+  .ad--curated .ad__text { font-size: .95rem; -webkit-line-clamp: 2; }
+  .ad--curated .btn { min-height: 40px; padding-block: .55rem; }
+  .ad--curated.ad--photo .ad__bg { object-fit: contain; object-position: right bottom; opacity: 1; }
+  .ad--curated.ad--photo::before { background: linear-gradient(180deg, rgb(5 13 34 / .22), transparent 60%); }
+  .ad__illustration { max-width: 28rem; font-size: .68rem; }
+}
 @media print {
   main .section:not(.sell-band) > .container, .pcard, .card, .summary, .form--card, .sp-card, .sp-summary li {
     background: #FFFFFF; color: #000000; box-shadow: none; -webkit-backdrop-filter: none; backdrop-filter: none;
@@ -1459,3 +1479,18 @@ main .section .pcard .pmedia, .pcard .pmedia { background: rgb(235 243 251 / .45
     border-color: #F5C542; box-shadow: inset 0 1px 0 #FFFFFF, 0 0 0 2px rgb(245 197 66 / .55), 0 10px 22px rgb(0 0 0 / .3);
   }
 }
+
+/* Collection banners: links to each category shown in the picture */
+.ad__cats { list-style: none; margin: 0.2rem 0 0.4rem; padding: 0; display: flex; flex-wrap: wrap; gap: 0.35rem; }
+.ad__cats li { max-width: none; }
+.ad__cats a {
+  display: inline-flex; align-items: center; min-height: 30px; padding: 0.2rem 0.7rem; border-radius: 999px;
+  color: #FFFFFF; font-size: 0.8rem; font-weight: 600; text-decoration: none;
+  background: rgb(255 255 255 / 0.12); border: 1px solid rgb(255 255 255 / 0.35);
+  -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+  transition: border-color 0.2s ease, background-color 0.2s ease;
+}
+.ad__cats a:hover { border-color: #F5C542; background: rgb(255 255 255 / 0.2); }
+@media (max-width: 1099.98px) { .ad__cats { display: none; } }
+/* Keep the copy clear of the slide arrows */
+@media (min-width: 600px) { .ad--curated .ad__body { padding-left: clamp(6rem, 7vw, 6.5rem); } }

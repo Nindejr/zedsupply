@@ -74,17 +74,19 @@ window.ZS_CATALOGUE = {
     // Independence also turns on the Zambian flag theme (Independence Day 24 October 1964).
     // Set enabled: false on a period to skip it. Preview one on any date with
     // ?theme=christmas (or easter, independence...); ?theme=off hides them all.
+    // Swap image and imageMobile together to change that season's banner artwork.
+    // Copy and buttons remain HTML; removing the paths uses the lightweight artwork.
     festive: {
       enabled: true,
       independenceYear: 1964,
       periods: [
-        { id: 'school', start: '01-02', end: '01-20' },              // adjust to the Ministry of Education's term dates
-        { id: 'valentines', start: '02-01', end: '02-14', day: '02-14' },
-        { id: 'easter', rule: 'easter' },
-        { id: 'farmers', rule: 'farmers' },
-        { id: 'independence', start: '10-01', end: '10-31', day: '10-24' },
-        { id: 'blackfriday', rule: 'blackfriday' },
-        { id: 'christmas', start: '12-01', end: '01-01', day: '12-25' }   // runs to New Year's Day
+        { id: 'school', start: '01-02', end: '01-20', image: 'assets/banners/seasons/school-wide.webp', imageMobile: 'assets/banners/seasons/school-mobile.webp' }, // adjust to confirmed term dates
+        { id: 'valentines', start: '02-01', end: '02-14', day: '02-14', image: 'assets/banners/seasons/valentines-wide.webp', imageMobile: 'assets/banners/seasons/valentines-mobile.webp' },
+        { id: 'easter', rule: 'easter', image: 'assets/banners/seasons/easter-wide.webp', imageMobile: 'assets/banners/seasons/easter-mobile.webp' },
+        { id: 'farmers', rule: 'farmers', image: 'assets/banners/seasons/farmers-wide.webp', imageMobile: 'assets/banners/seasons/farmers-mobile.webp' },
+        { id: 'independence', start: '10-01', end: '10-31', day: '10-24', image: 'assets/banners/seasons/independence-wide.webp', imageMobile: 'assets/banners/seasons/independence-mobile.webp' },
+        { id: 'blackfriday', rule: 'blackfriday', image: 'assets/banners/seasons/blackfriday-wide.webp', imageMobile: 'assets/banners/seasons/blackfriday-mobile.webp' },
+        { id: 'christmas', start: '12-01', end: '01-01', day: '12-25', image: 'assets/banners/seasons/christmas-wide.webp', imageMobile: 'assets/banners/seasons/christmas-mobile.webp' } // runs to New Year's Day
       ]
     }
   },
@@ -96,13 +98,17 @@ window.ZS_CATALOGUE = {
      - Image advert: set image (desktop, 1600×500) and imageMobile (phones, 800×640),
        plus alt text describing the advert. Leave title empty: the artwork carries the words.
        Put files in assets/banners/ as JPEG, under 150KB each.
-     - Designed slide: leave image empty and fill in title, text, cta and colours.
-       art is optional decorative artwork on the right. Keep banner copy in HTML.
+     - Designed slide: fill in title, text, cta and colours. art is optional artwork.
+       photo: true adds an image behind the HTML copy. curated: true uses the new
+       collection layout, with 1600×500 desktop and 800×900 mobile artwork.
+       categories lists the department IDs a collection shows; on wide screens each one
+       appears on the slide as a link to that category.
      link: where the slide goes, e.g. '#/promo/P2', '#/dept/solar', '#/sell' */
   banners: [
     { id: 'welcome', label: "Zambia's marketplace", title: 'Everything Within Reach', text: 'Discover everyday favourites and business essentials from Zambian sellers, priced in Kwacha.', cta: 'Explore categories', link: '#/departments', colours: ['#0A2A66', '#0057AE'], art: 'logo', photo: true, image: 'assets/banners/alternatives/marketplace-3d.webp', imageMobile: 'assets/banners/alternatives/marketplace-3d-mobile.webp' },
-    { id: 'solar-collection', label: 'Solar & power', title: 'Keep your day moving', text: 'Explore solar lighting, portable power and energy essentials for your home or business.', cta: 'Explore solar & power', link: '#/dept/solar', colours: ['#071D47', '#0E7C86'], photo: true, image: 'assets/banners/alternatives/solar-3d.webp', imageMobile: 'assets/banners/alternatives/solar-3d-mobile.webp' },
-    { id: 'business-collection', label: 'For your next big step', title: 'Built for your business', text: 'Find tools, packaging, office essentials and equipment for the work ahead.', cta: 'Shop business supplies', link: '#/dept/business', colours: ['#0A2A66', '#0057AE'], photo: true, image: 'assets/banners/alternatives/business-3d.webp', imageMobile: 'assets/banners/alternatives/business-3d-mobile.webp' },
+    { id: 'everyday-collection', label: 'Home, family & everyday living', title: 'Little comforts. More possibilities.', text: 'Explore fashion, home and kitchen, baby and kids, and everyday essentials.', cta: 'Explore everyday living', link: '#/departments', categories: ['fashion', 'home', 'baby', 'essentials'], colours: ['#0A2A66', '#0057AE'], photo: true, curated: true, image: 'assets/banners/collections/everyday-wide.webp', imageMobile: 'assets/banners/collections/everyday-mobile.webp' },
+    { id: 'connected-collection', label: 'Tech, power, motoring & wellbeing', title: 'Keep life moving', text: 'Discover tech and gadgets, solar power, car accessories, and fitness essentials.', cta: 'Explore the collection', link: '#/departments', categories: ['tech', 'solar', 'auto', 'health'], colours: ['#071D47', '#0E7C86'], photo: true, curated: true, image: 'assets/banners/collections/connected-wide.webp', imageMobile: 'assets/banners/collections/connected-mobile.webp' },
+    { id: 'enterprise-collection', label: 'Work, build & grow', title: 'Equip your next big step', text: 'Browse business equipment, office and school supplies, tools and hardware, and farming essentials.', cta: 'Explore work & farming', link: '#/departments', categories: ['business', 'office', 'hardware', 'agri'], colours: ['#0A2A66', '#0057AE'], photo: true, curated: true, image: 'assets/banners/collections/enterprise-wide.webp', imageMobile: 'assets/banners/collections/enterprise-mobile.webp' },
     { id: 'world', label: 'Coming soon', title: 'A world of possibility', text: 'Shop from China and beyond, with landed costs in Kwacha. Opening once supplier agreements are in place.', cta: 'Discover Shop the World', link: '#/world', colours: ['#071D47', '#0E7C86'], photo: true, image: 'assets/banners/alternatives/world-3d.webp', imageMobile: 'assets/banners/alternatives/world-3d-mobile.webp', art: '<img src=\"assets/icons/world.svg\" alt=\"\">' }
   ],
 

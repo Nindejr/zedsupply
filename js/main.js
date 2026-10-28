@@ -1018,10 +1018,11 @@
     var list = (D.banners || []).concat(promos);
     if (fest) {
       var cc = festiveCopy(fest), fl = festiveLink(fest.id), deals = festiveDeals(fest.id);
+      var artwork = byId(FEST.periods || [], fest.id) || {};
       list.unshift({ id: 'festive', zambia: zambia, label: season(fest.id).name + ' ' + (fest.key || fest.start).getFullYear(), title: cc.lead,
         text: cc.line + (deals ? ' Shop seller celebration deals.' : ' Shop local and support Zambian sellers.'),
         cta: deals ? 'Shop ' + fl.text : fl.text, link: fl.href, colours: season(fest.id).colours,
-        art: seasonalArt(fest.id) });
+        photo: true, curated: !!artwork.image, image: artwork.image || '', imageMobile: artwork.imageMobile || '', art: seasonalArt(fest.id) });
     }
     return list;
   }
@@ -1035,6 +1036,9 @@
       return '<img src="' + path + '" data-fallback="assets/icons/' + category + '.svg" alt="" width="160" height="160" loading="lazy" decoding="async">';
     }).join('') + '</span>';
   }
+  // Short category names for banner links, matching the Shop by category grid
+  var DEPT_SHORT = { tech: 'Phones & Tech', solar: 'Solar & Power', fashion: 'Fashion & Beauty', home: 'Home & Kitchen', business: 'Business Equipment', office: 'Office & School',
+    agri: 'Agriculture', auto: 'Auto', hardware: 'Tools & Hardware', baby: 'Baby & Kids', health: 'Health & Fitness', essentials: 'Everyday Essentials' };
   function adHTML(b, i, n) {
     var saverOn = root.classList.contains('data-saver');
     var link = esc(b.link || '#/deals');
@@ -1053,10 +1057,15 @@
     var bg = b.image && b.photo && !saverOn ? '<picture>' + (b.imageMobile ? '<source media="(max-width: 599.98px)" ' + srcset + '="' + esc(b.imageMobile) + '">' : '') +
       '<img class="ad__bg" ' + src + '="' + esc(b.image) + '" alt="" width="1440" height="480"' + prio + '></picture>' : '';
     var art = bg ? '' : (b.art === 'logo' ? '<img class="ad__logo" src="assets/brand/mark-original-3d.webp" alt="" width="320" height="170">' : (b.art ? '<span class="ad__art" aria-hidden="true">' + b.art + '</span>' : ''));
-    return '<div class="ad ad--designed' + (bg ? ' ad--photo' : '') + (b.zambia ? ' ad--zambia' : '') + '"' + attrs + ' style="--ad-a:' + c[0] + ';--ad-b:' + c[1] + '">' + bg +
+    return '<div class="ad ad--designed' + (bg ? ' ad--photo' : '') + (b.curated ? ' ad--curated' : '') + (b.zambia ? ' ad--zambia' : '') + '"' + attrs + ' style="--ad-a:' + c[0] + ';--ad-b:' + c[1] + '">' + bg +
       '<div class="ad__body">' + (b.label ? '<span class="ad__label">' + esc(b.label) + '</span>' : '') +
       '<p class="ad__title">' + esc(b.title || b.alt || 'Advert') + '</p>' + (b.text ? '<p class="ad__text">' + esc(b.text) + '</p>' : '') +
-      '<a class="btn btn--primary" href="' + link + '">' + esc(b.cta || 'Shop now') + '</a></div>' + art + sample + '</div>';
+      // Collections link straight to each category they show
+      (b.categories && b.categories.length ? '<ul class="ad__cats" aria-label="Categories in this collection">' + b.categories.map(function (id) {
+        return byId(D.departments, id) ? '<li><a href="' + R + 'dept/' + esc(id) + '">' + esc(DEPT_SHORT[id] || dept(id).name) + '</a></li>' : '';
+      }).join('') + '</ul>' : '') +
+      '<a class="btn btn--primary" href="' + link + '">' + esc(b.cta || 'Shop now') + '</a>' +
+      (b.curated ? '<small class="ad__illustration">Illustrative collection · availability confirmed on WhatsApp</small>' : '') + '</div>' + art + sample + '</div>';
   }
   function stopAds() { if (ads.timer) clearInterval(ads.timer); ads.timer = null; }
   function playAds() { stopAds(); if (!ads.paused && !ads.hover && $$('.ad', adsWrap).length > 1 && !home.hidden) ads.timer = setInterval(function () { goAd(ads.i + 1); }, 6000); }
@@ -1083,6 +1092,7 @@
   function buildAds() {
     if (!adsWrap) return;
     var list = adSlides(), multi = list.length > 1;
+    adsEl.classList.toggle('ads--curated', !root.classList.contains('data-saver') && list.some(function (b) { return b.curated; }));
     if (ads.i >= list.length) ads.i = 0;
     adsWrap.innerHTML = list.map(function (b, i) { return adHTML(b, i, list.length); }).join('');
     $$('.ads__arrow, .ads__bar', adsEl).forEach(function (el) { el.hidden = !multi; });
