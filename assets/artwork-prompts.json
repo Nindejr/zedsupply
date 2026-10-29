@@ -1,0 +1,382 @@
+{
+  "generator": "Built-in image_gen.imagegen",
+  "styleGuide": "assets/ARTWORK.md",
+  "assets": [
+    {
+      "id": "L020",
+      "type": "product",
+      "path": "assets/products/demo/L020.webp",
+      "width": 600,
+      "height": 600,
+      "prompt": "Use case: product-mockup. Generate ONE square production product image for a Zed Supply demo listing: an unbranded 14-inch study laptop with dark graphite casing, open screen, compact keyboard and trackpad, generic blue/teal abstract screen, no words. Match the supplied reference product photos L001 and L005: premium realistic 3D studio product rendering, tangible materials and bevelled geometry, believable thickness, three-quarter perspective, soft light from upper left, delicate contact shadow on seamless nearly white background. Center the complete laptop with approximately 12% clear margins, product occupies 76–80% of canvas, square 600x600 composition. This is product L020, 8 GB RAM and 256 GB SSD (do not print specifications). Do not make a flat vector illustration, icon, diagram, collage, mockup of a webpage, text, watermark, badge, frame, or logo. Local reference images are style references only, not edit targets."
+    },
+    {
+      "id": "L021",
+      "type": "product",
+      "path": "assets/products/demo/L021.webp",
+      "width": 600,
+      "height": 600,
+      "prompt": "Use case: product-mockup. Asset: square product catalogue image for Zed Supply, L021. Subject: Wireless keyboard and mouse set: slim black full-size English QWERTY keyboard, matching black wireless mouse, small USB receiver. Match reference images as STYLE REFERENCES ONLY: premium realistic 3D studio rendering, tangible materials, visible depth and believable thickness, three-quarter perspective, soft upper-left light, subtle contact shadow on seamless near-white background. Center the whole product with about 12% margins, consistent catalogue scale, no cropping. Realistic product detail rather than toy-like simplification. No flat vector illustration, icons, text (except natural keyboard key markings), lettering, badge, watermark, logo, border or webpage. One square image, not a collage."
+    },
+    {
+      "id": "L022",
+      "type": "product",
+      "path": "assets/products/demo/L022.webp",
+      "width": 600,
+      "height": 600,
+      "prompt": "Use case: product-mockup. Asset: square product catalogue image for Zed Supply, L022. Subject: One white Type G Wi-Fi smart plug with timer, visible three rectangular UK-style metal pins and Type G front socket, small indicator LED. Match reference images as STYLE REFERENCES ONLY: premium realistic 3D studio rendering, tangible materials, visible depth and believable thickness, three-quarter perspective, soft upper-left light, subtle contact shadow on seamless near-white background. Center the whole product with about 12% margins, consistent catalogue scale, no cropping. Realistic product detail rather than toy-like simplification. No flat vector illustration, icons, text (except natural keyboard key markings), lettering, badge, watermark, logo, border or webpage. One square image, not a collage."
+    },
+    {
+      "id": "L023",
+      "type": "product",
+      "path": "assets/products/demo/L023.webp",
+      "width": 600,
+      "height": 600,
+      "prompt": "Use case: product-mockup. Asset: square product catalogue image for Zed Supply, L023. Subject: One colour-changing E27 9W LED smart light bulb, frosted rounded diffuser, white plastic base, visible metal screw fitting; subtle teal light. Match reference images as STYLE REFERENCES ONLY: premium realistic 3D studio rendering, tangible materials, visible depth and believable thickness, three-quarter perspective, soft upper-left light, subtle contact shadow on seamless near-white background. Center the whole product with about 12% margins, consistent catalogue scale, no cropping. Realistic product detail rather than toy-like simplification. No flat vector illustration, icons, text (except natural keyboard key markings), lettering, badge, watermark, logo, border or webpage. One square image, not a collage."
+    },
+    {
+      "id": "L024",
+      "type": "product",
+      "path": "assets/products/demo/L024.webp",
+      "width": 600,
+      "height": 600,
+      "prompt": "Use case: product-mockup. Asset: square product catalogue image for Zed Supply, L024. Subject: 43-inch black Full HD smart television on two feet, blue teal abstract screen with no text. Match reference images as STYLE REFERENCES ONLY: premium realistic 3D studio rendering, tangible materials, visible depth and believable thickness, three-quarter perspective, soft upper-left light, subtle contact shadow on seamless near-white background. Center the whole product with about 12% margins, consistent catalogue scale, no cropping. Realistic product detail rather than toy-like simplification. No flat vector illustration, icons, text (except natural keyboard key markings), lettering, badge, watermark, logo, border or webpage. One square image, not a collage."
+    },
+    {
+      "id": "L025",
+      "type": "product",
+      "path": "assets/products/demo/L025.webp",
+      "width": 600,
+      "height": 600,
+      "prompt": "Use case: product-mockup. Asset: square product catalogue image for Zed Supply, L025. Subject: Adjustable black steel TV wall mount for 32–55 inch TVs, visible mounting plate, two vertical perforated rails and tilt mechanism; hardware alongside. Match reference images as STYLE REFERENCES ONLY: premium realistic 3D studio rendering, tangible materials, visible depth and believable thickness, three-quarter perspective, soft upper-left light, subtle contact shadow on seamless near-white background. Center the whole product with about 12% margins, consistent catalogue scale, no cropping. Realistic product detail rather than toy-like simplification. No flat vector illustration, icons, text (except natural keyboard key markings), lettering, badge, watermark, logo, border or webpage. One square image, not a collage."
+    },
+    {
+      "id": "L026",
+      "type": "product",
+      "path": "assets/products/demo/L026.webp",
+      "width": 600,
+      "height": 600,
+      "prompt": "Use case: product-mockup. Asset: square product catalogue image for Zed Supply, L026. Subject: One generic black wireless PC game controller, two analog sticks, directional pad and four coloured buttons, no manufacturer logos. Match reference images as STYLE REFERENCES ONLY: premium realistic 3D studio rendering, tangible materials, visible depth and believable thickness, three-quarter perspective, soft upper-left light, subtle contact shadow on seamless near-white background. Center the whole product with about 12% margins, consistent catalogue scale, no cropping. Realistic product detail rather than toy-like simplification. No flat vector illustration, icons, text (except natural keyboard key markings), lettering, badge, watermark, logo, border or webpage. One square image, not a collage."
+    },
+    {
+      "id": "L027",
+      "type": "product",
+      "path": "assets/products/demo/L027.webp",
+      "width": 600,
+      "height": 600,
+      "prompt": "Use case: product-mockup. Asset: square product catalogue image for Zed Supply, L027. Subject: Black over-ear gaming headset, padded earcups with blue details, adjustable boom microphone and a neatly coiled 3.5 mm cable. Match reference images as STYLE REFERENCES ONLY: premium realistic 3D studio rendering, tangible materials, visible depth and believable thickness, three-quarter perspective, soft upper-left light, subtle contact shadow on seamless near-white background. Center the whole product with about 12% margins, consistent catalogue scale, no cropping. Realistic product detail rather than toy-like simplification. No flat vector illustration, icons, text (except natural keyboard key markings or explicitly requested puzzle alphabet), lettering, badge, watermark, logo, border or webpage. One square image, not a collage."
+    },
+    {
+      "id": "L028",
+      "type": "product",
+      "path": "assets/products/demo/L028.webp",
+      "width": 600,
+      "height": 600,
+      "prompt": "Use case: product-mockup. Asset: square product catalogue image for Zed Supply, L028. Subject: Girls cotton weekend dress in muted terracotta with short sleeves and gently flared skirt, fabric texture and soft folds, on invisible mannequin, no person. Match reference images as STYLE REFERENCES ONLY: premium realistic 3D studio rendering, tangible materials, visible depth and believable thickness, three-quarter perspective, soft upper-left light, subtle contact shadow on seamless near-white background. Center the whole product with about 12% margins, consistent catalogue scale, no cropping. Realistic product detail rather than toy-like simplification. No flat vector illustration, icons, text (except natural keyboard key markings or explicitly requested puzzle alphabet), lettering, badge, watermark, logo, border or webpage. One square image, not a collage."
+    },
+    {
+      "id": "L029",
+      "type": "product",
+      "path": "assets/products/demo/L029.webp",
+      "width": 600,
+      "height": 600,
+      "prompt": "Use case: product-mockup. Asset: square product catalogue image for Zed Supply, L029. Subject: Girls school cardigan in navy blue cotton blend, button front and ribbed cuffs, gentle cloth folds, invisible mannequin, no person. Match reference images as STYLE REFERENCES ONLY: premium realistic 3D studio rendering, tangible materials, visible depth and believable thickness, three-quarter perspective, soft upper-left light, subtle contact shadow on seamless near-white background. Center the whole product with about 12% margins, consistent catalogue scale, no cropping. Realistic product detail rather than toy-like simplification. No flat vector illustration, icons, text (except natural keyboard key markings or explicitly requested puzzle alphabet), lettering, badge, watermark, logo, border or webpage. One square image, not a collage."
+    },
+    {
+      "id": "L030",
+      "type": "product",
+      "path": "assets/products/demo/L030.webp",
+      "width": 600,
+      "height": 600,
+      "prompt": "Use case: product-mockup. Asset: square product catalogue image for Zed Supply, L030. Subject: Boys cotton polo shirt in teal, short sleeves, collar and button placket, visible cotton texture and folds, invisible mannequin, no person. Match reference images as STYLE REFERENCES ONLY: premium realistic 3D studio rendering, tangible materials, visible depth and believable thickness, three-quarter perspective, soft upper-left light, subtle contact shadow on seamless near-white background. Center the whole product with about 12% margins, consistent catalogue scale, no cropping. Realistic product detail rather than toy-like simplification. No flat vector illustration, icons, text (except natural keyboard key markings or explicitly requested puzzle alphabet), lettering, badge, watermark, logo, border or webpage. One square image, not a collage."
+    },
+    {
+      "id": "L031",
+      "type": "product",
+      "path": "assets/products/demo/L031.webp",
+      "width": 600,
+      "height": 600,
+      "prompt": "Use case: product-mockup. Asset: square product catalogue image for Zed Supply, L031. Subject: Pair of boys everyday trainers: navy synthetic uppers, white rubber soles, two hook-and-loop straps, shoes arranged naturally at three-quarter angle. Match reference images as STYLE REFERENCES ONLY: premium realistic 3D studio rendering, tangible materials, visible depth and believable thickness, three-quarter perspective, soft upper-left light, subtle contact shadow on seamless near-white background. Center the whole product with about 12% margins, consistent catalogue scale, no cropping. Realistic product detail rather than toy-like simplification. No flat vector illustration, icons, text (except natural keyboard key markings or explicitly requested puzzle alphabet), lettering, badge, watermark, logo, border or webpage. One square image, not a collage."
+    },
+    {
+      "id": "L032",
+      "type": "product",
+      "path": "assets/products/demo/L032.webp",
+      "width": 600,
+      "height": 600,
+      "prompt": "Use case: product-mockup. Asset: square product catalogue image for Zed Supply, L032. Subject: Unbranded unscented body lotion: one 400 ml cream-white bottle with pale teal cap and plain cream label without lettering. Match reference images as STYLE REFERENCES ONLY: premium realistic 3D studio rendering, tangible materials, visible depth and believable thickness, three-quarter perspective, soft upper-left light, subtle contact shadow on seamless near-white background. Center the whole product with about 12% margins, consistent catalogue scale, no cropping. Realistic product detail rather than toy-like simplification. No flat vector illustration, icons, text (except natural keyboard key markings or explicitly requested puzzle alphabet), lettering, badge, watermark, logo, border or webpage. One square image, not a collage."
+    },
+    {
+      "id": "L033",
+      "type": "product",
+      "path": "assets/products/demo/L033.webp",
+      "width": 600,
+      "height": 600,
+      "prompt": "Use case: product-mockup. Asset: square product catalogue image for Zed Supply, L033. Subject: Five makeup brushes with graphite handles, soft brown synthetic bristles, arranged beside an open tan travel pouch. Match reference images as STYLE REFERENCES ONLY: premium realistic 3D studio rendering, tangible materials, visible depth and believable thickness, three-quarter perspective, soft upper-left light, subtle contact shadow on seamless near-white background. Center the whole product with about 12% margins, consistent catalogue scale, no cropping. Realistic product detail rather than toy-like simplification. No flat vector illustration, icons, text (except natural keyboard key markings or explicitly requested puzzle alphabet), lettering, badge, watermark, logo, border or webpage. One square image, not a collage."
+    },
+    {
+      "id": "L034",
+      "type": "product",
+      "path": "assets/products/demo/L034.webp",
+      "width": 600,
+      "height": 600,
+      "prompt": "Use case: product-mockup. Asset: square product catalogue image for Zed Supply, L034. Subject: Watercolour starter set: open compact tin with exactly twelve colourful watercolour pans and one small artist paintbrush; no wording. Match reference images as STYLE REFERENCES ONLY: premium realistic 3D studio rendering, tangible materials, visible depth and believable thickness, three-quarter perspective, soft upper-left light, subtle contact shadow on seamless near-white background. Center the whole product with about 12% margins, consistent catalogue scale, no cropping. Realistic product detail rather than toy-like simplification. No flat vector illustration, icons, text (except natural keyboard key markings or explicitly requested puzzle alphabet), lettering, badge, watermark, logo, border or webpage. One square image, not a collage."
+    },
+    {
+      "id": "L035",
+      "type": "product",
+      "path": "assets/products/demo/L035.webp",
+      "width": 600,
+      "height": 600,
+      "prompt": "Use case: product-mockup. Asset: square product catalogue image for Zed Supply, L035. Subject: Two-metre length of printed cotton chitenge fabric, rich teal terracotta and mustard geometric African print, folded with one draped edge to reveal woven fabric texture. Match reference images as STYLE REFERENCES ONLY: premium realistic 3D studio rendering, tangible materials, visible depth and believable thickness, three-quarter perspective, soft upper-left light, subtle contact shadow on seamless near-white background. Center the whole product with about 12% margins, consistent catalogue scale, no cropping. Realistic product detail rather than toy-like simplification. No flat vector illustration, icons, text (except natural keyboard key markings or explicitly requested puzzle alphabet), lettering, badge, watermark, logo, border or webpage. One square image, not a collage."
+    },
+    {
+      "id": "L036",
+      "type": "product",
+      "path": "assets/products/demo/L036.webp",
+      "width": 600,
+      "height": 600,
+      "prompt": "Use case: product-mockup. Asset: square product catalogue image for Zed Supply, L036. Subject: Baby feeding bowl and one soft spoon set: mint green polypropylene bowl with rounded rim and pale mustard soft spoon beside it. Match reference images as STYLE REFERENCES ONLY: premium realistic 3D studio rendering, tangible materials, visible depth and believable thickness, three-quarter perspective, soft upper-left light, subtle contact shadow on seamless near-white background. Center the whole product with about 12% margins, consistent catalogue scale, no cropping. Realistic product detail rather than toy-like simplification. No flat vector illustration, icons, text (except natural keyboard key markings or explicitly requested puzzle alphabet), lettering, badge, watermark, logo, border or webpage. One square image, not a collage."
+    },
+    {
+      "id": "L037",
+      "type": "product",
+      "path": "assets/products/demo/L037.webp",
+      "width": 600,
+      "height": 600,
+      "prompt": "Use case: product-mockup. Asset: square product catalogue image for Zed Supply, L037. Subject: Cotton baby blanket in soft muted blue, folded into a neat rectangle with a loose draped corner, woven cotton texture and subtle stitched border. Match reference images as STYLE REFERENCES ONLY: premium realistic 3D studio rendering, tangible materials, visible depth and believable thickness, three-quarter perspective, soft upper-left light, subtle contact shadow on seamless near-white background. Center the whole product with about 12% margins, consistent catalogue scale, no cropping. Realistic product detail rather than toy-like simplification. No flat vector illustration, icons, text (except natural keyboard key markings or explicitly requested puzzle alphabet), lettering, badge, watermark, logo, border or webpage. One square image, not a collage."
+    },
+    {
+      "id": "L038",
+      "type": "product",
+      "path": "assets/products/demo/L038.webp",
+      "width": 600,
+      "height": 600,
+      "prompt": "Use case: product-mockup. Asset: square product catalogue image for Zed Supply, L038. Subject: Adjustable woven nylon dog collar and matching 1.2 m lead in teal, silver metal clip and D-ring, black quick-release buckle, arranged in loose curves. Match reference images as STYLE REFERENCES ONLY: premium realistic 3D studio rendering, tangible materials, visible depth and believable thickness, three-quarter perspective, soft upper-left light, subtle contact shadow on seamless near-white background. Center the whole product with about 12% margins, consistent catalogue scale, no cropping. Realistic product detail rather than toy-like simplification. No flat vector illustration, icons, text (except natural keyboard key markings or explicitly requested puzzle alphabet), lettering, badge, watermark, logo, border or webpage. One square image, not a collage."
+    },
+    {
+      "id": "L039",
+      "type": "product",
+      "path": "assets/products/demo/L039.webp",
+      "width": 600,
+      "height": 600,
+      "prompt": "Use case: product-mockup. Asset: square product catalogue image for Zed Supply, L039. Subject: Washable oval cat bed with removable cushion, soft teal outer fabric and warm cream cushion with realistic seams; empty bed, no animal. Match reference images as STYLE REFERENCES ONLY: premium realistic 3D studio rendering, tangible materials, visible depth and believable thickness, three-quarter perspective, soft upper-left light, subtle contact shadow on seamless near-white background. Center the whole product with about 12% margins, consistent catalogue scale, no cropping. Realistic product detail rather than toy-like simplification. No flat vector illustration, icons, text (except natural keyboard key markings or explicitly requested puzzle alphabet), lettering, badge, watermark, logo, border or webpage. One square image, not a collage."
+    },
+    {
+      "id": "L040",
+      "type": "product",
+      "path": "assets/products/demo/L040.webp",
+      "width": 600,
+      "height": 600,
+      "prompt": "Use case: product-mockup. Asset: square product catalogue image for Zed Supply, L040. Subject: Colourful plastic building blocks set, a small assembled tower and several loose chunky blocks, blue teal yellow and red, rounded corners and visible interlocking studs. Match reference images as STYLE REFERENCES ONLY: premium realistic 3D studio rendering, tangible materials, visible depth and believable thickness, three-quarter perspective, soft upper-left light, subtle contact shadow on seamless near-white background. Center the whole product with about 12% margins, consistent catalogue scale, no cropping. Realistic product detail rather than toy-like simplification. No flat vector illustration, icons, text (except natural keyboard key markings or explicitly requested puzzle alphabet), lettering, badge, watermark, logo, border or webpage. One square image, not a collage."
+    },
+    {
+      "id": "L041",
+      "type": "product",
+      "path": "assets/products/demo/L041.webp",
+      "width": 600,
+      "height": 600,
+      "prompt": "Use case: product-mockup. Asset: square product catalogue image for Zed Supply, L041. Subject: Wooden alphabet learning puzzle board: pale timber rectangular board with recessed colourful uppercase English alphabet pieces A through Z, realistic thickness and small lifting pegs. Match reference images as STYLE REFERENCES ONLY: premium realistic 3D studio rendering, tangible materials, visible depth and believable thickness, three-quarter perspective, soft upper-left light, subtle contact shadow on seamless near-white background. Center the whole product with about 12% margins, consistent catalogue scale, no cropping. Realistic product detail rather than toy-like simplification. No flat vector illustration, icons, text (except natural keyboard key markings or explicitly requested puzzle alphabet), lettering, badge, watermark, logo, border or webpage. One square image, not a collage."
+    },
+    {
+      "id": "L042",
+      "type": "product",
+      "path": "assets/products/demo/L042.webp",
+      "width": 600,
+      "height": 600,
+      "prompt": "Use case: product-mockup. Asset: square product catalogue image for Zed Supply, L042. Subject: Non-slip teal exercise mat with visible 6 mm thickness, partly unrolled with one rolled end, subtle grip texture. Match reference images as STYLE REFERENCES ONLY: premium realistic 3D studio rendering, tangible materials, visible depth and believable thickness, three-quarter perspective, soft upper-left light, subtle contact shadow on seamless near-white background. Center the whole product with about 12% margins, consistent catalogue scale, no cropping. Realistic product detail rather than toy-like simplification. No flat vector illustration, icons, text (except natural keyboard key markings or explicitly requested puzzle alphabet), lettering, badge, watermark, logo, border or webpage. One square image, not a collage."
+    },
+    {
+      "id": "L043",
+      "type": "product",
+      "path": "assets/products/demo/L043.webp",
+      "width": 600,
+      "height": 600,
+      "prompt": "Use case: product-mockup. Asset: square product catalogue image for Zed Supply, L043. Subject: One size 5 training football, classic black-and-white panel pattern, realistic stitched synthetic leather and spherical volume. Match reference images as STYLE REFERENCES ONLY: premium realistic 3D studio rendering, tangible materials, visible depth and believable thickness, three-quarter perspective, soft upper-left light, subtle contact shadow on seamless near-white background. Center the whole product with about 12% margins, consistent catalogue scale, no cropping. Realistic product detail rather than toy-like simplification. No flat vector illustration, icons, text (except natural keyboard key markings or explicitly requested puzzle alphabet), lettering, badge, watermark, logo, border or webpage. One square image, not a collage."
+    },
+    {
+      "id": "L044",
+      "type": "product",
+      "path": "assets/products/demo/L044.webp",
+      "width": 600,
+      "height": 600,
+      "prompt": "Use case: product-mockup. Asset: square product catalogue image for Zed Supply, L044. Subject: Womens cotton everyday T-shirt in muted dusty blue, short sleeves, relaxed fit, visible cotton knit and soft folds, invisible mannequin, no person. Match reference images as STYLE REFERENCES ONLY: premium realistic 3D studio rendering, tangible materials, visible depth and believable thickness, three-quarter perspective, soft upper-left light, subtle contact shadow on seamless near-white background. Center the whole product with about 12% margins, consistent catalogue scale, no cropping. Realistic product detail rather than toy-like simplification. No flat vector illustration, icons, text (except natural keyboard key markings or explicitly requested puzzle alphabet), lettering, badge, watermark, logo, border or webpage. One square image, not a collage."
+    },
+    {
+      "id": "L045",
+      "type": "product",
+      "path": "assets/products/demo/L045.webp",
+      "width": 600,
+      "height": 600,
+      "prompt": "Use case: product-mockup. Asset: square product catalogue image for Zed Supply, L045. Subject: Mens adjustable woven canvas belt in olive green, rolled loosely with a brushed metal slide buckle clearly visible. Match reference images as STYLE REFERENCES ONLY: premium realistic 3D studio rendering, tangible materials, visible depth and believable thickness, three-quarter perspective, soft upper-left light, subtle contact shadow on seamless near-white background. Center the whole product with about 12% margins, consistent catalogue scale, no cropping. Realistic product detail rather than toy-like simplification. No flat vector illustration, icons, text (except natural keyboard key markings or explicitly requested puzzle alphabet), lettering, badge, watermark, logo, border or webpage. One square image, not a collage."
+    },
+    {
+      "id": "L046",
+      "type": "product",
+      "path": "assets/products/demo/L046.webp",
+      "width": 600,
+      "height": 600,
+      "prompt": "Use case: product-mockup. Asset: square product catalogue image for Zed Supply, L046. Subject: One 20-inch navy lightweight cabin suitcase, ribbed ABS hard shell, four swivel wheels and extended telescoping handle, three-quarter view. Match reference images as STYLE REFERENCES ONLY: premium realistic 3D studio rendering, tangible materials, visible depth and believable thickness, three-quarter perspective, soft upper-left light, subtle contact shadow on seamless near-white background. Center the whole product with about 12% margins, consistent catalogue scale, no cropping. Realistic product detail rather than toy-like simplification. No flat vector illustration, icons, text (except natural keyboard key markings or explicitly requested puzzle alphabet), lettering, badge, watermark, logo, border or webpage. One square image, not a collage."
+    },
+    {
+      "id": "L047",
+      "type": "product",
+      "path": "assets/products/demo/L047.webp",
+      "width": 600,
+      "height": 600,
+      "prompt": "Use case: product-mockup. Asset: square product catalogue image for Zed Supply, L047. Subject: One locking tape measure with yellow and black rubber grip case, 5-metre metric steel tape extended a short distance, visible belt clip. Match reference images as STYLE REFERENCES ONLY: premium realistic 3D studio rendering, tangible materials, visible depth and believable thickness, three-quarter perspective, soft upper-left light, subtle contact shadow on seamless near-white background. Center the whole product with about 12% margins, consistent catalogue scale, no cropping. Realistic product detail rather than toy-like simplification. No flat vector illustration, icons, text (except natural keyboard key markings or explicitly requested puzzle alphabet), lettering, badge, watermark, logo, border or webpage. One square image, not a collage."
+    },
+    {
+      "id": "L048",
+      "type": "product",
+      "path": "assets/products/demo/L048.webp",
+      "width": 600,
+      "height": 600,
+      "prompt": "Use case: product-mockup. Asset: square product catalogue image for Zed Supply, L048. Subject: Pack of four soft-bristle toothbrushes in coordinated blue teal green and white, three-quarter perspective with visible rounded heads and bristle fibres. Match reference images as STYLE REFERENCES ONLY: premium realistic 3D studio rendering, tangible materials, visible depth and believable thickness, three-quarter perspective, soft upper-left light, subtle contact shadow on seamless near-white background. Center the whole product with about 12% margins, consistent catalogue scale, no cropping. Realistic product detail rather than toy-like simplification. No flat vector illustration, icons, text (except natural keyboard key markings or explicitly requested puzzle alphabet), lettering, badge, watermark, logo, border or webpage. One square image, not a collage."
+    },
+    {
+      "id": "L049",
+      "type": "product",
+      "path": "assets/products/demo/L049.webp",
+      "width": 600,
+      "height": 600,
+      "prompt": "Use case: product-mockup. Asset: square product catalogue image for Zed Supply, L049. Subject: Five-piece microfibre car cleaning kit: three folded cloths in blue teal and yellow, one textured wash mitt and one sponge, exactly five items. Match reference images as STYLE REFERENCES ONLY: premium realistic 3D studio rendering, tangible materials, visible depth and believable thickness, three-quarter perspective, soft upper-left light, subtle contact shadow on seamless near-white background. Center the whole product with about 12% margins, consistent catalogue scale, no cropping. Realistic product detail rather than toy-like simplification. No flat vector illustration, icons, text (except natural keyboard key markings or explicitly requested puzzle alphabet), lettering, badge, watermark, logo, border or webpage. One square image, not a collage."
+    },
+    {
+      "id": "L050",
+      "type": "product",
+      "path": "assets/products/demo/L050.webp",
+      "width": 600,
+      "height": 600,
+      "prompt": "Use case: product-mockup. Asset: square product catalogue image for Zed Supply, L050. Subject: Six rolls of brown packaging tape, 48 mm wide, realistic glossy tape and cardboard cores, arranged as two stacks with one roll tilted. Match reference images as STYLE REFERENCES ONLY: premium realistic 3D studio rendering, tangible materials, visible depth and believable thickness, three-quarter perspective, soft upper-left light, subtle contact shadow on seamless near-white background. Center the whole product with about 12% margins, consistent catalogue scale, no cropping. Realistic product detail rather than toy-like simplification. No flat vector illustration, icons, text (except natural keyboard key markings or explicitly requested puzzle alphabet), lettering, badge, watermark, logo, border or webpage. One square image, not a collage."
+    },
+    {
+      "id": "L051",
+      "type": "product",
+      "path": "assets/products/demo/L051.webp",
+      "width": 600,
+      "height": 600,
+      "prompt": "Use case: product-mockup. Asset: square product catalogue image for Zed Supply, L051. Subject: Green garden hose coiled neatly, 20 metre length represented as one coil, 12 mm diameter, brass connectors and one yellow-black spray nozzle alongside. Match reference images as STYLE REFERENCES ONLY: premium realistic 3D studio rendering, tangible materials, visible depth and believable thickness, three-quarter perspective, soft upper-left light, subtle contact shadow on seamless near-white background. Center the whole product with about 12% margins, consistent catalogue scale, no cropping. Realistic product detail rather than toy-like simplification. No flat vector illustration, icons, text (except natural keyboard key markings or explicitly requested puzzle alphabet), lettering, badge, watermark, logo, border or webpage. One square image, not a collage."
+    },
+    {
+      "id": "L052",
+      "type": "product",
+      "path": "assets/products/demo/L052.webp",
+      "width": 600,
+      "height": 600,
+      "prompt": "Use case: product-mockup. Asset: square product catalogue image for Zed Supply, L052. Subject: Box of twenty blue ballpoint pens, open plain cardboard carton with blue pens neatly nested, two pens alongside, no brand or printed wording. Match reference images as STYLE REFERENCES ONLY: premium realistic 3D studio rendering, tangible materials, visible depth and believable thickness, three-quarter perspective, soft upper-left light, subtle contact shadow on seamless near-white background. Center the whole product with about 12% margins, consistent catalogue scale, no cropping. Realistic product detail rather than toy-like simplification. No flat vector illustration, icons, text (except natural keyboard key markings or explicitly requested puzzle alphabet), lettering, badge, watermark, logo, border or webpage. One square image, not a collage."
+    },
+    {
+      "id": "L053",
+      "type": "product",
+      "path": "assets/products/demo/L053.webp",
+      "width": 600,
+      "height": 600,
+      "prompt": "Use case: product-mockup. Asset: square product catalogue image for Zed Supply, L053. Subject: Unbranded 10 kg breakfast mealie meal bag: upright cream woven sack with folded sealed top, green blank label panel, realistic bag volume and subtle maize flour grain texture, no lettering. Match reference images as STYLE REFERENCES ONLY: premium realistic 3D studio rendering, tangible materials, visible depth and believable thickness, three-quarter perspective, soft upper-left light, subtle contact shadow on seamless near-white background. Center the whole product with about 12% margins, consistent catalogue scale, no cropping. Realistic product detail rather than toy-like simplification. No flat vector illustration, icons, text (except natural keyboard key markings or explicitly requested puzzle alphabet), lettering, badge, watermark, logo, border or webpage. One square image, not a collage."
+    },
+    {
+      "id": "computers",
+      "type": "category",
+      "path": "assets/categories-3d/computers.webp",
+      "width": 256,
+      "height": 256,
+      "prompt": "Use case: stylized-concept. Square department tile artwork for Zed Supply: an open navy laptop with bright blue teal screen, compact keyboard and wireless mouse. Use the supplied existing tech department artwork as the exact STYLE REFERENCE: premium polished dimensional 3D product cluster, vivid deep royal blue and navy, teal and fresh green accent colours, tactile glossy and satin materials, rounded bevels, realistic three-quarter perspective, soft upper-left studio highlights, tiny natural occlusion shadows. Match the visual weight, saturated colours, and compact centered composition of that reference. Genuine transparent background, isolated products with no scenery, no platform or pedestal, no white square or checkerboard baked in. Complete composition with 10% clear margins; readable at 112px. No people, text, labels, badges, branding, watermark, flat vectors, outlines or emojis. One department composition, not a grid."
+    },
+    {
+      "id": "smarthome",
+      "type": "category",
+      "path": "assets/categories-3d/smarthome.webp",
+      "width": 256,
+      "height": 256,
+      "prompt": "Use case: stylized-concept. Square department tile artwork for Zed Supply: a miniature glossy white smart home hub shaped like a house with blue roof, one teal-glowing smart bulb and a white smart plug. Use the supplied existing tech department artwork as the exact STYLE REFERENCE: premium polished dimensional 3D product cluster, vivid deep royal blue and navy, teal and fresh green accent colours, tactile glossy and satin materials, rounded bevels, realistic three-quarter perspective, soft upper-left studio highlights, tiny natural occlusion shadows. Match the visual weight, saturated colours, and compact centered composition of that reference. Genuine transparent background, isolated products with no scenery, no platform or pedestal, no white square or checkerboard baked in. Complete composition with 10% clear margins; readable at 112px. No people, text, labels, badges, branding, watermark, flat vectors, outlines or emojis. One department composition, not a grid."
+    },
+    {
+      "id": "tv",
+      "type": "category",
+      "path": "assets/categories-3d/tv.webp",
+      "width": 256,
+      "height": 256,
+      "prompt": "Use case: stylized-concept. Square department tile artwork for Zed Supply: a sleek dark blue television with luminous teal blue screen, a compact soundbar and small remote. Use the supplied existing tech department artwork as the exact STYLE REFERENCE: premium polished dimensional 3D product cluster, vivid deep royal blue and navy, teal and fresh green accent colours, tactile glossy and satin materials, rounded bevels, realistic three-quarter perspective, soft upper-left studio highlights, tiny natural occlusion shadows. Match the visual weight, saturated colours, and compact centered composition of that reference. Genuine transparent background, isolated products with no scenery, no platform or pedestal, no white square or checkerboard baked in. Complete composition with 10% clear margins; readable at 112px. No people, text, labels, badges, branding, watermark, flat vectors, outlines or emojis. One department composition, not a grid."
+    },
+    {
+      "id": "games",
+      "type": "category",
+      "path": "assets/categories-3d/games.webp",
+      "width": 256,
+      "height": 256,
+      "prompt": "Use case: stylized-concept. Square department tile artwork for Zed Supply: a generic navy game console, one blue controller and green-accented gaming headset, no recognizable brand. Use the supplied existing tech department artwork as the exact STYLE REFERENCE: premium polished dimensional 3D product cluster, vivid deep royal blue and navy, teal and fresh green accent colours, tactile glossy and satin materials, rounded bevels, realistic three-quarter perspective, soft upper-left studio highlights, tiny natural occlusion shadows. Match the visual weight, saturated colours, and compact centered composition of that reference. Genuine transparent background, isolated products with no scenery, no platform or pedestal, no white square or checkerboard baked in. Complete composition with 10% clear margins; readable at 112px. No people, text, labels, badges, branding, watermark, flat vectors, outlines or emojis. One department composition, not a grid."
+    },
+    {
+      "id": "mens",
+      "type": "category",
+      "path": "assets/categories-3d/mens.webp",
+      "width": 256,
+      "height": 256,
+      "prompt": "Use case: stylized-concept. Square department tile artwork for Zed Supply: a neatly folded navy polo shirt, one pair of blue and white casual sneakers and a green-accented wristwatch. Use the supplied existing tech department artwork as the exact STYLE REFERENCE: premium polished dimensional 3D product cluster, vivid deep royal blue and navy, teal and fresh green accent colours, tactile glossy and satin materials, rounded bevels, realistic three-quarter perspective, soft upper-left studio highlights, tiny natural occlusion shadows. Match the visual weight, saturated colours, and compact centered composition of that reference. Genuine transparent background, isolated products with no scenery, no platform or pedestal, no white square or checkerboard baked in. Complete composition with 10% clear margins; readable at 112px. No people, text, labels, badges, branding, watermark, flat vectors, outlines or emojis. One department composition, not a grid."
+    },
+    {
+      "id": "girls",
+      "type": "category",
+      "path": "assets/categories-3d/girls.webp",
+      "width": 256,
+      "height": 256,
+      "prompt": "Use case: stylized-concept. Square department tile artwork for Zed Supply: a teal girls dress on an invisible mannequin, white and blue small sneakers and a navy hair bow; no person. Use the supplied existing tech department artwork as the exact STYLE REFERENCE: premium polished dimensional 3D product cluster, vivid deep royal blue and navy, teal and fresh green accent colours, tactile glossy and satin materials, rounded bevels, realistic three-quarter perspective, soft upper-left studio highlights, tiny natural occlusion shadows. Match the visual weight, saturated colours, and compact centered composition of that reference. Genuine transparent background, isolated products with no scenery, no platform or pedestal, no white square or checkerboard baked in. Complete composition with 10% clear margins; readable at 112px. No people, text, labels, badges, branding, watermark, flat vectors, outlines or emojis. One department composition, not a grid."
+    },
+    {
+      "id": "boys",
+      "type": "category",
+      "path": "assets/categories-3d/boys.webp",
+      "width": 256,
+      "height": 256,
+      "prompt": "Use case: stylized-concept. Square department tile artwork for Zed Supply: a small blue boys polo shirt on an invisible mannequin, blue sneakers and green baseball cap; no person. Use the supplied existing tech department artwork as the exact STYLE REFERENCE: premium polished dimensional 3D product cluster, vivid deep royal blue and navy, teal and fresh green accent colours, tactile glossy and satin materials, rounded bevels, realistic three-quarter perspective, soft upper-left studio highlights, tiny natural occlusion shadows. Match the visual weight, saturated colours, and compact centered composition of that reference. Genuine transparent background, isolated products with no scenery, no platform or pedestal, no white square or checkerboard baked in. Complete composition with 10% clear margins; readable at 112px. No people, text, labels, badges, branding, watermark, flat vectors, outlines or emojis. One department composition, not a grid."
+    },
+    {
+      "id": "beauty",
+      "type": "category",
+      "path": "assets/categories-3d/beauty.webp",
+      "width": 256,
+      "height": 256,
+      "prompt": "Use case: stylized-concept. Square department tile artwork for Zed Supply: a glossy teal skincare pump bottle, a navy compact makeup case and soft makeup brush with blue handle. Use the supplied existing tech department artwork as the exact STYLE REFERENCE: premium polished dimensional 3D product cluster, vivid deep royal blue and navy, teal and fresh green accent colours, tactile glossy and satin materials, rounded bevels, realistic three-quarter perspective, soft upper-left studio highlights, tiny natural occlusion shadows. Match the visual weight, saturated colours, and compact centered composition of that reference. Genuine transparent background, isolated products with no scenery, no platform or pedestal, no white square or checkerboard baked in. Complete composition with 10% clear margins; readable at 112px. No people, text, labels, badges, branding, watermark, flat vectors, outlines or emojis. One department composition, not a grid."
+    },
+    {
+      "id": "luggage",
+      "type": "category",
+      "path": "assets/categories-3d/luggage.webp",
+      "width": 256,
+      "height": 256,
+      "prompt": "Use case: stylized-concept. Square department tile artwork for Zed Supply: a glossy navy rolling suitcase with raised telescoping handle, teal travel bag and green luggage tag. Use the supplied existing tech department artwork as the exact STYLE REFERENCE: premium polished dimensional 3D product cluster, vivid deep royal blue and navy, teal and fresh green accent colours, tactile glossy and satin materials, rounded bevels, realistic three-quarter perspective, soft upper-left studio highlights, tiny natural occlusion shadows. Match the visual weight, saturated colours, and compact centered composition of that reference. Genuine transparent background, isolated products with no scenery, no platform or pedestal, no white square or checkerboard baked in. Complete composition with 10% clear margins; readable at 112px. No people, text, labels, badges, branding, watermark, flat vectors, outlines or emojis. One department composition, not a grid."
+    },
+    {
+      "id": "arts",
+      "type": "category",
+      "path": "assets/categories-3d/arts.webp",
+      "width": 256,
+      "height": 256,
+      "prompt": "Use case: stylized-concept. Square department tile artwork for Zed Supply: a blue artist palette with vibrant paint dabs, upright paintbrushes in teal cup and a roll of geometric patterned craft fabric. Use the supplied existing tech department artwork as the exact STYLE REFERENCE: premium polished dimensional 3D product cluster, vivid deep royal blue and navy, teal and fresh green accent colours, tactile glossy and satin materials, rounded bevels, realistic three-quarter perspective, soft upper-left studio highlights, tiny natural occlusion shadows. Match the visual weight, saturated colours, and compact centered composition of that reference. Genuine transparent background, isolated products with no scenery, no platform or pedestal, no white square or checkerboard baked in. Complete composition with 10% clear margins; readable at 112px. No people, text, labels, badges, branding, watermark, flat vectors, outlines or emojis. One department composition, not a grid."
+    },
+    {
+      "id": "pets",
+      "type": "category",
+      "path": "assets/categories-3d/pets.webp",
+      "width": 256,
+      "height": 256,
+      "prompt": "Use case: stylized-concept. Square department tile artwork for Zed Supply: a teal pet bowl, a navy pet collar with green tag and a blue cat scratching post with pale sisal texture; no animals. Use the supplied existing tech department artwork as the exact STYLE REFERENCE: premium polished dimensional 3D product cluster, vivid deep royal blue and navy, teal and fresh green accent colours, tactile glossy and satin materials, rounded bevels, realistic three-quarter perspective, soft upper-left studio highlights, tiny natural occlusion shadows. Match the visual weight, saturated colours, and compact centered composition of that reference. Genuine transparent background, isolated products with no scenery, no platform or pedestal, no white square or checkerboard baked in. Complete composition with 10% clear margins; readable at 112px. No people, text, labels, badges, branding, watermark, flat vectors, outlines or emojis. One department composition, not a grid."
+    },
+    {
+      "id": "toys",
+      "type": "category",
+      "path": "assets/categories-3d/toys.webp",
+      "width": 256,
+      "height": 256,
+      "prompt": "Use case: stylized-concept. Square department tile artwork for Zed Supply: a friendly blue plush teddy bear, three chunky teal and green building blocks and a small navy toy car. Use the supplied existing tech department artwork as the exact STYLE REFERENCE: premium polished dimensional 3D product cluster, vivid deep royal blue and navy, teal and fresh green accent colours, tactile glossy and satin materials, rounded bevels, realistic three-quarter perspective, soft upper-left studio highlights, tiny natural occlusion shadows. Match the visual weight, saturated colours, and compact centered composition of that reference. Genuine transparent background, isolated products with no scenery, no platform or pedestal, no white square or checkerboard baked in. Complete composition with 10% clear margins; readable at 112px. No people, text, labels, badges, branding, watermark, flat vectors, outlines or emojis. One department composition, not a grid."
+    },
+    {
+      "id": "sports",
+      "type": "category",
+      "path": "assets/categories-3d/sports.webp",
+      "width": 256,
+      "height": 256,
+      "prompt": "Use case: stylized-concept. Square department tile artwork for Zed Supply: a blue and white football, rolled teal exercise mat and a small pair of navy hand weights. Use the supplied existing tech department artwork as the exact STYLE REFERENCE: premium polished dimensional 3D product cluster, vivid deep royal blue and navy, teal and fresh green accent colours, tactile glossy and satin materials, rounded bevels, realistic three-quarter perspective, soft upper-left studio highlights, tiny natural occlusion shadows. Match the visual weight, saturated colours, and compact centered composition of that reference. Genuine transparent background, isolated products with no scenery, no platform or pedestal, no white square or checkerboard baked in. Complete composition with 10% clear margins; readable at 112px. No people, text, labels, badges, branding, watermark, flat vectors, outlines or emojis. One department composition, not a grid."
+    }
+  ]
+}

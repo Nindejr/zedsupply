@@ -12,8 +12,11 @@ departments, with at least two products in different subcategories per departmen
 Two additional overseas samples are available when `chinaOrdering` is enabled.
 Use `?demo=0` to exit; sample content loads only in demo mode.
 
-Demo entries live in `js/catalogue-sample.js`. New product illustrations in
-`assets/products/demo/` are lightweight SVGs labelled as samples. Prices,
+Demo entries live in `js/catalogue-sample.js`. Product artwork in
+`assets/products/demo/` uses realistic 3D studio renders, exported as 600 × 600
+WebP images. Department compositions use transparent 3D WebP artwork in
+`assets/categories-3d/`; SVG icons are data-saver fallbacks. Sample labels stay
+in the interface. Follow [the artwork guide](assets/ARTWORK.md) for additions. Prices,
 specifications, sales and promotions are fictional. `demoSales` supplies this
 month and last month's sales; `demoDays` keeps selected sample promotions active
 relative to the viewing date. Dated seasonal examples keep their calendar dates.

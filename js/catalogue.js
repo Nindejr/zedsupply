@@ -197,36 +197,36 @@ window.ZS_CATALOGUE = {
       ['phones', 'Mobile Phones & Accessories'], ['headphones', 'Headphones & Earbuds'], ['audio', 'Speakers & Home Audio'], ['cameras', 'Cameras & Photo'],
       ['wearables', 'Smartwatches & Wearables'], ['power', 'Power Banks & Chargers'], ['car-electronics', 'Car Electronics & GPS'], ['office-electronics', 'Office Electronics'],
       ['security', 'Security & Surveillance'], ['projectors', 'Projectors'], ['ereaders', 'eReaders & Accessories'], ['accessories', 'Cables, Batteries & Accessories']] },
-    { id: 'computers', name: 'Computers & Accessories', short: 'Computers', group: 'tech-group', subs: [
+    { id: 'computers', name: 'Computers & Accessories', short: 'Computers', group: 'tech-group', art3d: true, subs: [
       ['laptops', 'Laptops'], ['desktops', 'Desktops & All-in-ones'], ['tablets', 'Tablets & Accessories'], ['monitors', 'Monitors'],
       ['components', 'Computer Components'], ['storage', 'Data Storage'], ['networking', 'Networking & Wi-Fi'], ['printers', 'Printers, Scanners & Ink'],
       ['peripherals', 'Keyboards, Mice & Peripherals'], ['laptop-accessories', 'Laptop Bags & Accessories'], ['ups', 'UPS & Power Protection'], ['software', 'Software']] },
-    { id: 'smarthome', name: 'Smart Home', short: 'Smart Home', group: 'tech-group', subs: [
+    { id: 'smarthome', name: 'Smart Home', short: 'Smart Home', group: 'tech-group', art3d: true, subs: [
       ['lighting', 'Smart Lighting'], ['locks', 'Smart Locks & Entry'], ['cameras', 'Security Cameras & Systems'], ['plugs', 'Smart Plugs & Outlets'],
       ['climate', 'Heating & Cooling'], ['sensors', 'Detectors & Sensors'], ['hubs', 'Voice Assistants & Hubs'], ['entertainment', 'Home Entertainment'],
       ['kitchen', 'Smart Kitchen'], ['cleaning', 'Robot Vacuums & Mops'], ['garden', 'Lawn & Garden'], ['wifi', 'Wi-Fi & Mesh Networking']] },
-    { id: 'tv', name: 'Television & Video', short: 'Television', group: 'tech-group', subs: [
+    { id: 'tv', name: 'Television & Video', short: 'Television', group: 'tech-group', art3d: true, subs: [
       ['tvs', 'Televisions'], ['streaming', 'Streaming Devices'], ['satellite', 'Satellite Dishes & Decoders'], ['soundbars', 'Soundbars & Home Theatre'],
       ['projectors', 'Projectors & Screens'], ['mounts', 'TV Mounts & Stands'], ['antennas', 'Antennas'], ['remotes', 'Remotes & TV Accessories'],
       ['players', 'Blu-ray & DVD Players'], ['cables', 'AV Cables & Adapters']] },
-    { id: 'games', name: 'Video Games', short: 'Video Games', group: 'tech-group', subs: [
+    { id: 'games', name: 'Video Games', short: 'Video Games', group: 'tech-group', art3d: true, subs: [
       ['playstation', 'PlayStation'], ['xbox', 'Xbox'], ['nintendo', 'Nintendo Switch'], ['pc', 'PC Gaming'], ['vr', 'Virtual Reality'],
       ['controllers', 'Controllers & Gamepads'], ['headsets', 'Gaming Headsets'], ['chairs', 'Gaming Chairs & Desks'], ['retro', 'Retro Gaming'], ['credit', 'Gift Cards & Game Credit']] },
 
     { id: 'womens', name: 'Women\'s Fashion', short: 'Women', group: 'fashion-group', featured: true, art3d: 'fashion', subs: [
       ['clothing', 'Clothing'], ['shoes', 'Shoes'], ['jewellery', 'Jewellery'], ['watches', 'Watches'], ['handbags', 'Handbags & Wallets'],
       ['accessories', 'Accessories'], ['traditional', 'Chitenge & African Prints'], ['sportswear', 'Activewear']] },
-    { id: 'mens', name: 'Men\'s Fashion', short: 'Men', group: 'fashion-group', featured: true, subs: [
+    { id: 'mens', name: 'Men\'s Fashion', short: 'Men', group: 'fashion-group', featured: true, art3d: true, subs: [
       ['clothing', 'Clothing'], ['shoes', 'Shoes'], ['jewellery', 'Jewellery'], ['watches', 'Watches'], ['accessories', 'Accessories'],
       ['traditional', 'African Prints & Traditional Wear'], ['sportswear', 'Activewear']] },
-    { id: 'girls', name: 'Girls\' Fashion', short: 'Girls', group: 'fashion-group', subs: [
+    { id: 'girls', name: 'Girls\' Fashion', short: 'Girls', group: 'fashion-group', art3d: true, subs: [
       ['clothing', 'Clothing'], ['shoes', 'Shoes'], ['jewellery', 'Jewellery'], ['watches', 'Watches'], ['accessories', 'Accessories'], ['uniforms', 'School Uniforms']] },
-    { id: 'boys', name: 'Boys\' Fashion', short: 'Boys', group: 'fashion-group', subs: [
+    { id: 'boys', name: 'Boys\' Fashion', short: 'Boys', group: 'fashion-group', art3d: true, subs: [
       ['clothing', 'Clothing'], ['shoes', 'Shoes'], ['jewellery', 'Jewellery'], ['watches', 'Watches'], ['accessories', 'Accessories'], ['uniforms', 'School Uniforms']] },
-    { id: 'beauty', name: 'Beauty & Personal Care', short: 'Beauty', group: 'fashion-group', featured: true, subs: [
+    { id: 'beauty', name: 'Beauty & Personal Care', short: 'Beauty', group: 'fashion-group', featured: true, art3d: true, subs: [
       ['makeup', 'Makeup'], ['skincare', 'Skin Care'], ['haircare', 'Hair Care'], ['hair-extensions', 'Wigs, Braids & Hair Extensions'], ['fragrance', 'Fragrance'],
       ['nails', 'Foot, Hand & Nail Care'], ['tools', 'Beauty Tools & Accessories'], ['shave', 'Shaving & Hair Removal'], ['personal', 'Personal Care'], ['oral', 'Oral Care']] },
-    { id: 'luggage', name: 'Luggage & Travel', short: 'Luggage', group: 'fashion-group', subs: [
+    { id: 'luggage', name: 'Luggage & Travel', short: 'Luggage', group: 'fashion-group', art3d: true, subs: [
       ['suitcases', 'Suitcases'], ['carry-on', 'Carry-ons'], ['sets', 'Luggage Sets'], ['backpacks', 'Backpacks'], ['laptop-bags', 'Laptop Bags'],
       ['duffels', 'Duffel Bags'], ['totes', 'Travel Totes'], ['garment', 'Garment Bags'], ['messenger', 'Messenger Bags'], ['kids', 'Kids\' Luggage'],
       ['umbrellas', 'Umbrellas'], ['accessories', 'Travel Accessories']] },
@@ -245,7 +245,7 @@ window.ZS_CATALOGUE = {
       ['panels', 'Solar Panels'], ['kits', 'Solar Home Kits'], ['batteries', 'Batteries & Power Stations'], ['inverters', 'Inverters & Charge Controllers'],
       ['lights', 'Solar Lights & Lanterns'], ['generators', 'Generators'], ['ups', 'UPS & Surge Protection'], ['water-heating', 'Solar Geysers & Water Heating'],
       ['pumps', 'Solar Water Pumps'], ['installation', 'Cables, Mounts & Installation'], ['cooking', 'Gas & Clean Cooking']] },
-    { id: 'arts', name: 'Arts & Crafts', short: 'Arts & Crafts', group: 'home-group', subs: [
+    { id: 'arts', name: 'Arts & Crafts', short: 'Arts & Crafts', group: 'home-group', art3d: true, subs: [
       ['painting', 'Painting, Drawing & Art Supplies'], ['beading', 'Beading & Jewellery Making'], ['crafting', 'Crafting'], ['fabric', 'Fabric & Chitenge'],
       ['knitting', 'Knitting & Crochet'], ['needlework', 'Needlework & Embroidery'], ['sewing', 'Sewing'], ['scrapbooking', 'Scrapbooking & Stamping'],
       ['party', 'Party Decorations & Supplies'], ['gift-wrap', 'Gift Wrapping'], ['storage', 'Craft Storage']] },
@@ -259,15 +259,15 @@ window.ZS_CATALOGUE = {
       ['healthcare', 'First Aid & Health Monitors'], ['medical', 'Medical Equipment & Mobility Aids'], ['vitamins', 'Vitamins & Supplements'], ['sports-nutrition', 'Sports Nutrition'],
       ['personal', 'Personal Care'], ['oral', 'Oral Care'], ['vision', 'Vision Care'], ['baby-child', 'Baby & Child Care'], ['household', 'Household Supplies'],
       ['wellness', 'Wellness & Relaxation']] },
-    { id: 'pets', name: 'Pet Supplies', short: 'Pets', group: 'family-group', subs: [
+    { id: 'pets', name: 'Pet Supplies', short: 'Pets', group: 'family-group', art3d: true, subs: [
       ['dogs', 'Dogs'], ['cats', 'Cats'], ['fish', 'Fish & Aquatic Pets'], ['birds', 'Birds'], ['small', 'Small Animals'], ['reptiles', 'Reptiles & Amphibians'], ['horses', 'Horses']] },
 
-    { id: 'toys', name: 'Toys & Games', short: 'Toys', group: 'leisure-group', featured: true, subs: [
+    { id: 'toys', name: 'Toys & Games', short: 'Toys', group: 'leisure-group', featured: true, art3d: true, subs: [
       ['action', 'Action Figures & Statues'], ['arts', 'Arts & Crafts for Kids'], ['baby', 'Baby & Toddler Toys'], ['building', 'Building Toys'], ['dolls', 'Dolls & Accessories'],
       ['pretend', 'Dress Up & Pretend Play'], ['electronics', 'Kids\' Electronics'], ['games', 'Board Games & Cards'], ['hobbies', 'Hobbies'], ['learning', 'Learning & Education'],
       ['party', 'Party Supplies'], ['puzzles', 'Puzzles'], ['outdoor', 'Sports & Outdoor Play'], ['plush', 'Stuffed Animals & Plush'], ['rc', 'Remote Control & Play Vehicles'],
       ['ride-ons', 'Tricycles, Scooters & Ride-ons']] },
-    { id: 'sports', name: 'Sports & Outdoors', short: 'Sports', group: 'leisure-group', subs: [
+    { id: 'sports', name: 'Sports & Outdoors', short: 'Sports', group: 'leisure-group', art3d: true, subs: [
       ['fitness', 'Exercise & Fitness'], ['team', 'Team Sports'], ['racquet', 'Racquet Sports'], ['golf', 'Golf'], ['cycling', 'Cycling'], ['camping', 'Camping & Hiking'],
       ['fishing', 'Fishing'], ['water', 'Water Sports'], ['sportswear', 'Sports Clothing & Shoes'], ['leisure', 'Leisure Sports & Game Room'], ['fan', 'Fan Shop']] },
     { id: 'auto', name: 'Automotive', short: 'Automotive', group: 'leisure-group', featured: true, art3d: true, subs: [

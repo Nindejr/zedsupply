@@ -25,6 +25,13 @@ test('every department has two valid, illustrated local demo products in differe
     assert(X.sellers.some(s => s.id === p.seller), p.id);
     assert.equal(P.validate(p, { departments: D.departments, brands: X.brands, products: X.products }).length, 0, p.id);
     assert(fs.existsSync(p.image), p.image);
+    if (p.image.startsWith('assets/products/demo/')) {
+      assert(p.image.endsWith('.webp'), p.id + ' must use 3D raster artwork');
+      const bytes = fs.readFileSync(p.image);
+      assert.equal(bytes.toString('ascii', 0, 4), 'RIFF', p.id);
+      assert.equal(bytes.toString('ascii', 8, 12), 'WEBP', p.id);
+      assert(bytes.length < 80000, p.id + ' must stay under 80 KB');
+    }
     assert(p.demoSales.every(n => Number.isInteger(n) && n >= 0), p.id);
   }
   assert.equal(D.products.some(p => p.sample), false, 'live catalogue must not contain demo listings');
@@ -65,6 +72,7 @@ test('category identifiers, product subcategories and artwork are consistent', (
     assert(groups.has(d.group), d.id);
     assert(D.attributeTemplates[d.id], d.id);
     assert(fs.existsSync(`assets/icons/${d.id}.svg`), d.id);
+    assert(d.art3d, d.id + ' needs primary 3D artwork; SVGs are fallbacks');
     if (d.art3d) assert(fs.existsSync(`assets/categories-3d/${typeof d.art3d === 'string' ? d.art3d : d.id}.webp`), d.id);
     assert.equal(new Set(d.subs.map(s => s[0])).size, d.subs.length, d.id);
   }

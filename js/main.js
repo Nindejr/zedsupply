@@ -1241,9 +1241,9 @@
   // Copy stays in HTML so artwork can be decorative and data saver can use line icons.
   function seasonalArt(id) {
     if (id === 'independence') return '<img src="assets/brand/zambia-flag.svg" alt="" width="220" height="147">';
-    // Departments with 3D artwork, so the banner stays rich (womens uses the fashion artwork).
-    // A department added here without art3d shows its flat line icon instead.
-    var sets = { christmas: ['baby', 'home', 'tech'], valentines: ['womens', 'home', 'health'], easter: ['home', 'essentials', 'baby'], farmers: ['agri', 'hardware', 'solar'], blackfriday: ['tech', 'home', 'womens'], school: ['office', 'baby', 'tech'] };
+    // Three departments that suit each season. Every department has 3D artwork (art3d);
+    // one without it would show its flat line icon instead.
+    var sets = { christmas: ['toys', 'home', 'games'], valentines: ['womens', 'beauty', 'home'], easter: ['home', 'essentials', 'toys'], farmers: ['agri', 'hardware', 'solar'], blackfriday: ['computers', 'tv', 'tech'], school: ['office', 'luggage', 'computers'] };
     return '<span class="season-art">' + (sets[id] || ['essentials', 'home', 'tech']).map(function (category) {
       var d = dept(category), art = d.art3d;
       var path = !root.classList.contains('data-saver') && art ? 'assets/categories-3d/' + (typeof art === 'string' ? art : category) + '.webp' : 'assets/icons/' + category + '.svg';
