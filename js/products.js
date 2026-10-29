@@ -1,6 +1,6 @@
 /* Zed Supply — product model: attributes, variants, in-the-box add-ons, buyer commit
    pricing and rating summaries. The field names are documented in js/catalogue.js
-   (Products) and match the server schema in db/migrations/.
+   (Products) and match the server schema in supabase/migrations/.
 
    No DOM here. js/main.js renders; this file reads, checks and prices.
 

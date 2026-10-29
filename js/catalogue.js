@@ -101,7 +101,7 @@ window.ZS_CATALOGUE = {
     // gifts: a gift message and "leave prices out of the parcel" at checkout.
     // cancel.untilStatus: buyers can ask to cancel until this step (0 sent, 1 confirmed, 2 packed).
     // addresses: an address book in My Account, chosen from at checkout. Saved on the buyer's
-    //   device for now; sync: true once accounts are on the server (db/migrations/006).
+    //   device for now; sync: true once accounts are on the server (supabase/migrations (orders_aftersales)).
     // complaints.replyDays: working days we promise to reply to a complaint within.
     //   sellerDashboard: true once sellers sign in on the server and can answer complaints themselves.
     // returns: the interim returns policy in the help centre. Review it with legal advice.

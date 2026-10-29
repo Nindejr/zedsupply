@@ -16,7 +16,7 @@ The marketplace features are **prototypes that live only in each visitor's brows
 - saved addresses
 - seller promotions, deals and store locations
 
-They can't work for real until a server stores them. The database for that server is designed and tested (migrations 001–009 pass on PostgreSQL 18, including concurrency tests), but nothing connects the website to it yet.
+They can't work for real until a server stores them. The database for that server is designed and tested (migrations 001–010 pass on PostgreSQL 18, including concurrency and row-level security tests), but nothing connects the website to it yet.
 
 So there are two possible launches:
 
@@ -81,8 +81,50 @@ These need the backend. They're listed in the order they depend on each other.
 12. **Monitoring.** Error reporting from browsers and the server, uptime checks, and tested backup restores.
 13. **Automated checks.** Run the JavaScript tests and the PostgreSQL migrations and tests (including `db/tests/concurrency.mjs`) on every push, for example with GitHub Actions and a PostgreSQL service.
 
-## Recommended backend
+## Backend: Supabase (free plan)
 
-The database is PostgreSQL, so a managed PostgreSQL platform with built-in phone sign-in, file storage and server functions fits best. Supabase is one example, and it's named in the Phase 2 plan. Migrations 001–009 can be applied as they are.
+Zed Supply uses Supabase: managed PostgreSQL with sign-in, file storage and server functions. The website stays static and calls Supabase directly. The project is set up in `supabase/`.
 
-Map the sign-in identity to the `users` table (the migrations use numeric IDs, while Supabase Auth uses its own identity). Keep the website static, and have it call the API.
+**Done:**
+
+- Migrations 001–010 are in `supabase/migrations`.
+- Migration 010 adds:
+  - sign-in linked to the `users` table, by phone, email or both
+  - store members and staff
+  - row-level security on every table
+  - listing moderation
+  - promotions, deals and vouchers
+  - storage buckets for product photos and complaint files
+- `supabase/seed.sql` loads departments, places and listing templates.
+
+**Next:**
+
+1. A server function that creates orders, and a skeleton for payment webhooks.
+2. Sign-in and live data on the website.
+3. Deployment.
+
+Free plan limits to plan around:
+
+| Area | Limit |
+| --- | --- |
+| Database | 500 MB |
+| File storage | 1 GB |
+| Data transfer | 5 GB a month |
+| Monthly active users | 50,000 |
+| Backups | None |
+| Inactivity | The project pauses after a week without activity |
+| Built-in email | Only a few messages an hour |
+
+- Product photos stay small: 1 MB each at most, WebP preferred.
+- Built-in email is too few for real sign-ups, so connect a free SMTP sender before launch.
+- Phone codes need an SMS provider, which charges per message; email codes are free.
+- Upgrade to a paid plan before taking real orders, for backups and to stop pausing.
+
+**Keys and passwords:**
+
+| Item | Where it can go |
+| --- | --- |
+| Project URL | Public: safe in the website |
+| Publishable (anon) key | Public: safe in the website; row-level security is what protects the data |
+| Database password | Never in the website or the repository |
+| Secret (service_role) key | Never in the website or the repository; it ignores row-level security |

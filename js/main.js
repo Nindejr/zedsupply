@@ -941,7 +941,7 @@
   function dayLabel(iso) { var d = deliveryDays().filter(function (x) { return x.iso === iso; })[0]; return d ? d.label : niceDate(iso); }
 
   /* ---------- Saved addresses (settings.orderOptions.addresses) ----------
-     An address book on this device for now; the same fields as user_addresses in db/migrations/006. */
+     An address book on this device for now; the same fields as user_addresses in supabase/migrations (orders_aftersales). */
   var OPTS = S.orderOptions || {};
   function addressesOn() { return !!(OPTS.addresses && OPTS.addresses.enabled); }
   function addresses() { return store.get('addresses', []); }
@@ -2713,7 +2713,7 @@
     },
 
     /* Saved addresses (#/addresses). Kept on this device until accounts move to the server
-       (settings.orderOptions.addresses.sync, db/migrations/006 user_addresses). */
+       (settings.orderOptions.addresses.sync, supabase/migrations (orders_aftersales) user_addresses). */
     addresses: function (arg, q) {
       if (!addressesOn()) return views.notfound();
       var list = addresses(), max = (OPTS.addresses && OPTS.addresses.max) || 10;
@@ -2768,7 +2768,7 @@
 
     /* Complaints (#/complaint) about an order, a listing, a seller or delivery. Sent to Zed Supply
        on WhatsApp now; kept on this device so the buyer can follow up (#/complaints). With seller
-       accounts on the server, sellers reply in the Seller Centre (db/migrations/006 complaints). */
+       accounts on the server, sellers reply in the Seller Centre (supabase/migrations (orders_aftersales) complaints). */
     complaint: function (arg, q) {
       if (!complaintsOn()) return views.notfound();
       var u = user() || {}, my = orders().filter(function (o) { return !o.sample; });
