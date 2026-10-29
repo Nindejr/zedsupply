@@ -53,7 +53,7 @@
   var LOW_STOCK = 3;           // a variant with this many or fewer shows "Only n left"
   var MAX_PHOTOS = 6;          // extra photos after the main one, so up to 7 in all
   // Fields the seller form owns; everything else on a product is left as it was
-  var EDITED = ['title', 'category', 'brand', 'priceZMW', 'wasZMW', 'stock', 'image', 'alt', 'tags', 'description', 'attributes', 'options', 'variants', 'inBox', 'commit', 'images'];
+  var EDITED = ['title', 'category', 'sub', 'brand', 'priceZMW', 'wasZMW', 'stock', 'image', 'alt', 'tags', 'description', 'attributes', 'options', 'variants', 'inBox', 'commit', 'images'];
 
   function num(v) { var n = Number(v); return isFinite(n) ? n : NaN; }
   function money(v) { return Math.round((num(v) + Number.EPSILON) * 100) / 100; }
@@ -267,6 +267,9 @@
     if (!text(d.title)) add('title', 'Enter a product name.');
     else if (String(d.title).length > 120) add('title', 'Keep the product name to 120 characters or fewer.');
     if (deptIds.indexOf(d.category) === -1) add('category', 'Choose a department.');
+    // A subcategory is optional, but must belong to the department
+    var deptObj = (ctx.departments || []).filter(function (x) { return x.id === d.category; })[0];
+    if (d.sub && deptObj && !(deptObj.subs || []).some(function (s) { return (s.id || s[0]) === d.sub; })) add('sub', 'Choose a subcategory from this department, or none.');
     if (d.brand && brandIds.indexOf(d.brand) === -1) add('brand', 'Choose a brand from the list, or none.');
     if (!(price > 0) || !validMoney(price)) add('priceZMW', 'Enter a price above K0 with at most two decimal places.');
     if (d.wasZMW && (!(num(d.wasZMW) > price) || !validMoney(d.wasZMW))) add('wasZMW', 'The "was" price must be higher than the price and use at most two decimal places.');
@@ -359,7 +362,7 @@
   /* ---------- Tidy a draft into a catalogue entry ---------- */
   function clean(d) {
     var p = {
-      id: d.id, title: text(d.title, 120), category: d.category, seller: d.seller, brand: d.brand || '',
+      id: d.id, title: text(d.title, 120), category: d.category, sub: d.sub || '', seller: d.seller, brand: d.brand || '',
       priceZMW: money(d.priceZMW), stock: d.stock, image: d.image || '', alt: text(d.alt || d.title, 160),
       tags: text(d.tags, 200), description: String(d.description || '').trim().slice(0, 2000), reviews: d.reviews || []
     };

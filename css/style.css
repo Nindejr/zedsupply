@@ -1678,3 +1678,23 @@ main .section .pcard .pmedia, .pcard .pmedia { background: rgb(235 243 251 / .45
 .lf-extra { display: grid; gap: .75rem; }
 .lf-extra .lf-row > label { font-size: .85rem; font-weight: 600; }
 @media (prefers-reduced-motion: reduce) { .lf-switch input, .lf-switch input::after { transition: none; } }
+
+/* ---------- Departments: directory, menu groups, line icons in place of 3D artwork ---------- */
+.dept__icon img.dept__svg { width: 84px; height: 84px; }
+.drawer__group { margin: 0.9rem 1.1rem 0.15rem; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--color-muted); }
+.drawer__depts > ul + .drawer__group { padding-top: 0.75rem; border-top: 1px solid var(--color-border); }
+.dept-group { margin-bottom: 2rem; }
+.dept-group > h2 { margin: 0 0 0.85rem; font-size: 1.15rem; }
+.dept-group > h2::after { content: ""; display: block; width: 44px; height: 3px; margin-top: 0.35rem; border-radius: 3px; background: var(--gold-gloss); }
+.dept-dir { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.9rem; grid-template-columns: repeat(auto-fill, minmax(min(100%, 17rem), 1fr)); }
+.dept-dir__item { max-width: none; padding: 1rem; border-radius: var(--radius); background: var(--panel-glass); box-shadow: var(--float-shadow); border: 1px solid var(--glass-border); transition: border-color 0.2s ease, box-shadow 0.2s ease; }
+.dept-dir__item:hover { border-color: rgb(245 197 66 / 0.8); }
+.dept-dir__head { display: flex; align-items: center; gap: 0.75rem; text-decoration: none; color: var(--color-heading); }
+.dept-dir__head strong { display: block; font-size: 1rem; }
+.dept-dir__head small { color: var(--color-muted); font-size: 0.8rem; }
+.dept-dir__icon { flex-shrink: 0; display: grid; place-items: center; width: 56px; height: 56px; border-radius: 16px; background: radial-gradient(ellipse at 50% 70%, rgb(255 255 255 / .5), rgb(123 189 233 / .14) 60%, transparent 78%); }
+.dept-dir__icon img { width: 48px; height: 48px; object-fit: contain; }
+.dept-dir__subs { list-style: none; margin: 0.75rem 0 0; padding: 0.65rem 0 0; border-top: 1px dashed var(--color-border); display: flex; flex-wrap: wrap; gap: 0.3rem 0.85rem; font-size: 0.85rem; }
+.dept-dir__subs li { max-width: none; }
+.dept-dir__subs a { color: var(--color-text); text-decoration: none; }
+.dept-dir__subs a:hover { color: var(--color-secondary); text-decoration: underline; }

@@ -53,12 +53,15 @@ Apply once, in order, using a migration runner or `psql -v ON_ERROR_STOP=1`:
 4. `migrations/004_product_details.sql`
 5. `migrations/005_units_and_photos.sql` (adds enum values outside a transaction first, then the rest in one transaction)
 6. `migrations/006_orders_aftersales.sql`
+7. `migrations/007_subcategories.sql`
 
 Migration 004 adds optional item condition, required notes for non-new items, validated feature bullets and additional category-template fields. Extra variation axes use the existing custom-option relationships. See [the detailed product brief](../PRODUCT-FEATURES.md) for frontend field mapping and acceptance criteria.
 
 Migration 005 adds units for storage (MB, GB, TB), battery capacity (mAh, Ah), power (W, kW), energy (Wh, kWh), voltage (V), plus cl, oz, lb and ft, and a `product_images` table for up to six extra photos per product. It also scales a buyer's offer range to a variation's own price, matching the browser.
 
 Migration 006 adds what checkout and after-sales need: saved addresses, the delivery address copied onto each order, preferred delivery day and time, gift options, VAT (with a per-seller registration flag and TPIN), cancellations, returns with refunds, and complaints with a message thread, attachments and a per-seller count of upheld complaints.
+
+Migration 007 adds department groups, subcategories and a subcategory on each product, which must belong to the product's own department. The rows come from `departmentGroups` and `departments` in js/catalogue.js.
 
 Migration 003 corrects committed migration 002 without rewriting migration history. Existing invalid prices, mixed-product options or incomplete combinations abort the transaction. Existing offers are backfilled from the current seller range; if historical terms differ or the product no longer has a range, reconcile those records from authoritative order/offer history before migrating. Do not guess historical prices.
 

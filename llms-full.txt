@@ -454,7 +454,7 @@ The link may be mistyped, or the page may have moved. The shop is still here: se
 
 ## Main menu
 
-- Shop by category: Phones, Tech & Smart Gadgets; Solar, Power & Energy; Fashion, Beauty & Hair; Home, Kitchen & Appliances; Small Business & Manufacturing; Office, School & Stationery; Agriculture & Farming; Auto Parts & Accessories; Building, Tools & Hardware; Baby, Kids & Toys; Health, Fitness & Personal Care; Everyday Essentials
+- Shop by category: Electronics; Computers & Accessories; Smart Home; Television & Video; Video Games; Women's Fashion; Men's Fashion; Girls' Fashion; Boys' Fashion; Beauty & Personal Care; Luggage & Travel; Home & Kitchen; Tools & Home Improvement; Solar, Power & Energy; Arts & Crafts; Baby; Health & Household; Pet Supplies; Toys & Games; Sports & Outdoors; Automotive; Industrial & Scientific; Agriculture & Farming; Office, School & Stationery; Grocery & Everyday Essentials. Each has subcategories, e.g. Electronics > Mobile Phones & Accessories (link: index.html#/dept/tech?sub=phones)
 - Shop: Today's deals, Seller promotions, Brand stores, Shop the World (coming soon)
 - Your account: My Account, Orders & tracking, Wishlist
 - Sell on Zed Supply, Seller Centre, Help centre

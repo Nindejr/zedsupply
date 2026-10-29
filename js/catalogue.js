@@ -170,26 +170,131 @@ window.ZS_CATALOGUE = {
      link: where the slide goes, e.g. '#/promo/P2', '#/dept/solar', '#/sell' */
   banners: [
     { id: 'welcome', label: "Zambia's marketplace", title: 'Everything Within Reach', text: 'Discover everyday favourites and business essentials from Zambian sellers, priced in Kwacha.', cta: 'Explore categories', link: '#/departments', colours: ['#0A2A66', '#0057AE'], art: 'logo', photo: true, image: 'assets/banners/alternatives/marketplace-3d.webp', imageMobile: 'assets/banners/alternatives/marketplace-3d-mobile.webp' },
-    { id: 'everyday-collection', label: 'Home, family & everyday living', title: 'Little comforts. More possibilities.', text: 'Explore fashion, home and kitchen, baby and kids, and everyday essentials.', cta: 'Explore everyday living', link: '#/departments', categories: ['fashion', 'home', 'baby', 'essentials'], colours: ['#0A2A66', '#0057AE'], photo: true, curated: true, image: 'assets/banners/collections/everyday-wide.webp', imageMobile: 'assets/banners/collections/everyday-mobile.webp' },
-    { id: 'connected-collection', label: 'Tech, power, motoring & wellbeing', title: 'Keep life moving', text: 'Discover tech and gadgets, solar power, car accessories, and fitness essentials.', cta: 'Explore the collection', link: '#/departments', categories: ['tech', 'solar', 'auto', 'health'], colours: ['#071D47', '#0E7C86'], photo: true, curated: true, image: 'assets/banners/collections/connected-wide.webp', imageMobile: 'assets/banners/collections/connected-mobile.webp' },
+    { id: 'everyday-collection', label: 'Home, family & everyday living', title: 'Little comforts. More possibilities.', text: 'Explore fashion, home and kitchen, baby and kids, and everyday essentials.', cta: 'Explore everyday living', link: '#/departments', categories: ['womens', 'home', 'baby', 'essentials'], colours: ['#0A2A66', '#0057AE'], photo: true, curated: true, image: 'assets/banners/collections/everyday-wide.webp', imageMobile: 'assets/banners/collections/everyday-mobile.webp' },
+    { id: 'connected-collection', label: 'Tech, power, motoring & wellbeing', title: 'Keep life moving', text: 'Discover tech and gadgets, solar power, car accessories, and fitness essentials.', cta: 'Explore the collection', link: '#/departments', categories: ['tech', 'solar', 'auto', 'sports'], colours: ['#071D47', '#0E7C86'], photo: true, curated: true, image: 'assets/banners/collections/connected-wide.webp', imageMobile: 'assets/banners/collections/connected-mobile.webp' },
     { id: 'enterprise-collection', label: 'Work, build & grow', title: 'Equip your next big step', text: 'Browse business equipment, office and school supplies, tools and hardware, and farming essentials.', cta: 'Explore work & farming', link: '#/departments', categories: ['business', 'office', 'hardware', 'agri'], colours: ['#0A2A66', '#0057AE'], photo: true, curated: true, image: 'assets/banners/collections/enterprise-wide.webp', imageMobile: 'assets/banners/collections/enterprise-mobile.webp' },
     { id: 'world', label: 'Coming soon', title: 'A world of possibility', text: 'Shop from China and beyond, with landed costs in Kwacha. Opening once supplier agreements are in place.', cta: 'Discover Shop the World', link: '#/world', colours: ['#071D47', '#0E7C86'], photo: true, image: 'assets/banners/alternatives/world-3d.webp', imageMobile: 'assets/banners/alternatives/world-3d-mobile.webp', art: '<img src=\"assets/icons/world.svg\" alt=\"\">' }
   ],
 
-  // Departments. Link to one with index.html#/dept/<id>
+  /* Departments and their subcategories, modelled on Amazon.com's departments, plus four that
+     matter in Zambia and Amazon doesn't have (solar, agriculture, office and school, groceries).
+     Link to one with index.html#/dept/<id>, and to a subcategory with #/dept/<id>?sub=<sub id>.
+       short:    the short name for menus, the search box and buttons
+       group:    the heading it sits under in All categories and the menu
+       featured: shown in "Shop by category" on the homepage (the rest are under See all)
+       note:     a line shown on the department page and in the seller form, e.g. what can't be sold there
+       art3d:    true when assets/categories-3d/<id>.webp exists, or another artwork's name to
+                 borrow it (e.g. 'fashion'); otherwise the line icon
+                 assets/icons/<id>.svg is used. Add 3D artwork later and set this to true.
+       subs:     [id, name] pairs. Products set `sub` to one of these ids. Ids never change once
+                 products use them; rename the name freely. */
+  departmentGroups: [
+    ['tech-group', 'Electronics & technology'], ['fashion-group', 'Fashion, beauty & travel'], ['home-group', 'Home, tools & power'],
+    ['family-group', 'Family, health & pets'], ['leisure-group', 'Sports, toys & motoring'], ['work-group', 'Business, farming & school'], ['food-group', 'Food & essentials']
+  ],
   departments: [
-    { id: 'tech', name: 'Phones, Tech & Smart Gadgets', icon: '<img src=\"assets/icons/tech.svg\" alt=\"\" width=\"32\" height=\"32\">' },
-    { id: 'solar', name: 'Solar, Power & Energy', icon: '<img src=\"assets/icons/solar.svg\" alt=\"\" width=\"32\" height=\"32\">' },
-    { id: 'fashion', name: 'Fashion, Beauty & Hair', icon: '<img src=\"assets/icons/fashion.svg\" alt=\"\" width=\"32\" height=\"32\">' },
-    { id: 'home', name: 'Home, Kitchen & Appliances', icon: '<img src=\"assets/icons/home.svg\" alt=\"\" width=\"32\" height=\"32\">' },
-    { id: 'business', name: 'Small Business & Manufacturing Equipment', icon: '<img src=\"assets/icons/business.svg\" alt=\"\" width=\"32\" height=\"32\">' },
-    { id: 'office', name: 'Office, School & Stationery', icon: '<img src=\"assets/icons/office.svg\" alt=\"\" width=\"32\" height=\"32\">' },
-    { id: 'agri', name: 'Agriculture & Farming', icon: '<img src=\"assets/icons/agri.svg\" alt=\"\" width=\"32\" height=\"32\">' },
-    { id: 'auto', name: 'Auto Parts & Accessories', icon: '<img src=\"assets/icons/auto.svg\" alt=\"\" width=\"32\" height=\"32\">' },
-    { id: 'hardware', name: 'Building, Tools & Hardware', icon: '<img src=\"assets/icons/hardware.svg\" alt=\"\" width=\"32\" height=\"32\">' },
-    { id: 'baby', name: 'Baby, Kids & Toys', icon: '<img src=\"assets/icons/baby.svg\" alt=\"\" width=\"32\" height=\"32\">' },
-    { id: 'health', name: 'Health, Fitness & Personal Care', icon: '<img src=\"assets/icons/health.svg\" alt=\"\" width=\"32\" height=\"32\">' },
-    { id: 'essentials', name: 'Everyday Essentials', icon: '<img src=\"assets/icons/essentials.svg\" alt=\"\" width=\"32\" height=\"32\">' }
+    { id: 'tech', name: 'Electronics', short: 'Electronics', group: 'tech-group', featured: true, art3d: true, subs: [
+      ['phones', 'Mobile Phones & Accessories'], ['headphones', 'Headphones & Earbuds'], ['audio', 'Speakers & Home Audio'], ['cameras', 'Cameras & Photo'],
+      ['wearables', 'Smartwatches & Wearables'], ['power', 'Power Banks & Chargers'], ['car-electronics', 'Car Electronics & GPS'], ['office-electronics', 'Office Electronics'],
+      ['security', 'Security & Surveillance'], ['projectors', 'Projectors'], ['ereaders', 'eReaders & Accessories'], ['accessories', 'Cables, Batteries & Accessories']] },
+    { id: 'computers', name: 'Computers & Accessories', short: 'Computers', group: 'tech-group', subs: [
+      ['laptops', 'Laptops'], ['desktops', 'Desktops & All-in-ones'], ['tablets', 'Tablets & Accessories'], ['monitors', 'Monitors'],
+      ['components', 'Computer Components'], ['storage', 'Data Storage'], ['networking', 'Networking & Wi-Fi'], ['printers', 'Printers, Scanners & Ink'],
+      ['peripherals', 'Keyboards, Mice & Peripherals'], ['laptop-accessories', 'Laptop Bags & Accessories'], ['ups', 'UPS & Power Protection'], ['software', 'Software']] },
+    { id: 'smarthome', name: 'Smart Home', short: 'Smart Home', group: 'tech-group', subs: [
+      ['lighting', 'Smart Lighting'], ['locks', 'Smart Locks & Entry'], ['cameras', 'Security Cameras & Systems'], ['plugs', 'Smart Plugs & Outlets'],
+      ['climate', 'Heating & Cooling'], ['sensors', 'Detectors & Sensors'], ['hubs', 'Voice Assistants & Hubs'], ['entertainment', 'Home Entertainment'],
+      ['kitchen', 'Smart Kitchen'], ['cleaning', 'Robot Vacuums & Mops'], ['garden', 'Lawn & Garden'], ['wifi', 'Wi-Fi & Mesh Networking']] },
+    { id: 'tv', name: 'Television & Video', short: 'Television', group: 'tech-group', subs: [
+      ['tvs', 'Televisions'], ['streaming', 'Streaming Devices'], ['satellite', 'Satellite Dishes & Decoders'], ['soundbars', 'Soundbars & Home Theatre'],
+      ['projectors', 'Projectors & Screens'], ['mounts', 'TV Mounts & Stands'], ['antennas', 'Antennas'], ['remotes', 'Remotes & TV Accessories'],
+      ['players', 'Blu-ray & DVD Players'], ['cables', 'AV Cables & Adapters']] },
+    { id: 'games', name: 'Video Games', short: 'Video Games', group: 'tech-group', subs: [
+      ['playstation', 'PlayStation'], ['xbox', 'Xbox'], ['nintendo', 'Nintendo Switch'], ['pc', 'PC Gaming'], ['vr', 'Virtual Reality'],
+      ['controllers', 'Controllers & Gamepads'], ['headsets', 'Gaming Headsets'], ['chairs', 'Gaming Chairs & Desks'], ['retro', 'Retro Gaming'], ['credit', 'Gift Cards & Game Credit']] },
+
+    { id: 'womens', name: 'Women\'s Fashion', short: 'Women', group: 'fashion-group', featured: true, art3d: 'fashion', subs: [
+      ['clothing', 'Clothing'], ['shoes', 'Shoes'], ['jewellery', 'Jewellery'], ['watches', 'Watches'], ['handbags', 'Handbags & Wallets'],
+      ['accessories', 'Accessories'], ['traditional', 'Chitenge & African Prints'], ['sportswear', 'Activewear']] },
+    { id: 'mens', name: 'Men\'s Fashion', short: 'Men', group: 'fashion-group', featured: true, subs: [
+      ['clothing', 'Clothing'], ['shoes', 'Shoes'], ['jewellery', 'Jewellery'], ['watches', 'Watches'], ['accessories', 'Accessories'],
+      ['traditional', 'African Prints & Traditional Wear'], ['sportswear', 'Activewear']] },
+    { id: 'girls', name: 'Girls\' Fashion', short: 'Girls', group: 'fashion-group', subs: [
+      ['clothing', 'Clothing'], ['shoes', 'Shoes'], ['jewellery', 'Jewellery'], ['watches', 'Watches'], ['accessories', 'Accessories'], ['uniforms', 'School Uniforms']] },
+    { id: 'boys', name: 'Boys\' Fashion', short: 'Boys', group: 'fashion-group', subs: [
+      ['clothing', 'Clothing'], ['shoes', 'Shoes'], ['jewellery', 'Jewellery'], ['watches', 'Watches'], ['accessories', 'Accessories'], ['uniforms', 'School Uniforms']] },
+    { id: 'beauty', name: 'Beauty & Personal Care', short: 'Beauty', group: 'fashion-group', featured: true, subs: [
+      ['makeup', 'Makeup'], ['skincare', 'Skin Care'], ['haircare', 'Hair Care'], ['hair-extensions', 'Wigs, Braids & Hair Extensions'], ['fragrance', 'Fragrance'],
+      ['nails', 'Foot, Hand & Nail Care'], ['tools', 'Beauty Tools & Accessories'], ['shave', 'Shaving & Hair Removal'], ['personal', 'Personal Care'], ['oral', 'Oral Care']] },
+    { id: 'luggage', name: 'Luggage & Travel', short: 'Luggage', group: 'fashion-group', subs: [
+      ['suitcases', 'Suitcases'], ['carry-on', 'Carry-ons'], ['sets', 'Luggage Sets'], ['backpacks', 'Backpacks'], ['laptop-bags', 'Laptop Bags'],
+      ['duffels', 'Duffel Bags'], ['totes', 'Travel Totes'], ['garment', 'Garment Bags'], ['messenger', 'Messenger Bags'], ['kids', 'Kids\' Luggage'],
+      ['umbrellas', 'Umbrellas'], ['accessories', 'Travel Accessories']] },
+
+    { id: 'home', name: 'Home & Kitchen', short: 'Home & Kitchen', group: 'home-group', featured: true, art3d: true, subs: [
+      ['kitchen', 'Kitchen & Dining'], ['small-appliances', 'Small Appliances'], ['bedding', 'Bedding'], ['bath', 'Bath'], ['furniture', 'Furniture'],
+      ['decor', 'Home Décor'], ['wall-art', 'Wall Art'], ['lighting', 'Lighting & Ceiling Fans'], ['seasonal', 'Seasonal Décor'], ['party', 'Event & Party Supplies'],
+      ['climate', 'Heating, Cooling & Air Quality'], ['irons', 'Irons & Steamers'], ['vacuums', 'Vacuums & Floor Care'], ['storage', 'Storage & Organisation'],
+      ['cleaning', 'Cleaning Supplies'], ['kids-home', 'Kids\' Home Store']] },
+    { id: 'hardware', name: 'Tools & Home Improvement', short: 'Tools & DIY', group: 'home-group', featured: true, art3d: true, subs: [
+      ['appliances', 'Large Appliances'], ['building', 'Building Supplies'], ['electrical', 'Electrical'], ['hardware', 'Hardware'], ['fixtures', 'Kitchen & Bath Fixtures'],
+      ['bulbs', 'Light Bulbs'], ['lighting', 'Lighting & Ceiling Fans'], ['measuring', 'Measuring & Layout Tools'], ['paint', 'Paint & Wall Treatments'],
+      ['tools', 'Power & Hand Tools'], ['plumbing', 'Plumbing'], ['security', 'Safety & Security'], ['storage', 'Storage & Garage Organisation'],
+      ['welding', 'Welding & Soldering'], ['garden', 'Garden & Outdoor']] },
+    { id: 'solar', name: 'Solar, Power & Energy', short: 'Solar & Power', group: 'home-group', featured: true, art3d: true, subs: [
+      ['panels', 'Solar Panels'], ['kits', 'Solar Home Kits'], ['batteries', 'Batteries & Power Stations'], ['inverters', 'Inverters & Charge Controllers'],
+      ['lights', 'Solar Lights & Lanterns'], ['generators', 'Generators'], ['ups', 'UPS & Surge Protection'], ['water-heating', 'Solar Geysers & Water Heating'],
+      ['pumps', 'Solar Water Pumps'], ['installation', 'Cables, Mounts & Installation'], ['cooking', 'Gas & Clean Cooking']] },
+    { id: 'arts', name: 'Arts & Crafts', short: 'Arts & Crafts', group: 'home-group', subs: [
+      ['painting', 'Painting, Drawing & Art Supplies'], ['beading', 'Beading & Jewellery Making'], ['crafting', 'Crafting'], ['fabric', 'Fabric & Chitenge'],
+      ['knitting', 'Knitting & Crochet'], ['needlework', 'Needlework & Embroidery'], ['sewing', 'Sewing'], ['scrapbooking', 'Scrapbooking & Stamping'],
+      ['party', 'Party Decorations & Supplies'], ['gift-wrap', 'Gift Wrapping'], ['storage', 'Craft Storage']] },
+
+    { id: 'baby', name: 'Baby', short: 'Baby', group: 'family-group', featured: true, art3d: true, subs: [
+      ['activity', 'Activity & Entertainment'], ['apparel', 'Baby Clothing & Accessories'], ['toys', 'Baby & Toddler Toys'], ['care', 'Baby Care'],
+      ['car-seats', 'Car Seats & Accessories'], ['nappies', 'Nappies & Changing'], ['feeding', 'Feeding'], ['gifts', 'Baby Gifts'], ['nursery', 'Nursery'],
+      ['travel', 'Prams & Travel Gear'], ['maternity', 'Pregnancy & Maternity'], ['potty', 'Potty Training'], ['safety', 'Baby Safety']] },
+    { id: 'health', name: 'Health & Household', short: 'Health & Household', group: 'family-group', featured: true, art3d: true,
+      note: 'Medicines, prescription or over the counter, are not sold on Zed Supply.', subs: [
+      ['healthcare', 'First Aid & Health Monitors'], ['medical', 'Medical Equipment & Mobility Aids'], ['vitamins', 'Vitamins & Supplements'], ['sports-nutrition', 'Sports Nutrition'],
+      ['personal', 'Personal Care'], ['oral', 'Oral Care'], ['vision', 'Vision Care'], ['baby-child', 'Baby & Child Care'], ['household', 'Household Supplies'],
+      ['wellness', 'Wellness & Relaxation']] },
+    { id: 'pets', name: 'Pet Supplies', short: 'Pets', group: 'family-group', subs: [
+      ['dogs', 'Dogs'], ['cats', 'Cats'], ['fish', 'Fish & Aquatic Pets'], ['birds', 'Birds'], ['small', 'Small Animals'], ['reptiles', 'Reptiles & Amphibians'], ['horses', 'Horses']] },
+
+    { id: 'toys', name: 'Toys & Games', short: 'Toys', group: 'leisure-group', featured: true, subs: [
+      ['action', 'Action Figures & Statues'], ['arts', 'Arts & Crafts for Kids'], ['baby', 'Baby & Toddler Toys'], ['building', 'Building Toys'], ['dolls', 'Dolls & Accessories'],
+      ['pretend', 'Dress Up & Pretend Play'], ['electronics', 'Kids\' Electronics'], ['games', 'Board Games & Cards'], ['hobbies', 'Hobbies'], ['learning', 'Learning & Education'],
+      ['party', 'Party Supplies'], ['puzzles', 'Puzzles'], ['outdoor', 'Sports & Outdoor Play'], ['plush', 'Stuffed Animals & Plush'], ['rc', 'Remote Control & Play Vehicles'],
+      ['ride-ons', 'Tricycles, Scooters & Ride-ons']] },
+    { id: 'sports', name: 'Sports & Outdoors', short: 'Sports', group: 'leisure-group', subs: [
+      ['fitness', 'Exercise & Fitness'], ['team', 'Team Sports'], ['racquet', 'Racquet Sports'], ['golf', 'Golf'], ['cycling', 'Cycling'], ['camping', 'Camping & Hiking'],
+      ['fishing', 'Fishing'], ['water', 'Water Sports'], ['sportswear', 'Sports Clothing & Shoes'], ['leisure', 'Leisure Sports & Game Room'], ['fan', 'Fan Shop']] },
+    { id: 'auto', name: 'Automotive', short: 'Automotive', group: 'leisure-group', featured: true, art3d: true, subs: [
+      ['car-care', 'Car Care'], ['electronics', 'Car Electronics & Accessories'], ['exterior', 'Exterior Accessories'], ['interior', 'Interior Accessories'],
+      ['lights', 'Lights & Lighting'], ['motorcycle', 'Motorcycle & Powersports'], ['oils', 'Oils & Fluids'], ['paint', 'Paint & Paint Supplies'],
+      ['performance', 'Performance Parts'], ['parts', 'Replacement Parts'], ['tyres', 'Tyres & Wheels'], ['tools', 'Tools & Equipment'], ['heavy', 'Heavy Duty & Commercial Vehicles']] },
+
+    { id: 'business', name: 'Industrial & Scientific', short: 'Industrial', group: 'work-group', art3d: true, subs: [
+      ['small-business', 'Small Business & Manufacturing Equipment'], ['food-service', 'Food Service Equipment & Supplies'], ['packaging', 'Packaging & Shipping Supplies'],
+      ['retail', 'Retail Store Fixtures & Equipment'], ['safety', 'Safety Equipment & PPE'], ['janitorial', 'Janitorial & Sanitation'], ['power-tools', 'Industrial Power & Hand Tools'],
+      ['electrical', 'Industrial Electrical'], ['plumbing', 'Hydraulics, Pneumatics & Plumbing'], ['fasteners', 'Fasteners'], ['hardware', 'Industrial Hardware'],
+      ['abrasives', 'Abrasives & Finishing'], ['cutting', 'Cutting Tools'], ['filtration', 'Filtration'], ['material-handling', 'Material Handling'],
+      ['tapes', 'Tapes, Adhesives & Sealants'], ['test', 'Test, Measure & Inspect'], ['lab', 'Lab & Scientific'], ['science-ed', 'Science Education'],
+      ['medical-dental', 'Professional Medical & Dental Equipment'], ['raw', 'Raw Materials']] },
+    { id: 'agri', name: 'Agriculture & Farming', short: 'Agriculture', group: 'work-group', art3d: true,
+      note: 'Veterinary medicines are not sold on Zed Supply.', subs: [
+      ['seeds', 'Seeds & Seedlings'], ['fertiliser', 'Fertilisers'], ['crop', 'Crop Protection'], ['irrigation', 'Irrigation & Water'], ['tools', 'Farm Tools & Equipment'],
+      ['poultry', 'Poultry Equipment & Supplies'], ['livestock', 'Livestock Equipment & Supplies'], ['feed', 'Animal Feed'], ['storage', 'Grain Storage & Processing'],
+      ['machinery', 'Tractors & Machinery Parts'], ['aquaculture', 'Fish Farming']] },
+    { id: 'office', name: 'Office, School & Stationery', short: 'Office & School', group: 'work-group', art3d: true, subs: [
+      ['paper', 'Paper & Notebooks'], ['writing', 'Pens & Writing'], ['school', 'School Supplies'], ['furniture', 'Office Furniture'], ['electronics', 'Calculators & Office Electronics'],
+      ['printing', 'Ink, Toner & Printing'], ['filing', 'Filing & Organisation'], ['presentation', 'Boards & Presentation'], ['mailing', 'Mailing & Shipping'], ['breakroom', 'Breakroom Supplies']] },
+
+    { id: 'essentials', name: 'Grocery & Everyday Essentials', short: 'Grocery & Essentials', group: 'food-group', featured: true, art3d: true, subs: [
+      ['staples', 'Mealie Meal, Rice & Staples'], ['cooking', 'Cooking Oil & Ingredients'], ['beverages', 'Drinks & Beverages'], ['snacks', 'Snacks & Sweets'],
+      ['breakfast', 'Breakfast & Cereals'], ['canned', 'Canned & Packaged Food'], ['household', 'Household & Cleaning Essentials'], ['toiletries', 'Toiletries'],
+      ['baby', 'Baby Essentials'], ['bulk', 'Bulk & Wholesale Packs']] }
   ],
 
   /* Listing templates: the extra fields the seller form shows for each department.
@@ -200,14 +305,27 @@ window.ZS_CATALOGUE = {
   attributeTemplates: {
     tech:       { fields: ['colour', 'size', 'inBox', 'manufacturer', 'specs', 'condition', 'features'], sizeUnits: ['gb', 'tb', 'mah', 'in'], specs: ['Model', 'Battery', 'Storage', 'Compatibility', 'Warranty'] },
     solar:      { fields: ['size', 'inBox', 'manufacturer', 'specs', 'condition'], sizeUnits: ['w', 'kw', 'wh', 'kwh', 'ah', 'v'], specs: ['Panel output', 'Battery capacity', 'Battery type', 'Warranty', 'Installation'] },
-    fashion:    { fields: ['colour', 'size', 'ageRange', 'specs'], sizeUnits: [], specs: ['Material', 'Care instructions', 'Fit'] },
+    computers:  { fields: ['colour', 'size', 'inBox', 'manufacturer', 'specs', 'condition', 'features'], sizeUnits: ['gb', 'tb', 'in'], specs: ['Model', 'Processor', 'Memory (RAM)', 'Storage', 'Screen size', 'Operating system', 'Warranty'] },
+    smarthome:  { fields: ['colour', 'inBox', 'manufacturer', 'specs', 'features'], specs: ['Works with', 'Connection (Wi-Fi, Bluetooth, Zigbee)', 'Power', 'Warranty'] },
+    tv:         { fields: ['size', 'inBox', 'manufacturer', 'specs', 'condition', 'features'], sizeUnits: ['in', 'cm'], specs: ['Model', 'Resolution', 'Smart platform', 'Ports', 'Warranty'] },
+    games:      { fields: ['colour', 'size', 'ageRange', 'inBox', 'manufacturer', 'specs', 'condition'], sizeUnits: ['gb', 'tb'], specs: ['Platform', 'Age rating', 'Region', 'Players'] },
+    womens:     { fields: ['colour', 'size', 'specs', 'features'], sizeUnits: [], specs: ['Material', 'Care instructions', 'Fit'] },
+    mens:       { fields: ['colour', 'size', 'specs', 'features'], sizeUnits: [], specs: ['Material', 'Care instructions', 'Fit'] },
+    girls:      { fields: ['colour', 'size', 'ageRange', 'specs'], sizeUnits: [], specs: ['Material', 'Care instructions', 'Age'] },
+    boys:       { fields: ['colour', 'size', 'ageRange', 'specs'], sizeUnits: [], specs: ['Material', 'Care instructions', 'Age'] },
+    beauty:     { fields: ['colour', 'size', 'ageRange', 'manufacturer', 'specs'], sizeUnits: ['ml', 'g', 'l'], specs: ['Skin or hair type', 'Ingredients', 'Best before / expiry'] },
+    luggage:    { fields: ['colour', 'size', 'specs', 'features'], sizeUnits: ['l', 'cm', 'in', 'kg'], specs: ['Dimensions', 'Weight', 'Material', 'Wheels', 'Lock'] },
+    arts:       { fields: ['colour', 'size', 'ageRange', 'specs'], sizeUnits: ['ml', 'm', 'cm', 'g'], specs: ['Material', 'Pack size'] },
+    pets:       { fields: ['size', 'manufacturer', 'specs'], sizeUnits: ['kg', 'g', 'l'], specs: ['Pet', 'Life stage', 'Ingredients', 'Best before / expiry'] },
+    toys:       { fields: ['colour', 'ageRange', 'inBox', 'manufacturer', 'specs', 'features'], specs: ['Recommended age', 'Batteries needed', 'Safety standard', 'Pieces'] },
+    sports:     { fields: ['colour', 'size', 'ageRange', 'manufacturer', 'specs'], sizeUnits: ['kg', 'cm', 'm'], specs: ['Sport', 'Material', 'Weight'] },
     home:       { fields: ['colour', 'size', 'inBox', 'specs'], sizeUnits: ['l', 'ml', 'cm'], specs: ['Material', 'Power', 'Warranty'] },
     business:   { fields: ['inBox', 'manufacturer', 'specs', 'condition'], specs: ['Power', 'Output', 'Warranty'] },
     office:     { fields: ['colour', 'size', 'ageRange', 'specs'], sizeUnits: ['cm', 'mm'], specs: ['Pack size'] },
     agri:       { fields: ['size', 'manufacturer', 'specs'], sizeUnits: ['kg', 'g', 'l', 'ml'], specs: ['Crop or use', 'Active ingredient', 'Best before / expiry', 'Storage instructions'] },
     auto:       { fields: ['inBox', 'manufacturer', 'specs', 'condition'], specs: ['Fits (make, model, year)', 'Part number', 'Warranty'] },
     hardware:   { fields: ['size', 'inBox', 'specs', 'condition'], sizeUnits: ['mm', 'cm', 'm', 'kg', 'l', 'w', 'v'], specs: ['Material', 'Power', 'Warranty'] },
-    baby:       { fields: ['colour', 'size', 'ageRange', 'inBox', 'specs'], sizeUnits: [], specs: ['Material', 'Safety standard'] },
+    baby:       { fields: ['colour', 'size', 'ageRange', 'inBox', 'specs'], sizeUnits: [], specs: ['Material', 'Safety standard', 'Recommended age'] },
     health:     { fields: ['size', 'ageRange', 'inBox', 'specs'], sizeUnits: ['ml', 'g', 'l', 'kg'], specs: ['Ingredients', 'Best before / expiry', 'Storage instructions'] },
     essentials: { fields: ['size', 'specs'], sizeUnits: ['l', 'ml', 'kg', 'g'], specs: ['Pack size', 'Ingredients', 'Best before / expiry', 'Storage instructions'] }
   },
@@ -244,6 +362,8 @@ window.ZS_CATALOGUE = {
      { id, title, category, seller, brand, priceZMW, wasZMW (optional, only for a
        genuine previous price), stock: 'in' | 'low' | 'request', image, alt, tags,
        description, reviews: [], and optionally: }
+       sub:    the subcategory id within the department, e.g. category: 'tech', sub: 'phones'.
+               See departments above for each department's subcategories.
        sales:  units sold per month from confirmed WhatsApp orders, e.g. { '2026-10': 14, '2026-09': 9 }.
                Drives Trending now and the monthly Top picks, so keep this and last month up to date.
        match:  the same word for the same item from different sellers, e.g. 'solar-lantern-led'.

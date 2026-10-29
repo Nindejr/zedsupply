@@ -44,6 +44,12 @@
 
   var D = window.ZS_CATALOGUE || { settings: {}, departments: [], products: [], sellers: [], brands: [], promotions: [], seasons: [], vouchers: [], banners: [] };
   var S = D.settings || {};
+  // Every department gets its line icon and a short name, and its subcategories as { id, name }
+  (D.departments || []).forEach(function (d) {
+    if (!d.icon) d.icon = '<img src="assets/icons/' + d.id + '.svg" alt="" width="32" height="32">';
+    if (!d.short) d.short = d.name;
+    d.subs = (d.subs || []).map(function (s) { return Array.isArray(s) ? { id: s[0], name: s[1] } : s; });
+  });
   var DEMO = demoOn && !!window.ZS_SAMPLE;
   if (DEMO) {
     var X = window.ZS_SAMPLE;
@@ -104,7 +110,8 @@
     return Number(p[2]) + ' ' + ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][Number(p[1]) - 1] + ' ' + p[0];
   }
   function byId(list, id) { for (var i = 0; i < list.length; i++) if (list[i].id === id) return list[i]; return null; }
-  function dept(id) { return byId(D.departments, id) || { name: '', icon: '🛍️' }; }
+  function dept(id) { return byId(D.departments, id) || { name: '', short: '', icon: '🛍️', subs: [] }; }
+  function subOf(p) { return p && p.sub ? byId(dept(p.category).subs, p.sub) : null; }
   function seller(id) { return byId(D.sellers, id); }
   function brand(id) { return byId(D.brands, id); }
   function season(id) { return byId(D.seasons, id) || { name: '', colours: ['#0A2A66', '#0057AE'] }; }
@@ -290,7 +297,7 @@
   }
   function searchText(p) {
     var b = brand(p.brand), s = seller(p.seller);
-    return [p.title, p.tags, dept(p.category).name, b ? b.name : '', s ? s.name : '', ZP.attrText(p)].join(' ').toLowerCase();
+    return [p.title, p.tags, dept(p.category).name, (subOf(p) || {}).name || '', b ? b.name : '', s ? s.name : '', ZP.attrText(p)].join(' ').toLowerCase();
   }
 
   /* ---------- Trending and top picks ----------
@@ -369,11 +376,13 @@
     return same.sort(function (a, b) { return priceOf(a).now - priceOf(b).now; }).concat(near).slice(0, max || 3);
   }
   // Groups of the same item sold by two or more sellers, within one category
-  function multiSellerGroups(cat) {
+  function multiSellerGroups(cat, sub) {
     var seen = {}, out = [];
     localProducts.forEach(function (p) {
-      if (!p.match || seen[p.match] || (cat && p.category !== cat)) return;
-      var all = [p].concat(sameItem(p));
+      if (!p.match || seen[p.match] || (cat && p.category !== cat) || (sub && p.sub !== sub)) return;
+      var all = [p].concat(sameItem(p)).filter(function (x) {
+        return (!cat || x.category === cat) && (!sub || x.sub === sub);
+      });
       var sellers = all.map(function (x) { return x.seller; }).filter(function (s, i, l) { return s && l.indexOf(s) === i; });
       seen[p.match] = 1;
       if (sellers.length > 1) out.push({ key: p.match, items: all, from: Math.min.apply(null, all.map(function (x) { return priceOf(x).now; })) });
@@ -835,6 +844,37 @@
   // data-pay-heading follows what's on offer: "Pay with mobile money" or "Ways to pay".
   $$('[data-pay-methods]').forEach(function (el) { if (payMethods().length) el.innerHTML = el.getAttribute('data-pay-methods') === 'guide' ? payGuideHTML() : payChipsHTML(); });
   $$('[data-pay-heading]').forEach(function (el) { if (payMethods().length) el.textContent = payHeading(); });
+  /* Category menus come from catalogue.js departments, so adding or renaming a department is one
+     edit there. The HTML on each page lists them too, for visitors without JavaScript. */
+  var deptLink = function (d) { return (onIndex ? '#/dept/' : 'index.html#/dept/') + d.id; };
+  $$('.search__dept').forEach(function (sel) {
+    var cur = sel.value;
+    sel.innerHTML = '<option value="">All</option>' + D.departments.map(function (d) { return '<option value="' + esc(d.id) + '">' + esc(d.short) + '</option>'; }).join('');
+    sel.value = cur && byId(D.departments, cur) ? cur : '';
+  });
+  var drawerList = $('#drawer .drawer__body > ul');
+  if (drawerList && D.departments.length) {
+    var dg = (D.departmentGroups || []).map(function (g) { return { name: g[1], list: D.departments.filter(function (d) { return d.group === g[0]; }) }; }).filter(function (g) { return g.list.length; });
+    var rest = D.departments.filter(function (d) { return !dg.some(function (g) { return g.list.indexOf(d) !== -1; }); });
+    if (rest.length || !dg.length) dg.push({ name: dg.length ? 'More categories' : '', list: rest.length ? rest : D.departments });
+    var wrap = document.createElement('div');
+    wrap.className = 'drawer__depts';
+    wrap.innerHTML = dg.map(function (g) {
+      return (g.name ? '<p class="drawer__group">' + esc(g.name) + '</p>' : '') + '<ul>' + g.list.map(function (d) {
+        return '<li><a href="' + deptLink(d) + '"><span class="emoji" aria-hidden="true"><img src="assets/icons/' + esc(d.id) + '.svg" alt="" width="24" height="24" loading="lazy"></span>' + esc(d.name) + '</a></li>';
+      }).join('') + '</ul>';
+    }).join('') + '<ul><li><a href="' + (onIndex ? '#/departments' : 'index.html#/departments') + '"><strong>See all categories</strong></a></li></ul>';
+    drawerList.parentNode.replaceChild(wrap, drawerList);
+  }
+  // Homepage "Shop by category": the departments marked featured, then a link to the rest
+  var homeDepts = $('#departments .depts');
+  if (homeDepts && D.departments.length) {
+    var feat = D.departments.filter(function (d) { return d.featured; });
+    homeDepts.innerHTML = (feat.length ? feat : D.departments.slice(0, 12)).map(function (d) {
+      return '<li><a class="dept" href="' + deptLink(d) + '"><span class="dept__icon" aria-hidden="true">' + departmentArtwork(d) + '</span>' + esc(d.short) + '</a></li>';
+    }).join('');
+  }
+
   // Help centre policies: day counts come from settings.orderOptions (returns, complaints)
   $$('[data-policy]').forEach(function (el) {
     var k = el.getAttribute('data-policy'), v = (OPTS.returns || {})[k] != null ? OPTS.returns[k] : (OPTS.complaints || {})[k];
@@ -928,14 +968,19 @@
     return '<li><a class="brand" href="' + R + 'brand/' + esc(b.id) + '" style="--brand-a:' + b.colours[0] + ';--brand-b:' + b.colours[1] + '">' + identityArt(b) + '<strong>' + esc(b.name) + '</strong><span>' + esc(b.tagline) + '</span><span>' + n + (n === 1 ? ' product' : ' products') + '</span></a></li>';
   }
   function identityArt(entity) {
-    var symbols = { 'brand-a': 'tech', 'brand-b': 'solar', 'brand-c': 'home', 'brand-d': 'hardware', 'store-a': 'office', 'store-b': 'solar', 'store-c': 'fashion' };
+    var symbols = { 'brand-a': 'tech', 'brand-b': 'solar', 'brand-c': 'home', 'brand-d': 'hardware', 'store-a': 'office', 'store-b': 'solar', 'store-c': 'womens' };
     var category = entity.category || symbols[entity.id];
     if (!byId(D.departments, category)) category = '';
     if (entity.logo) return '<img class="brand__logo" src="' + esc(entity.logo) + '" data-fallback="assets/icons/marketplace.svg" alt="" width="96" height="96" loading="lazy" decoding="async">';
-    return '<img class="brand__logo" src="' + (category ? 'assets/categories-3d/' + category + '.webp' : 'assets/icons/marketplace.svg') + '" data-fallback="assets/icons/' + (category || 'marketplace') + '.svg" alt="" width="96" height="96" loading="lazy" decoding="async">';
+    var d = dept(category), art = d.art3d;
+    var path = art ? 'assets/categories-3d/' + (typeof art === 'string' ? art : category) + '.webp' : 'assets/icons/' + (category || 'marketplace') + '.svg';
+    return '<img class="brand__logo" src="' + esc(path) + '" data-fallback="assets/icons/' + (category || 'marketplace') + '.svg" alt="" width="96" height="96" loading="lazy" decoding="async">';
   }
+  // 3D artwork where it exists (art3d in catalogue.js), otherwise the department's line icon
+  // art3d: true uses <id>.webp; a name (e.g. 'fashion') borrows that existing artwork
   function departmentArtwork(d) {
-    return '<img src="assets/categories-3d/' + d.id + '.webp" data-fallback="assets/icons/' + d.id + '.svg" alt="" width="112" height="112" loading="lazy" decoding="async">';
+    if (!d.art3d) return '<img class="dept__svg" src="assets/icons/' + d.id + '.svg" alt="" width="112" height="112" loading="lazy" decoding="async">';
+    return '<img src="assets/categories-3d/' + (typeof d.art3d === 'string' ? d.art3d : d.id) + '.webp" data-fallback="assets/icons/' + d.id + '.svg" alt="" width="112" height="112" loading="lazy" decoding="async">';
   }
   function verifiedHTML(s) { return s && s.verified ? ' <span class="verified">' + icon(I.shield) + 'Verified seller</span>' : ''; }
 
@@ -1183,9 +1228,6 @@
       return '<img src="' + path + '" data-fallback="assets/icons/' + category + '.svg" alt="" width="160" height="160" loading="lazy" decoding="async">';
     }).join('') + '</span>';
   }
-  // Short category names for banner links, matching the Shop by category grid
-  var DEPT_SHORT = { tech: 'Phones & Tech', solar: 'Solar & Power', fashion: 'Fashion & Beauty', home: 'Home & Kitchen', business: 'Business Equipment', office: 'Office & School',
-    agri: 'Agriculture', auto: 'Auto', hardware: 'Tools & Hardware', baby: 'Baby & Kids', health: 'Health & Fitness', essentials: 'Everyday Essentials' };
   function adHTML(b, i, n) {
     var saverOn = root.classList.contains('data-saver');
     var link = esc(b.link || '#/deals');
@@ -1209,7 +1251,7 @@
       '<p class="ad__title">' + esc(b.title || b.alt || 'Advert') + '</p>' + (b.text ? '<p class="ad__text">' + esc(b.text) + '</p>' : '') +
       // Collections link straight to each category they show
       (b.categories && b.categories.length ? '<ul class="ad__cats" aria-label="Categories in this collection">' + b.categories.map(function (id) {
-        return byId(D.departments, id) ? '<li><a href="' + R + 'dept/' + esc(id) + '">' + esc(DEPT_SHORT[id] || dept(id).name) + '</a></li>' : '';
+        return byId(D.departments, id) ? '<li><a href="' + R + 'dept/' + esc(id) + '">' + esc(dept(id).short) + '</a></li>' : '';
       }).join('') + '</ul>' : '') +
       '<a class="btn btn--primary" href="' + link + '">' + esc(b.cta || 'Shop now') + '</a>' +
       (b.curated ? '<small class="ad__illustration">' + (b.caption ? (b.captionUrl ? '<a href="' + esc(b.captionUrl) + '" target="_blank" rel="noopener noreferrer">' + esc(b.caption) + '</a>' : esc(b.caption)) : 'Illustrative collection · availability confirmed on WhatsApp') + '</small>' : '') + '</div>' + art + sample + '</div>';
@@ -1661,20 +1703,36 @@
   }
 
   var views = {
+    // All categories, grouped as in catalogue.js departmentGroups, each with its subcategories
     departments: function () {
-      show(crumbs([['All categories']]) + head('All categories') +
-        '<ul class="depts">' + D.departments.map(function (d) {
-          var n = products.filter(function (p) { return p.category === d.id; }).length;
-          return '<li><a class="dept" href="#/dept/' + d.id + '"><span class="dept__icon" aria-hidden="true">' + departmentArtwork(d) + '</span>' + esc(d.name) + '<small>' + (n ? n + (n === 1 ? ' product' : ' products') : 'Coming soon') + '</small></a></li>';
-        }).join('') + '</ul>', 'All categories');
+      var groups = (D.departmentGroups || [['', '']]).map(function (g) { return { id: g[0], name: g[1], list: D.departments.filter(function (d) { return (d.group || '') === g[0]; }) }; });
+      var loose = D.departments.filter(function (d) { return !groups.some(function (g) { return g.list.indexOf(d) !== -1; }); });
+      if (loose.length) groups.push({ id: 'other', name: 'More categories', list: loose });
+      show(crumbs([['All categories']]) + head('All categories', D.departments.length + ' departments. Choose one, or go straight to what you need.') +
+        groups.filter(function (g) { return g.list.length; }).map(function (g) {
+          return '<section class="dept-group" aria-labelledby="dg-' + esc(g.id) + '"><h2 id="dg-' + esc(g.id) + '">' + esc(g.name) + '</h2><ul class="dept-dir">' + g.list.map(function (d) {
+            var n = products.filter(function (p) { return p.category === d.id; }).length;
+            return '<li class="dept-dir__item"><a class="dept-dir__head" href="#/dept/' + d.id + '"><span class="dept-dir__icon" aria-hidden="true">' + departmentArtwork(d) + '</span><span><strong>' + esc(d.name) + '</strong><small>' + (n ? n + (n === 1 ? ' product' : ' products') : 'Coming soon') + '</small></span></a>' +
+              (d.subs.length ? '<ul class="dept-dir__subs">' + d.subs.map(function (s) { return '<li><a href="#/dept/' + d.id + '?sub=' + encodeURIComponent(s.id) + '">' + esc(s.name) + '</a></li>'; }).join('') + '</ul>' : '') + '</li>';
+          }).join('') + '</ul></section>';
+        }).join(''), 'All categories');
     },
 
-    dept: function (id) {
+    // A department, or one of its subcategories with ?sub=<id>
+    dept: function (id, q) {
       var d = byId(D.departments, id);
       if (!d) return views.notfound();
-      var groups = multiSellerGroups(id);
-      listing({ title: esc(d.name), crumbs: [['Categories', '#/departments'], [d.name]], list: products.filter(function (p) { return p.category === id; }), docTitle: d.name,
-        extra: '<ul class="chips" aria-label="Other categories">' + D.departments.map(function (x) { return '<li><a class="chip" href="#/dept/' + x.id + '"' + (x.id === id ? ' aria-current="page"' : '') + '>' + x.icon + ' ' + esc(x.name) + '</a></li>'; }).join('') + '</ul>' +
+      var sub = q && q.get('sub') ? byId(d.subs, q.get('sub')) : null;
+      if (q && q.get('sub') && !sub) return views.notfound();
+      var inDept = products.filter(function (p) { return p.category === id; });
+      var groups = multiSellerGroups(id, sub ? sub.id : '');
+      var subChips = d.subs.length ? '<ul class="chips" aria-label="' + esc(d.short) + ' categories"><li><a class="chip" href="#/dept/' + d.id + '"' + (sub ? '' : ' aria-current="page"') + '>All ' + esc(d.short) + ' <span class="chip__count">' + inDept.length + '</span></a></li>' + d.subs.map(function (s) {
+        var n = inDept.filter(function (p) { return p.sub === s.id; }).length;
+        return '<li><a class="chip" href="#/dept/' + d.id + '?sub=' + encodeURIComponent(s.id) + '"' + (sub && sub.id === s.id ? ' aria-current="page"' : '') + '>' + esc(s.name) + (n ? ' <span class="chip__count">' + n + '</span>' : '') + '</a></li>';
+      }).join('') + '</ul>' : '';
+      listing({ title: esc(sub ? sub.name : d.name), crumbs: sub ? [['Categories', '#/departments'], [d.name, '#/dept/' + d.id], [sub.name]] : [['Categories', '#/departments'], [d.name]],
+        list: sub ? inDept.filter(function (p) { return p.sub === sub.id; }) : inDept, docTitle: sub ? sub.name + ' · ' + d.name : d.name,
+        extra: (d.note ? '<p class="pmeta dept-note">' + esc(d.note) + ' <a href="help.html#not-sold">What can\'t be sold</a></p>' : '') + subChips +
           (groups.length ? '<div class="multi"><p class="multi__title">Sold by more than one seller: compare prices side by side</p><ul class="chips">' + groups.map(function (g) {
             var n = g.items.map(function (x) { return x.seller; }).filter(function (v, i, l) { return v && l.indexOf(v) === i; }).length;
             return '<li><a class="chip chip--compare" href="#/compare?ids=' + g.items.map(function (x) { return encodeURIComponent(x.id); }).join(',') + '">' + esc(g.items[0].title) + ' · ' + n + ' sellers from ' + kwacha(g.from) + '</a></li>';
@@ -1756,7 +1814,8 @@
       var similarIds = similar.map(function (x) { return x.id; });
       var related = products.filter(function (x) { return x.category === p.category && x.id !== p.id && similarIds.indexOf(x.id) === -1; }).slice(0, 8);
       var inCompare = compareList().indexOf(p.id) !== -1;
-      var html = crumbs([[d.name, '#/dept/' + p.category], [p.title]]) +
+      var ps = subOf(p);
+      var html = crumbs([[d.name, '#/dept/' + p.category]].concat(ps ? [[ps.name, '#/dept/' + p.category + '?sub=' + encodeURIComponent(ps.id)]] : [], [[p.title]])) +
         '<div class="pdp">' +
           '<div class="pdp__media"><div class="pflags">' + (pr.off ? '<span class="flag-sale">-' + pr.off + '%</span>' : '') + (p.sample ? '<span class="tag-sample">Sample</span>' : '') + '</div>' + likeBtn(p) + '<div class="pmedia">' + media(p) + '</div>' + thumbsHTML(p) + '</div>' +
           '<div>' +
@@ -2611,6 +2670,11 @@
       addSuggestedSpecs();
 
       var fieldHTML = function (fid, label, input, hint) { return '<div class="field" id="lf-f-' + fid + '"><label for="lf-' + fid + '">' + label + '</label>' + input + (hint ? '<p class="hint">' + hint + '</p>' : '') + '</div>'; };
+      // Subcategories of the chosen department (catalogue.js departments[].subs)
+      var subHTML = function () {
+        var subs = dr.category ? dept(dr.category).subs : [], note = dr.category ? dept(dr.category).note : '';
+        return (note ? '<p class="notice">' + esc(note) + ' See <a href="help.html#not-sold" target="_blank" rel="noopener noreferrer">what can\'t be sold</a>.</p>' : '') + (subs.length ? fieldHTML('sub', 'Subcategory', '<select id="lf-sub"><option value="">Choose a subcategory…</option>' + subs.map(function (s) { return '<option value="' + esc(s.id) + '"' + (s.id === dr.sub ? ' selected' : '') + '>' + esc(s.name) + '</option>'; }).join('') + '</select>', 'Helps buyers find it when they browse, e.g. Electronics › Headphones & Earbuds.') : '');
+      };
       var photosHTML = function () {
         var list = dr.images || [];
         return list.length ? '<ul class="lf-photos">' + list.map(function (im, i) {
@@ -2689,6 +2753,7 @@
             fieldHTML('title', 'Product name *', '<input id="lf-title" maxlength="120" required value="' + esc(dr.title) + '">', 'Say what it is, its size or capacity, and the pack size, e.g. "Electric kettle, 1.7 litre".') +
             '<div class="field-row">' + fieldHTML('category', 'Department *', '<select id="lf-category" required><option value="">Choose a department</option>' + D.departments.map(function (x) { return '<option value="' + x.id + '"' + (x.id === dr.category ? ' selected' : '') + '>' + esc(x.name) + '</option>'; }).join('') + '</select>') +
               fieldHTML('brand', 'Brand', '<select id="lf-brand"><option value="">No brand store</option>' + D.brands.map(function (x) { return '<option value="' + x.id + '"' + (x.id === dr.brand ? ' selected' : '') + '>' + esc(x.name) + '</option>'; }).join('') + '</select>') + '</div>' +
+            '<div id="lf-sub-wrap">' + subHTML() + '</div>' +
             fieldHTML('description', 'Description', '<textarea id="lf-description" maxlength="2000">' + esc(dr.description || '') + '</textarea>') +
             fieldHTML('tags', 'Search words', '<input id="lf-tags" maxlength="200" value="' + esc(dr.tags || '') + '">', 'Other words buyers might search for, separated by spaces.') +
             '<div class="field-row">' + fieldHTML('image', 'Photo', '<input id="lf-image" type="file" accept="image/jpeg,image/png,image/webp">', 'A square photo of the actual item on a plain background. We crop it to 600 × 600.') +
@@ -2717,7 +2782,7 @@
 
       // Form -> draft
       var collect = function () {
-        dr.title = $('#lf-title').value; dr.category = $('#lf-category').value; dr.brand = $('#lf-brand').value;
+        dr.title = $('#lf-title').value; dr.category = $('#lf-category').value; dr.sub = $('#lf-sub') ? $('#lf-sub').value : ''; dr.brand = $('#lf-brand').value;
         dr.description = $('#lf-description').value; dr.tags = $('#lf-tags').value; dr.alt = $('#lf-alt').value;
         dr.priceZMW = $('#lf-priceZMW').value; dr.wasZMW = $('#lf-wasZMW').value; dr.stock = $('#lf-stock').value;
         var a = dr.attributes;
@@ -2763,7 +2828,7 @@
 
       form.addEventListener('change', function (e) {
         var t = e.target;
-        if (t.id === 'lf-category') { collect(); addSuggestedSpecs(); redraw(); }
+        if (t.id === 'lf-category') { collect(); if (dr.sub && !byId(dept(dr.category).subs, dr.sub)) dr.sub = ''; $('#lf-sub-wrap').innerHTML = subHTML(); addSuggestedSpecs(); redraw(); }
         else if (t.hasAttribute('data-enable-field')) { var field = t.getAttribute('data-enable-field'); collect(); enabledFields[field] = t.checked; redraw('#lf-enable-' + field); }
         else if (t.hasAttribute('data-measured')) { collect(); enabledFields.measured = t.checked; if (!t.checked) delete dr.attributes.size; redraw(); }
         else if (t.hasAttribute('data-extra-name') || t.hasAttribute('data-extra-values')) { var extraId = t.id; collect(); rebuildMatrix(); redraw('#' + extraId); }
