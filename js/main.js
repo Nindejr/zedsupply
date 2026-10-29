@@ -24,15 +24,24 @@
     return;
   }
 
+  // Release version from this script's own address (main.js?v=…), added to files loaded later,
+  // so a visitor never mixes files from two releases. Change ?v= on every page when releasing.
+  var selfSrc = (document.currentScript || {}).src || '';
+  var RELEASE = (/[?&]v=([\w.-]+)/.exec(selfSrc) || [])[1] || '';
+  function versioned(path) { return RELEASE ? path + '?v=' + RELEASE : path; }
+
+  // Demo mode (?demo=1) shows sample sellers and products. settings.allowDemo: false turns it
+  // off completely, for a production site with real listings.
+  var allowDemo = !(window.ZS_CATALOGUE && window.ZS_CATALOGUE.settings && window.ZS_CATALOGUE.settings.allowDemo === false);
   var demoOn = false;
   try {
     if (/[?&]demo=1\b/.test(location.search)) sessionStorage.setItem('zs-demo', '1');
-    if (/[?&]demo=0\b/.test(location.search)) sessionStorage.removeItem('zs-demo');
-    demoOn = sessionStorage.getItem('zs-demo') === '1';
-  } catch (e) { demoOn = /[?&]demo=1\b/.test(location.search); }
+    if (/[?&]demo=0\b/.test(location.search) || !allowDemo) sessionStorage.removeItem('zs-demo');
+    demoOn = allowDemo && sessionStorage.getItem('zs-demo') === '1';
+  } catch (e) { demoOn = allowDemo && /[?&]demo=1\b/.test(location.search); }
   if (demoOn && !window.ZS_SAMPLE) {
     var demoScript = document.createElement('script');
-    demoScript.src = 'js/catalogue-sample.js';
+    demoScript.src = versioned('js/catalogue-sample.js');
     demoScript.onload = demoScript.onerror = start;
     document.head.appendChild(demoScript);
   } else start();
@@ -116,6 +125,17 @@
     return 'K' + v.toLocaleString('en-US', { minimumFractionDigits: cents ? 2 : 0, maximumFractionDigits: 2 });
   }
   function pad(n) { return (n < 10 ? '0' : '') + n; }
+  /* A reference such as ZS-7K2QH9TX: 8 random characters from the browser's secure generator
+     (31 characters, without 0/O/1/I/L, so it reads clearly over the phone), about 850 billion
+     possibilities. The clock alone repeated every few weeks, so two orders could share a number.
+     Once orders are saved on the server, it should confirm the reference is unused. */
+  function newRef(prefix) {
+    var chars = '23456789ABCDEFGHJKMNPQRSTUVWXYZ', out = '', bytes = new Uint8Array(8);
+    if (window.crypto && crypto.getRandomValues) crypto.getRandomValues(bytes);
+    else for (var j = 0; j < 8; j++) bytes[j] = Math.floor(Math.random() * 256);
+    for (var i = 0; i < 8; i++) out += chars[bytes[i] % chars.length];
+    return (prefix ? prefix + '-' : '') + out;
+  }
   var now = new Date();
   var today = now.getFullYear() + '-' + pad(now.getMonth() + 1) + '-' + pad(now.getDate());
   function niceDate(iso) {
@@ -1390,7 +1410,18 @@
     var status = $('.form-status', form), btn = $('button[type="submit"]', form), label = btn.textContent;
     var show = function (type, msg) { status.className = 'form-status is-' + type; status.textContent = msg; status.focus(); };
     if (form.getAttribute('action').indexOf('FORMSPREE_ENDPOINT_HERE') !== -1) {
-      show('error', 'This form is not connected yet. Please contact us on WhatsApp for now.');
+      // No form service connected yet: keep what was typed and offer to send it on WhatsApp
+      if (!form.checkValidity()) { form.reportValidity(); return; }
+      var lines = [], subject = form._subject ? form._subject.value : 'Message from the Zed Supply website';
+      new FormData(form).forEach(function (v, k) {
+        if (/^_|^consent$/.test(k) || !String(v).trim()) return;
+        var field = form.querySelector('[name="' + k + '"]'), lab = field && field.id ? form.querySelector('label[for="' + field.id + '"]') : null;
+        lines.push((lab ? lab.textContent.replace(/\s*\*$/, '').trim() : k) + ': ' + String(v).trim());
+      });
+      var msg = subject + '\n' + lines.join('\n');
+      status.className = 'form-status is-success';
+      status.innerHTML = 'Your details are ready to send. <a class="btn btn--primary btn--sm" href="' + esc(waUrl(msg)) + '" target="_blank" rel="noopener noreferrer">Send them on WhatsApp</a>';
+      status.focus();
       return;
     }
     btn.disabled = true; btn.textContent = 'Sending…';
@@ -2407,7 +2438,7 @@
         '</aside></div>';
       show(html, 'Cart');
 
-      var ref = 'ZS-' + Date.now().toString(36).toUpperCase().slice(-6);
+      var ref = newRef('ZS');
       var co = $('#checkout');
       var chosenAddress = null;
       var when = function () { return { day: $('#co-day') ? $('#co-day').value : '', slot: $('#co-slot') ? $('#co-slot').value : '' }; };
@@ -2482,7 +2513,7 @@
         var list = addresses(), max = (OPTS.addresses && OPTS.addresses.max) || 10;
         if (list.some(function (a) { return a.town === loc.town && a.area === loc.area && a.landmark === loc.landmark; })) { toast('That address is already saved. <a href="#/addresses">Manage addresses</a>'); return; }
         if (list.length >= max) { toast('You have ' + max + ' saved addresses. Remove one first. <a href="#/addresses">Manage addresses</a>'); return; }
-        list.push({ id: 'A' + Date.now().toString(36), label: list.length ? 'Address ' + (list.length + 1) : 'Home', recipient: $('#co-name').value.trim(), phone: '', town: loc.town, area: loc.area, landmark: loc.landmark, instructions: '', isDefault: !list.length });
+        list.push({ id: newRef('A'), label: list.length ? 'Address ' + (list.length + 1) : 'Home', recipient: $('#co-name').value.trim(), phone: '', town: loc.town, area: loc.area, landmark: loc.landmark, instructions: '', isDefault: !list.length });
         store.set('addresses', list);
         toast('Address saved. <a href="#/addresses">Name or edit it</a>');
       });
@@ -2713,7 +2744,7 @@
       form.addEventListener('submit', function (e) {
         e.preventDefault();
         var val = function (id, n) { return cleanText($('#ad-' + id).value, n); };
-        var rec = { id: editing ? editing.id : 'A' + Date.now().toString(36), label: val('label', 30), recipient: val('recipient', 60), phone: val('phone', 20), town: val('town', 60), area: val('area', 60), landmark: val('landmark', 100), instructions: val('instructions', 160), isDefault: $('#ad-default').checked };
+        var rec = { id: editing ? editing.id : newRef('A'), label: val('label', 30), recipient: val('recipient', 60), phone: val('phone', 20), town: val('town', 60), area: val('area', 60), landmark: val('landmark', 100), instructions: val('instructions', 160), isDefault: $('#ad-default').checked };
         var fail = function (m, id) { st.className = 'form-status is-error'; st.textContent = m; $('#ad-' + id).focus(); };
         if (!rec.label) return fail('Give this address a name, such as Home.', 'label');
         if (!rec.town) return fail('Enter the town or city.', 'town');
@@ -2763,7 +2794,7 @@
           '<a class="btn btn--primary" id="cp-send" href="#" target="_blank" rel="noopener noreferrer">Send complaint on WhatsApp</a></form>' +
         '<aside class="band"><h2>What happens next</h2><ol class="steps-list"><li>We acknowledge your complaint and give you its reference.</li><li>We reply within ' + replyDays + ' working days, after checking with the seller.</li><li>We agree a fix with you: a replacement, repair, refund or return, under our <a href="help.html#returns">returns policy</a>.</li><li>Not happy with the outcome? Ask us to review it. You can also contact the Competition and Consumer Protection Commission (CCPC).</li></ol>' +
           '<p><a href="#/complaints">Your complaints</a> · <a href="help.html#complaints">How complaints work</a></p></aside></div>', 'Make a complaint');
-      var ref = 'ZC-' + Date.now().toString(36).toUpperCase().slice(-6), send = $('#cp-send'), st = $('.form-status', $('#cp-form'));
+      var ref = newRef('ZC'), send = $('#cp-send'), st = $('.form-status', $('#cp-form'));
       var pick = function (name) { var r = $('input[name="' + name + '"]:checked'); return r ? r.value : ''; };
       var label = function (list, id) { var x = list.filter(function (y) { return y[0] === id; })[0]; return x ? x[1] : ''; };
       var data = function () {
@@ -2947,7 +2978,7 @@
         bannerFromFile($('#pn-img').files[0], 1600, 500, function (image) {
           btn.disabled = false; btn.textContent = 'Publish promotion';
           if (image === null) return fail('That image couldn\'t be used. Choose a JPEG, PNG or WebP under 10 MB.');
-          var promo = { id: 'U' + Date.now().toString(36), demo: true, seller: s.id, title: $('#pn-title').value.trim(), season: $('#pn-season').value, discount: Math.min(90, Math.max(5, parseInt($('#pn-off').value, 10) || 10)), starts: start, ends: end, products: picked, image: image };
+          var promo = { id: newRef('U'), demo: true, seller: s.id, title: $('#pn-title').value.trim(), season: $('#pn-season').value, discount: Math.min(90, Math.max(5, parseInt($('#pn-off').value, 10) || 10)), starts: start, ends: end, products: picked, image: image };
           if (areas.length) promo.areas = areas;
           var list = store.get('promos', []).concat([promo]);
           var note = '';
@@ -3015,7 +3046,7 @@
         if (!dp) return fail('Choose a product.');
         if (!(price > 0) || price >= dp.priceZMW) return fail('The deal price must be lower than the normal price of ' + kwacha(dp.priceZMW) + '.');
         var list = store.get('deals', []).filter(function (x) { return !(x.seller === s.id && x.product === dp.id); });
-        list.push({ id: 'D' + Date.now().toString(36), demo: true, seller: s.id, product: dp.id, price: price, reason: $('#dl-reason').value, starts: today, ends: $('#dl-ends').value || '' });
+        list.push({ id: newRef('D'), demo: true, seller: s.id, product: dp.id, price: price, reason: $('#dl-reason').value, starts: today, ends: $('#dl-ends').value || '' });
         store.set('deals', list);
         toast('Deal published <a href="#/deals?cat=' + dp.category + '">View</a>');
         route();
@@ -3347,7 +3378,7 @@
       };
       if (window.ZSStock) return mount();
       var sp = document.createElement('script');
-      sp.src = 'js/stock-planner.js';
+      sp.src = versioned('js/stock-planner.js');
       sp.onload = sp.onerror = mount;
       document.head.appendChild(sp);
     },

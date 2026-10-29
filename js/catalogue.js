@@ -19,6 +19,7 @@
 window.ZS_CATALOGUE = {
   settings: {
     isSample: false,             // true only in demo mode (?demo=1), set automatically
+    allowDemo: true,             // set false once real sellers are live: ?demo=1 then does nothing
 
     // ---- Shop the World switch ----
     // false: "Shop the World" shows a coming-soon page and China products are hidden.

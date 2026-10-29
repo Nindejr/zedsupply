@@ -5,6 +5,9 @@ Zed Supply, an online marketplace for Lusaka, Zambia: https://nindejr.github.io/
 See [product features and implementation brief](PRODUCT-FEATURES.md) for seller
 attributes, variants, buyer filters, reviews and the remaining backend work.
 
+See [production readiness](PRODUCTION-READINESS.md) for what's needed to launch: what works now,
+what to fill in before launch, and the server work for a self-service marketplace.
+
 ## Demo catalogue
 
 Open `index.html?demo=1` to explore 53 local sample listings across all 25
