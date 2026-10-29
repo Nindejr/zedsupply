@@ -58,6 +58,26 @@ Apply once, in order, using a migration runner or `psql -v ON_ERROR_STOP=1`:
 9. `supabase/migrations/20261029000009_locations.sql`
 10. `supabase/migrations/20261029000010_supabase_auth_security.sql` (needs Supabase's `auth` and `storage` schemas; locally, run `db/tests/supabase_stub.sql` first)
 11. `supabase/migrations/20261029000011_advisor_fixes.sql` (from Supabase's security advisor: trigger functions can't be called through the API, helpers get a fixed `search_path`)
+12. `supabase/migrations/20261029000012_review_security.sql` (verified account linking, privilege revocation on identity deletion, child-content moderation, immutable public photos and restricted table privileges)
+13. `supabase/migrations/20261029000013_api_grants.sql` (table rights for the API roles: new Supabase projects grant none by default)
+
+Migration 012 creates the application account only once a phone or email is confirmed.
+Existing ordinary buyer records can then be linked; records with staff or store access
+require staff assistance. For a new staff member or store operator, first confirm their
+Auth identity (an Auth invitation can be used), then assign `is_staff` or `seller_members`
+through a trusted administrator. Never grant privileges to an unlinked contact record.
+Deleting an Auth identity revokes staff and store membership while preserving order history.
+The migration also unlinks unverified accounts previously linked by 010 and revokes their
+privileges; audit any such historical links before restoring access.
+
+Product photos use immutable storage paths: upload a fresh filename, update the listing
+reference, and have staff approve it. Sellers cannot overwrite or delete public objects;
+orphan cleanup belongs to a trusted server process. Relevant product child-row changes
+return active listings to pending; variant price and stock changes stay live.
+Enable email and phone confirmation in the hosted project's Auth settings too:
+`supabase/config.toml` configures the local stack and does not itself update hosted settings.
+
+Migration 013 grants the table rights the row-level security rules expect. On the Zed Supply project, new tables in `public` give the API roles only TRUNCATE, REFERENCES and TRIGGER (and MAINTAIN), so after 010 signed-in users could read nothing and server functions could write nothing. Every future migration that adds a table must grant its rights explicitly. `db/tests/supabase_stub.sql` now copies these defaults, so the tests catch a missing grant.
 
 Then load the reference data with `supabase/seed.sql`, generated from js/catalogue.js by `node db/seed.cjs`: department groups, departments, subcategories, provinces, towns, listing templates and any delivery estimates set in `settings.delivery.estimates`. Run the generator again after changing those settings. Applying the file again is safe: it updates rows in place.
 
@@ -75,7 +95,7 @@ Migration 009 adds provinces and towns (with centre coordinates for matching a d
 
 Migration 010 prepares the database for Supabase:
 
-- **Accounts.** Every sign-in, by phone or email, gets a `users` row. A buyer added earlier with the same phone or email is linked rather than duplicated, and Supabase's phone format is converted to E.164. `seller_members` says who runs each store, and `is_staff` marks Zed Supply staff.
+- **Accounts.** After migration 012, a confirmed phone or email creates a `users` row. An ordinary buyer added earlier with the same verified contact is linked rather than duplicated; privileged accounts require staff assistance. Supabase's phone format is converted to E.164. `seller_members` says who runs each store, and `is_staff` marks Zed Supply staff.
 - **Row-level security on every table.** Signed-out visitors can only read the public catalogue: active listings, published reviews, stores, places and promotions. Signed-in users can also read and write their own rows. Store members manage their own store, listings, promotions, deals and photos.
 - **What the browser can't do.** Orders are never created from the browser; a server function will check prices, VAT and stock. Nobody can write the rating cache, set themselves as staff, verify a store, read voucher codes or decide a refund.
 - **Listing moderation.** New listings wait as `pending` until staff publish them. A change to an active listing's wording, category or photo sends it back for review; price and stock changes stay live.
@@ -135,12 +155,20 @@ Suggested next-step routes (design only, not implemented):
 Run `node --test tests/*.test.cjs` for the JavaScript tests. For SQL, use an isolated, empty database:
 
 1. Run `db/tests/supabase_stub.sql`.
-2. Apply all eleven migrations in order, without the seed.
+2. Apply all thirteen migrations in order, without the seed.
 3. Run the other `.sql` files in `db/tests/` with `psql -v ON_ERROR_STOP=1 -f <file>`.
 
 Never run the stub on the Supabase project. `rls.sql` signs in the way the API does, as a visitor, two buyers, two sellers and staff, and checks what each can read and change. For concurrency, run `npm install --no-save pg` then `node db/tests/concurrency.mjs` against that database (never one holding real data): it interleaves two live connections to check the rating cache, one open offer per buyer, single redemption of an accepted offer and the address limit. The SQL tests roll back their fixtures. `integrity.sql` and `product_details.sql` cover invalid data, purchase links, review aggregates, conditions, features and custom options. `aftersales_categories.sql` covers migrations 005–007: the new units, extra photos, offer ranges scaled to a variant's price, saved addresses, order snapshots, cancellations, returns, complaints and subcategories.
 
-Latest check for migration 010 (29 October 2026), on the same native PostgreSQL 18.6 server, with the database rebuilt from empty:
+Latest check, for migrations 012 and 013 (29 October 2026), on native PostgreSQL 18.6 with the stub copying the project's default grants:
+
+- The stub and all thirteen migrations applied, and all five SQL test files passed.
+- All four concurrency tests and all 27 JavaScript tests passed.
+- The row-level security tests failed without 013, the photo-moderation trigger or the TRUNCATE revoke, as expected.
+- An upgrade fixture created before 012 confirmed that previously linked unverified identities lose inherited staff and store access.
+- The row-level security suite covers confirmation, rejection of privileged links, identity deletion, photo moderation (including variant photos), public photos that can't be overwritten, rejected truncation, the new table rights, and an email change keeping the phone on file.
+
+Earlier check, for migration 010 (29 October 2026), on the same native PostgreSQL 18.6 server, with the database rebuilt from empty:
 
 - The stub, all eleven migrations and all five SQL test files passed.
 - Each migration file also applied when run as one transaction, as the Supabase CLI may run it.

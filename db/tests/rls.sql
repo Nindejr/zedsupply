@@ -41,11 +41,16 @@ INSERT INTO auth.users (id, phone, email, raw_user_meta_data) VALUES
   ('00000000-0000-0000-0000-0000000000a1', NULL, 'seller1@example.com', '{"name":"Seller one"}'),
   ('00000000-0000-0000-0000-0000000000a2', NULL, 'seller2@example.com', '{}'),
   ('00000000-0000-0000-0000-0000000000f1', NULL, 'staff@example.com', '{}');
+UPDATE auth.users SET email_confirmed_at = CASE WHEN email IS NOT NULL THEN now() END,
+  phone_confirmed_at = CASE WHEN phone IS NOT NULL THEN now() END;
 SELECT pg_temp.assert_true((SELECT phone = '+260971000001' AND name = 'Buyer one' FROM users WHERE auth_id = '00000000-0000-0000-0000-0000000000b1'), 'sign-up creates a users row with an E.164 phone');
 SELECT pg_temp.assert_true((SELECT id = 7009 FROM users WHERE auth_id = '00000000-0000-0000-0000-0000000000b9'), 'sign-up links an existing buyer by phone');
 SELECT pg_temp.assert_true((SELECT count(*) = 1 FROM users WHERE phone = '+260971000009'), 'no duplicate buyer');
 UPDATE auth.users SET email = 'new@example.com' WHERE id = '00000000-0000-0000-0000-0000000000b2';
 SELECT pg_temp.assert_true((SELECT email = 'new@example.com' FROM users WHERE auth_id = '00000000-0000-0000-0000-0000000000b2'), 'email change follows');
+UPDATE users SET phone = '+260971000002' WHERE auth_id = '00000000-0000-0000-0000-0000000000b2';
+UPDATE auth.users SET email = 'newer@example.com' WHERE id = '00000000-0000-0000-0000-0000000000b2';
+SELECT pg_temp.assert_true((SELECT phone = '+260971000002' AND email = 'newer@example.com' FROM users WHERE auth_id = '00000000-0000-0000-0000-0000000000b2'), 'an email change keeps the phone on file');
 UPDATE users SET is_staff = true WHERE auth_id = '00000000-0000-0000-0000-0000000000f1';
 INSERT INTO seller_members (seller_id, user_id)
   SELECT 'rs1', id FROM users WHERE auth_id = '00000000-0000-0000-0000-0000000000a1' UNION ALL
@@ -198,4 +203,61 @@ SELECT pg_temp.signed_out();
 SELECT pg_temp.assert_true((SELECT count(*) = 3 FROM products WHERE id LIKE 'R_'), 'published listings appear to visitors');
 SELECT pg_temp.admin();
 
+-- Review regressions: unverified contacts never claim users or privilege-bearing accounts.
+INSERT INTO users (name, email, is_staff) VALUES ('Unlinked staff', 'protected@example.com', true);
+INSERT INTO auth.users (id, email) VALUES ('00000000-0000-0000-0000-0000000000c1', 'protected@example.com');
+SELECT pg_temp.assert_true((SELECT auth_id IS NULL FROM users WHERE email = 'protected@example.com'), 'unverified signup cannot claim staff');
+SELECT pg_temp.expect_rejection($q$UPDATE auth.users SET email_confirmed_at = now() WHERE email = 'protected@example.com'$q$);
+INSERT INTO auth.users (id, email) VALUES ('00000000-0000-0000-0000-0000000000c2', 'new-buyer@example.com');
+SELECT pg_temp.assert_true(NOT EXISTS (SELECT 1 FROM users WHERE email = 'new-buyer@example.com'), 'unverified signup does not reserve a contact');
+UPDATE auth.users SET email_confirmed_at = now() WHERE email = 'new-buyer@example.com';
+SELECT pg_temp.assert_true((SELECT NOT is_staff FROM users WHERE email = 'new-buyer@example.com'), 'confirmation creates an ordinary buyer');
+UPDATE users SET is_staff = true WHERE email = 'new-buyer@example.com';
+INSERT INTO seller_members (seller_id, user_id) SELECT 'rs1', id FROM users WHERE email = 'new-buyer@example.com';
+DELETE FROM auth.users WHERE email = 'new-buyer@example.com';
+SELECT pg_temp.assert_true((SELECT NOT is_staff AND auth_id IS NULL FROM users WHERE email = 'new-buyer@example.com'), 'deleting identity revokes staff');
+SELECT pg_temp.assert_true(NOT EXISTS (SELECT 1 FROM seller_members m JOIN users u ON u.id = m.user_id WHERE u.email = 'new-buyer@example.com'), 'deleting identity revokes store membership');
+INSERT INTO auth.users (id, email, email_confirmed_at) VALUES ('00000000-0000-0000-0000-0000000000c3', 'new-buyer@example.com', now());
+SELECT pg_temp.assert_true((SELECT NOT is_staff FROM users WHERE auth_id = '00000000-0000-0000-0000-0000000000c3'), 'recreated identity stays unprivileged');
+
+SELECT pg_temp.signed_in('00000000-0000-0000-0000-0000000000a1');
+INSERT INTO product_images (product_id, src, alt, position) VALUES ('RA', 'https://example.com/new.webp', 'New photo', 1);
+SELECT pg_temp.assert_true((SELECT status = 'pending' FROM products WHERE id = 'RA'), 'additional photo requires moderation');
+SELECT pg_temp.assert_true(pg_temp.changed($q$UPDATE storage.objects SET name = 'rs1/replaced.webp' WHERE bucket_id = 'product-images'$q$) = 0, 'seller cannot replace a public photo');
+SELECT pg_temp.assert_true(pg_temp.changed($q$DELETE FROM storage.objects WHERE bucket_id = 'product-images'$q$) = 0, 'seller cannot delete a public photo');
+SELECT pg_temp.assert_true(NOT has_table_privilege('authenticated', 'orders', 'TRUNCATE'), 'orders cannot be truncated by authenticated users');
+SELECT pg_temp.expect_rejection('TRUNCATE order_item_addons');
+SELECT pg_temp.admin();
+UPDATE products SET status = 'active' WHERE id = 'RA';
+SELECT pg_temp.signed_in('00000000-0000-0000-0000-0000000000a1');
+UPDATE product_images SET src = 'https://example.com/changed.webp' WHERE product_id = 'RA';
+SELECT pg_temp.assert_true((SELECT status = 'pending' FROM products WHERE id = 'RA'), 'editing extra photo requires moderation');
+SELECT pg_temp.admin();
+UPDATE products SET status = 'active' WHERE id = 'RA';
+SELECT pg_temp.signed_in('00000000-0000-0000-0000-0000000000a1');
+DELETE FROM product_images WHERE product_id = 'RA';
+SELECT pg_temp.assert_true((SELECT status = 'pending' FROM products WHERE id = 'RA'), 'deleting extra photo requires moderation');
+SELECT pg_temp.admin();
+INSERT INTO product_variants (product_id, sku, combo_key, stock_qty) VALUES ('RA', 'RA-BASE', '', 3);
+UPDATE products SET status = 'active' WHERE id = 'RA';
+SELECT pg_temp.signed_in('00000000-0000-0000-0000-0000000000a1');
+UPDATE product_variants SET stock_qty = 4, price_zmw = 105 WHERE product_id = 'RA';
+SELECT pg_temp.assert_true((SELECT status = 'active' FROM products WHERE id = 'RA'), 'variant stock and price changes stay live');
+UPDATE product_variants SET image = 'https://example.com/variant.webp' WHERE product_id = 'RA';
+SELECT pg_temp.assert_true((SELECT status = 'pending' FROM products WHERE id = 'RA'), 'variant image changes require moderation');
+SELECT pg_temp.admin();
+
+-- Table rights (013): new Supabase projects grant nothing by default, so every API path needs a grant
+SELECT pg_temp.assert_true(has_table_privilege('service_role', 'orders', 'INSERT') AND has_table_privilege('service_role', 'order_items', 'INSERT'), 'server functions can create orders');
+SELECT pg_temp.assert_true(NOT has_table_privilege('authenticated', 'orders', 'INSERT') AND NOT has_table_privilege('anon', 'users', 'SELECT'), 'the browser can''t create orders or list users');
+SELECT pg_temp.signed_in('00000000-0000-0000-0000-0000000000a1');
+INSERT INTO seller_locations (seller_id, town, province_id) VALUES ('rs1', 'Lusaka', NULL)
+  ON CONFLICT (seller_id) DO UPDATE SET town = EXCLUDED.town;
+INSERT INTO product_options (product_id, kind, name) VALUES ('RP', 'colour', 'Colour');
+SELECT pg_temp.expect_rejection($q$INSERT INTO seller_locations (seller_id, town) VALUES ('rs2', 'Kitwe')$q$);
+SELECT pg_temp.admin();
+SELECT pg_temp.signed_in('00000000-0000-0000-0000-0000000000b1');
+SELECT pg_temp.assert_true(pg_temp.changed($q$UPDATE user_addresses SET label = 'Work' WHERE label = 'Home'$q$) = 1, 'a buyer edits their address');
+SELECT pg_temp.assert_true(pg_temp.changed($q$DELETE FROM user_addresses WHERE label = 'Work'$q$) = 1, 'a buyer deletes their address');
+SELECT pg_temp.admin();
 ROLLBACK;

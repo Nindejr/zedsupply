@@ -8,6 +8,28 @@ const S = sandbox.window.ZS_CATALOGUE.settings;
 const X = sandbox.window.ZS_SAMPLE;
 const provinceIds = S.provinces.map(p => p[0]);
 
+test('checkout preserves collection when choosing an address and requires delivery for fallback parcels', () => {
+  const src = fs.readFileSync('js/main.js', 'utf8');
+  const grab = name => src.slice(src.indexOf('  function ' + name + '('), src.indexOf('\n  }\n', src.indexOf('  function ' + name + '(')) + 4);
+  const storage = { setItem() {}, removeItem() {} };
+  const context = { loc: { mode: 'collection' }, pendingMode: 'delivery', mem: {},
+    localStorage: storage, sessionStorage: storage, refreshLoc() {}, townInfo: () => ({ province: 'lusaka' }),
+    collectionAt: seller => seller && seller.collection ? seller : null };
+  vm.runInNewContext(grab('saveLoc') + grab('checkoutNeedsDelivery'), context);
+  // Run the actual saved-address operation from the checkout handler.
+  context.chosenAddress = { town: 'Lusaka', area: 'Woodlands', landmark: 'School' };
+  context.coMode = () => context.loc.mode;
+  const handler = src.match(/saveLoc\(\{ town: chosenAddress\.town,[\s\S]*?\}\);/)[0];
+  vm.runInNewContext(handler, context);
+  assert.equal(context.loc.mode, 'collection');
+  assert.equal(context.loc.province, 'lusaka');
+  const collect = { s: { collection: true } }, deliver = { s: { collection: false } };
+  assert.equal(context.checkoutNeedsDelivery([collect], 'collection'), false);
+  assert.equal(context.checkoutNeedsDelivery([collect, deliver], 'collection'), true);
+  assert.equal(context.checkoutNeedsDelivery([deliver], 'collection'), true);
+  assert.equal(context.checkoutNeedsDelivery([collect], 'delivery'), true);
+});
+
 test('provinces and towns are complete and inside Zambia', () => {
   assert.equal(S.provinces.length, 10);
   assert.equal(new Set(provinceIds).size, 10);

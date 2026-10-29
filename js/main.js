@@ -649,6 +649,9 @@
   // Delivery or collection: saved with the location; remembered for this visit before one is set
   var pendingMode = 'delivery';
   function coMode() { return loc ? loc.mode : pendingMode; }
+  function checkoutNeedsDelivery(groups, mode) {
+    return mode !== 'collection' || groups.some(function (g) { return !collectionAt(g.s); });
+  }
   function setMode(mode) {
     pendingMode = mode === 'collection' ? 'collection' : 'delivery';
     if (loc) { var l = {}; for (var k in loc) l[k] = loc[k]; l.mode = pendingMode; saveLoc(l); }
@@ -2482,7 +2485,8 @@
       if (addrSel) addrSel.addEventListener('change', function () {
         chosenAddress = addresses().filter(function (a) { return a.id === addrSel.value; })[0] || null;
         if (chosenAddress) {
-          saveLoc({ town: chosenAddress.town, area: chosenAddress.area, landmark: chosenAddress.landmark, remember: !!(loc && loc.remember) });
+          saveLoc({ town: chosenAddress.town, area: chosenAddress.area, landmark: chosenAddress.landmark,
+            province: chosenAddress.province, mode: coMode(), remember: !!(loc && loc.remember) });
           if (!$('#co-name').value.trim() && chosenAddress.recipient) { $('#co-name').value = chosenAddress.recipient; $('#co-name').dispatchEvent(new Event('input')); }
         }
         syncCo();
@@ -2550,7 +2554,7 @@
         // Like an address on Amazon: a name and a delivery location are needed before the order goes
         var nameEl = $('#co-name'), nameErr = $('#co-name-err'), locErr = $('#co-loc-err');
         // A location is needed to deliver; collecting needs only a name
-        var noName = !nameEl.value.trim(), noLoc = !loc && coMode() !== 'collection';
+        var noName = !nameEl.value.trim(), noLoc = !loc && checkoutNeedsDelivery(groups, coMode());
         nameErr.hidden = !noName; nameErr.textContent = noName ? 'Enter your name.' : '';
         nameEl.setAttribute('aria-invalid', String(noName));
         locErr.hidden = !noLoc; locErr.textContent = noLoc ? 'Set where to deliver, so we can quote the delivery fee.' : '';

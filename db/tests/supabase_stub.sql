@@ -2,8 +2,7 @@
 -- A minimal stand-in for what Supabase provides, so the migrations and their security rules
 -- can be tested on a plain PostgreSQL server: the anon, authenticated and service_role roles,
 -- auth.users with auth.uid() and auth.jwt(), the storage tables, and Supabase's default
--- grants (every new table in public is granted to the API roles, so row-level security is
--- what actually protects the data). Run it on an empty test database before the migrations.
+-- grants on the public schema. Run it on an empty test database before the migrations.
 
 DO $$ BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'anon') THEN CREATE ROLE anon NOLOGIN NOINHERIT; END IF;
@@ -17,6 +16,8 @@ CREATE TABLE IF NOT EXISTS auth.users (
   id                 uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   email              text UNIQUE,
   phone              text UNIQUE,
+  email_confirmed_at timestamptz,
+  phone_confirmed_at timestamptz,
   raw_user_meta_data jsonb NOT NULL DEFAULT '{}',
   created_at         timestamptz NOT NULL DEFAULT now()
 );
@@ -46,8 +47,15 @@ $$;
 GRANT USAGE ON SCHEMA storage TO anon, authenticated, service_role;
 GRANT ALL ON storage.objects, storage.buckets TO anon, authenticated, service_role;
 
--- Supabase's default grants on the public schema
+-- Supabase's default grants on the public schema, as on the Zed Supply project (checked
+-- 29 October 2026): new tables give the API roles only TRUNCATE, REFERENCES, TRIGGER (and
+-- MAINTAIN on PostgreSQL 17+), and new sequences and functions give them nothing. Migrations
+-- must grant what the website and server functions use.
 GRANT USAGE ON SCHEMA public TO anon, authenticated, service_role;
-ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO anon, authenticated, service_role;
-ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO anon, authenticated, service_role;
-ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT EXECUTE ON FUNCTIONS TO anon, authenticated, service_role;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT TRUNCATE, REFERENCES, TRIGGER ON TABLES TO anon, authenticated, service_role;
+DO $$ BEGIN
+  IF current_setting('server_version_num')::int >= 170000 THEN
+    EXECUTE 'ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT MAINTAIN ON TABLES TO anon, authenticated, service_role';
+  END IF;
+END $$;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC;

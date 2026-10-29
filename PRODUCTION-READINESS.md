@@ -83,6 +83,15 @@ These need the backend. They're listed in the order they depend on each other.
 
 ## Backend: Supabase (free plan)
 
+Review correction: migration 012 adds verified-contact account linking, removes privileged
+access when an Auth identity is deleted, moderates product child-content edits, makes
+public product photo paths immutable, and removes unnecessary whole-table privileges.
+Migration 013 grants the table rights the security rules expect, which new Supabase projects
+no longer give by default. Apply both migrations to the hosted project and enable email/phone confirmation in its
+Auth settings before connecting real accounts. Local configuration changes do not change
+the hosted project's settings. Staff and store access must be assigned by an administrator
+after the person's identity has been verified; see `db/README.md`.
+
 Zed Supply uses Supabase: managed PostgreSQL with sign-in, file storage and server functions. The website stays static and calls Supabase directly. The project is set up in `supabase/`.
 
 **Done:**
