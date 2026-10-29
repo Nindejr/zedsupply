@@ -1684,6 +1684,10 @@ main .section .pcard .pmedia, .pcard .pmedia { background: rgb(235 243 251 / .45
 .drawer__group { margin: 0.9rem 1.1rem 0.15rem; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--color-muted); }
 .drawer__depts > ul + .drawer__group { padding-top: 0.75rem; border-top: 1px solid var(--color-border); }
 .dept-group { margin-bottom: 2rem; }
+.category-tools { display: flex; flex-wrap: wrap; align-items: end; gap: 0.75rem; margin-block: 1rem; }
+.category-tools .field { flex: 1 1 15rem; margin: 0; }
+.category-tools button { min-height: 44px; }
+.category-stock { color: var(--color-muted); font-size: 0.8em; white-space: nowrap; }
 .dept-group > h2 { margin: 0 0 0.85rem; font-size: 1.15rem; }
 .dept-group > h2::after { content: ""; display: block; width: 44px; height: 3px; margin-top: 0.35rem; border-radius: 3px; background: var(--gold-gloss); }
 .dept-dir { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.9rem; grid-template-columns: repeat(auto-fill, minmax(min(100%, 17rem), 1fr)); }

@@ -30,6 +30,17 @@
     { id: 'baby', name: 'Baby, kids and toys', low: 3, high: 6 },
     { id: 'other', name: 'Other', low: 4, high: 6 }
   ];
+  // Match the storefront's departments while keeping saved legacy sector selections usable.
+  var legacySectors = SECTORS;
+  var sectorAliases = { essentials: 'grocery', tech: 'phones', computers: 'phones', smarthome: 'phones', tv: 'phones', games: 'phones',
+    womens: 'fashion', mens: 'fashion', girls: 'fashion', boys: 'fashion', beauty: 'fashion', luggage: 'fashion',
+    arts: 'home', toys: 'baby', sports: 'health', business: 'hardware', pets: 'other' };
+  if (window.ZS_CATALOGUE && window.ZS_CATALOGUE.departments.length) {
+    SECTORS = window.ZS_CATALOGUE.departments.map(function (d) {
+      var source = legacySectors.filter(function (s) { return s.id === (sectorAliases[d.id] || d.id); })[0] || legacySectors[legacySectors.length - 1];
+      return { id: d.id, name: d.name, low: source.low, high: source.high };
+    }).concat(legacySectors.filter(function (s) { return s.id === 'other'; }));
+  }
   var DEFAULTS = { sector: 'hardware', low: 3, high: 5, localFactor: 0.5, importFactor: 1, importDays: 30, reviewDays: 30, extraImportDays: 0, orderCost: '', holdingPct: 25 };
 
   var TEMPLATE = 'SKU,Description,Quantity on hand,Cost price (K),Annual usage,Lead time (days),Source (local or import),' + MONTHS.join(',') + '\n';
@@ -274,6 +285,9 @@
   function loadSettings() {
     var saved = H.store.get('stock-settings', {}) || {}, s = {};
     for (var k in DEFAULTS) if (Object.prototype.hasOwnProperty.call(DEFAULTS, k)) s[k] = Object.prototype.hasOwnProperty.call(saved, k) ? saved[k] : DEFAULTS[k];
+    var savedAliases = { grocery: 'essentials', phones: 'tech', fashion: 'womens' };
+    if (savedAliases[s.sector] && SECTORS.some(function (x) { return x.id === savedAliases[s.sector]; })) s.sector = savedAliases[s.sector];
+    if (!SECTORS.some(function (x) { return x.id === s.sector; })) s.sector = 'other';
     return s;
   }
   function field(id, label, value, attrs, hint) {

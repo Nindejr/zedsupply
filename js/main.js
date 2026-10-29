@@ -65,6 +65,15 @@
       p.sales[mk(n0)] = p.demoSales[0];
       p.sales[mk(new Date(n0.getFullYear(), n0.getMonth() - 1, 1))] = p.demoSales[1];
     });
+    // Rolling sample promotions keep the demo useful after the dated seasonal examples end.
+    D.promotions.forEach(function (pr) {
+      if (!pr.sample || !pr.demoDays) return;
+      function relativeDay(offset) {
+        var d = new Date(n0.getFullYear(), n0.getMonth(), n0.getDate() + offset);
+        return mk(d) + '-' + ('0' + d.getDate()).slice(-2);
+      }
+      pr.starts = relativeDay(pr.demoDays[0]); pr.ends = relativeDay(pr.demoDays[1]);
+    });
   }
   var china = !!S.chinaOrdering;
   var onIndex = !!document.getElementById('view');
@@ -512,7 +521,12 @@
     products.forEach(function (p) { seen[p.title] = 1; });
     D.brands.forEach(function (b) { seen[b.name] = 1; });
     D.sellers.forEach(function (s) { seen[s.name] = 1; });
-    D.departments.forEach(function (d) { seen[d.name] = 1; });
+    D.departments.forEach(function (d) {
+      seen[d.name] = 1;
+      d.subs.forEach(function (s) {
+        if (products.some(function (p) { return p.category === d.id && p.sub === s.id; })) seen[s.name] = 1;
+      });
+    });
     Object.keys(seen).forEach(function (k) { opts += '<option value="' + esc(k) + '"></option>'; });
     suggest.innerHTML = opts;
   }
@@ -849,7 +863,12 @@
   var deptLink = function (d) { return (onIndex ? '#/dept/' : 'index.html#/dept/') + d.id; };
   $$('.search__dept').forEach(function (sel) {
     var cur = sel.value;
-    sel.innerHTML = '<option value="">All</option>' + D.departments.map(function (d) { return '<option value="' + esc(d.id) + '">' + esc(d.short) + '</option>'; }).join('');
+    var grouped = (D.departmentGroups || []).map(function (g) {
+      var list = D.departments.filter(function (d) { return d.group === g[0]; });
+      return list.length ? '<optgroup label="' + esc(g[1]) + '">' + list.map(function (d) { return '<option value="' + esc(d.id) + '">' + esc(d.short) + '</option>'; }).join('') + '</optgroup>' : '';
+    }).join('');
+    var ungrouped = D.departments.filter(function (d) { return !(D.departmentGroups || []).some(function (g) { return d.group === g[0]; }); });
+    sel.innerHTML = '<option value="">All</option>' + grouped + ungrouped.map(function (d) { return '<option value="' + esc(d.id) + '">' + esc(d.short) + '</option>'; }).join('');
     sel.value = cur && byId(D.departments, cur) ? cur : '';
   });
   var drawerList = $('#drawer .drawer__body > ul');
@@ -1222,9 +1241,12 @@
   // Copy stays in HTML so artwork can be decorative and data saver can use line icons.
   function seasonalArt(id) {
     if (id === 'independence') return '<img src="assets/brand/zambia-flag.svg" alt="" width="220" height="147">';
-    var sets = { christmas: ['baby', 'home', 'tech'], valentines: ['fashion', 'home', 'health'], easter: ['home', 'essentials', 'baby'], farmers: ['agri', 'hardware', 'solar'], blackfriday: ['tech', 'home', 'fashion'], school: ['office', 'baby', 'tech'] };
+    // Departments with 3D artwork, so the banner stays rich (womens uses the fashion artwork).
+    // A department added here without art3d shows its flat line icon instead.
+    var sets = { christmas: ['baby', 'home', 'tech'], valentines: ['womens', 'home', 'health'], easter: ['home', 'essentials', 'baby'], farmers: ['agri', 'hardware', 'solar'], blackfriday: ['tech', 'home', 'womens'], school: ['office', 'baby', 'tech'] };
     return '<span class="season-art">' + (sets[id] || ['essentials', 'home', 'tech']).map(function (category) {
-      var path = root.classList.contains('data-saver') ? 'assets/icons/' + category + '.svg' : 'assets/categories-3d/' + category + '.webp';
+      var d = dept(category), art = d.art3d;
+      var path = !root.classList.contains('data-saver') && art ? 'assets/categories-3d/' + (typeof art === 'string' ? art : category) + '.webp' : 'assets/icons/' + category + '.svg';
       return '<img src="' + path + '" data-fallback="assets/icons/' + category + '.svg" alt="" width="160" height="160" loading="lazy" decoding="async">';
     }).join('') + '</span>';
   }
@@ -1543,10 +1565,21 @@
     $('#home-picks').innerHTML = months.length ? picksTabs(months, months[0]) + picksPanel(months[0], TREND_PAGE * 2) : '';
     var deals = localProducts.filter(function (p) { return priceOf(p).was; });
     if (deals.length < 6) deals = deals.concat(localProducts.filter(function (p) { return deals.indexOf(p) === -1; })).slice(0, 8);
+    deals = deals.slice(0, 8);
     var livePromos = sortPromos(allPromos().filter(function (pr) { return promoStatus(pr) !== 'ended'; })).slice(0, 4);
     fill('#home-deals', cards(deals), 'Our first deals are on their way. Sellers are joining Zed Supply now. Tell us what you need and we\'ll find it for you.',
       '<a class="btn btn--primary" href="#request">Make a request</a><a class="btn btn--secondary" href="#/sell">Sell on Zed Supply</a>');
-    $('#home-featured').innerHTML = cards(localProducts.slice(0, 10));
+    // Lead with different departments, then fill any remaining spaces with other products.
+    var featured = [], featuredCats = {};
+    var queues = (D.departmentGroups || []).map(function (g) { return D.departments.filter(function (d) { return d.group === g[0]; }); });
+    for (var round = 0; round < D.departments.length; round++) {
+      queues.forEach(function (queue) {
+        var d = queue[round], p = d && localProducts.filter(function (p) { return p.category === d.id; })[0];
+        if (p) { featured.push(p); featuredCats[p.category] = true; }
+      });
+    }
+    localProducts.forEach(function (p) { if (!featuredCats[p.category]) { featured.push(p); featuredCats[p.category] = true; } });
+    $('#home-featured').innerHTML = cards(featured.concat(localProducts.filter(function (p) { return featured.indexOf(p) === -1; })).slice(0, 12));
     $('#home-featured').closest('section').hidden = !localProducts.length;
     fill('#home-promos', livePromos.map(promoCard).join(''), 'No promotions are running yet. Zed Supply sellers will run seasonal and store promotions here.',
       '<a class="btn btn--secondary" href="#/sell">Sell and run promotions</a>');
@@ -1599,6 +1632,15 @@
       return;
     }
     var colourSet = Object.create(null), ageSet = {}, sizeSet = Object.create(null), makerSet = Object.create(null), brandSet = {}, conditionSet = {}, dimensions = {};
+    var categoryValues = D.departments.filter(function (d) { return opts.list.some(function (p) { return p.category === d.id; }); }).map(function (d) { return [d.id, d.name]; });
+    var subValues = [];
+    D.departments.forEach(function (d) {
+      d.subs.forEach(function (s) {
+        if (opts.list.some(function (p) { return p.category === d.id && p.sub === s.id; })) {
+          subValues.push([d.id + '/' + s.id, (categoryValues.length > 1 ? d.short + ' / ' : '') + s.name]);
+        }
+      });
+    });
     opts.list.forEach(function (p) {
       ZP.colours(p).forEach(function (c) { colourSet[c] = c; });
       ZP.ages(p).forEach(function (a) { ageSet[a] = 1; });
@@ -1616,6 +1658,8 @@
       '<label class="inline-check"><input type="checkbox" id="lst-promo"> On promotion</label><label class="inline-check"><input type="checkbox" id="lst-stock"> In stock</label>' +
       '<label for="lst-sort" class="visually-hidden">Sort by</label><select id="lst-sort"><option value="">Sort: Relevance</option><option value="asc">Price: low to high</option><option value="desc">Price: high to low</option><option value="rating">Top rated</option></select></div></div>' +
       '<details class="listing-filters"' + (window.matchMedia && matchMedia('(min-width: 900px)').matches ? ' open' : '') + '><summary>Refine products</summary><div class="listing-filters__grid">' +
+      (categoryValues.length > 1 ? facetSelect('lst-category', 'Department', categoryValues) : '') +
+      (subValues.length > 1 ? facetSelect('lst-sub', 'Subcategory', subValues) : '') +
       facetSelect('lst-colour', 'Colour', values(colourSet)) + facetSelect('lst-age', 'Age', ZP.AGES.filter(function (a) { return ageSet[a[0]]; })) +
       facetSelect('lst-size', 'Size / capacity', values(sizeSet)) + facetSelect('lst-brand', 'Brand store', values(brandSet)) +
       facetSelect('lst-maker', 'Manufacturer / brand name', values(makerSet)) +
@@ -1655,6 +1699,8 @@
         measureMin:unit && mn != null ? mn*ZP.UNITS[unit].base : null, measureMax:unit && mx != null ? mx*ZP.UNITS[unit].base : null, offers:checked('lst-offers') };
       var list = opts.list.filter(function (p) {
         var a=p.attributes||{}, age=value('lst-age'), maker=value('lst-maker'), stars=Number(value('lst-stars'))||0;
+        if (value('lst-category') && p.category !== value('lst-category')) return false;
+        if (value('lst-sub') && p.category + '/' + p.sub !== value('lst-sub')) return false;
         if (value('lst-brand') && p.brand !== value('lst-brand')) return false;
         if (maker && String(a.manufacturer||'').toLowerCase()!==maker) return false;
         if (value('lst-condition') && a.condition!==value('lst-condition')) return false;
@@ -1674,8 +1720,17 @@
       $('#lst-grid').innerHTML=list.length?cards(list,false,selectedPrice):'<li class="grid__full">'+empty('No products match these filters. Try a wider range or clear the filters.','')+'</li>';
       $('#lst-count').textContent=list.length+(list.length===1?' product':' products');
     };
-    $$('.toolbar input, .toolbar select, .listing-filters input, .listing-filters select',view).forEach(function(el){el.addEventListener(el.type==='number'?'input':'change',draw);});
-    $('#lst-clear').addEventListener('click',function(){$$('.toolbar input, .toolbar select, .listing-filters input, .listing-filters select',view).forEach(function(el){if(el.type==='checkbox')el.checked=false;else el.value='';});draw();});
+    function syncSubcategories() {
+      var select = $('#lst-sub'), category = value('lst-category');
+      if (!select) return;
+      Array.prototype.slice.call(select.options).forEach(function (option) {
+        var unavailable = !!category && !!option.value && option.value.split('/')[0] !== category;
+        option.hidden = unavailable; option.disabled = unavailable;
+        if (unavailable && option.selected) select.value = '';
+      });
+    }
+    $$('.toolbar input, .toolbar select, .listing-filters input, .listing-filters select',view).forEach(function(el){el.addEventListener(el.type==='number'?'input':'change',function () { syncSubcategories(); draw(); });});
+    $('#lst-clear').addEventListener('click',function(){$$('.toolbar input, .toolbar select, .listing-filters input, .listing-filters select',view).forEach(function(el){if(el.type==='checkbox')el.checked=false;else el.value='';});syncSubcategories();draw();});
     draw();
   }
   var STATUS = ['Order sent on WhatsApp', 'Confirmed by Zed Supply', 'Packed by the seller', 'Out for delivery', 'Delivered'];
@@ -1709,13 +1764,39 @@
       var loose = D.departments.filter(function (d) { return !groups.some(function (g) { return g.list.indexOf(d) !== -1; }); });
       if (loose.length) groups.push({ id: 'other', name: 'More categories', list: loose });
       show(crumbs([['All categories']]) + head('All categories', D.departments.length + ' departments. Choose one, or go straight to what you need.') +
+        '<div class="category-tools"><div class="field"><label for="category-query">Find a department or subcategory</label><input type="search" id="category-query" placeholder="Try laptops, clothing or pet supplies"></div>' +
+        '<div class="field"><label for="category-group">Browse by group</label><select id="category-group"><option value="">All groups</option>' + groups.filter(function (g) { return g.list.length; }).map(function (g) { return '<option value="' + esc(g.id) + '">' + esc(g.name) + '</option>'; }).join('') + '</select></div>' +
+        '<button class="btn btn--secondary btn--sm" id="category-clear" type="button">Clear</button></div><p id="category-count" class="pmeta" role="status"></p>' +
         groups.filter(function (g) { return g.list.length; }).map(function (g) {
-          return '<section class="dept-group" aria-labelledby="dg-' + esc(g.id) + '"><h2 id="dg-' + esc(g.id) + '">' + esc(g.name) + '</h2><ul class="dept-dir">' + g.list.map(function (d) {
+          return '<section class="dept-group" data-category-group="' + esc(g.id) + '" aria-labelledby="dg-' + esc(g.id) + '"><h2 id="dg-' + esc(g.id) + '">' + esc(g.name) + '</h2><ul class="dept-dir">' + g.list.map(function (d) {
             var n = products.filter(function (p) { return p.category === d.id; }).length;
-            return '<li class="dept-dir__item"><a class="dept-dir__head" href="#/dept/' + d.id + '"><span class="dept-dir__icon" aria-hidden="true">' + departmentArtwork(d) + '</span><span><strong>' + esc(d.name) + '</strong><small>' + (n ? n + (n === 1 ? ' product' : ' products') : 'Coming soon') + '</small></span></a>' +
-              (d.subs.length ? '<ul class="dept-dir__subs">' + d.subs.map(function (s) { return '<li><a href="#/dept/' + d.id + '?sub=' + encodeURIComponent(s.id) + '">' + esc(s.name) + '</a></li>'; }).join('') + '</ul>' : '') + '</li>';
+            return '<li class="dept-dir__item" data-category="' + esc(d.id) + '"><a class="dept-dir__head" href="#/dept/' + d.id + '"><span class="dept-dir__icon" aria-hidden="true">' + departmentArtwork(d) + '</span><span><strong>' + esc(d.name) + '</strong><small>' + (n ? n + (n === 1 ? ' product' : ' products') : 'Coming soon') + '</small></span></a>' +
+              (d.subs.length ? '<ul class="dept-dir__subs">' + d.subs.map(function (s) {
+                var count = products.filter(function (p) { return p.category === d.id && p.sub === s.id; }).length;
+                // Counts only where there's something to count; the live store starts empty
+                return '<li><a href="#/dept/' + d.id + '?sub=' + encodeURIComponent(s.id) + '">' + esc(s.name) + (count ? ' <span class="category-stock">(' + count + ')</span>' : '') + '</a></li>';
+              }).join('') + '</ul>' : '') + '</li>';
           }).join('') + '</ul></section>';
-        }).join(''), 'All categories');
+        }).join('') + '<p id="category-empty" class="notice" hidden>No categories match. Try a broader search or clear the filters.</p>', 'All categories');
+      function filterCategories() {
+        var words = $('#category-query').value.trim().toLowerCase().split(/\s+/).filter(Boolean), group = $('#category-group').value, total = 0;
+        $$('.dept-group', view).forEach(function (section) {
+          var visible = 0;
+          $$('[data-category]', section).forEach(function (card) {
+            var d = dept(card.getAttribute('data-category'));
+            var text = [d.name, d.short].concat(d.subs.map(function (s) { return s.name; })).join(' ').toLowerCase();
+            card.hidden = (!!group && section.getAttribute('data-category-group') !== group) || !words.every(function (w) { return text.indexOf(w) !== -1; });
+            if (!card.hidden) visible++;
+          });
+          section.hidden = !visible; total += visible;
+        });
+        $('#category-count').textContent = total + ' of ' + D.departments.length + ' departments';
+        $('#category-empty').hidden = total > 0;
+      }
+      $('#category-query').addEventListener('input', filterCategories);
+      $('#category-group').addEventListener('change', filterCategories);
+      $('#category-clear').addEventListener('click', function () { $('#category-query').value = ''; $('#category-group').value = ''; filterCategories(); $('#category-query').focus(); });
+      filterCategories();
     },
 
     // A department, or one of its subcategories with ?sub=<id>
@@ -1726,7 +1807,7 @@
       if (q && q.get('sub') && !sub) return views.notfound();
       var inDept = products.filter(function (p) { return p.category === id; });
       var groups = multiSellerGroups(id, sub ? sub.id : '');
-      var subChips = d.subs.length ? '<ul class="chips" aria-label="' + esc(d.short) + ' categories"><li><a class="chip" href="#/dept/' + d.id + '"' + (sub ? '' : ' aria-current="page"') + '>All ' + esc(d.short) + ' <span class="chip__count">' + inDept.length + '</span></a></li>' + d.subs.map(function (s) {
+      var subChips = d.subs.length ? '<ul class="chips" aria-label="' + esc(d.short) + ' categories"><li><a class="chip" href="#/dept/' + d.id + '"' + (sub ? '' : ' aria-current="page"') + '>All ' + esc(d.short) + (inDept.length ? ' <span class="chip__count">' + inDept.length + '</span>' : '') + '</a></li>' + d.subs.map(function (s) {
         var n = inDept.filter(function (p) { return p.sub === s.id; }).length;
         return '<li><a class="chip" href="#/dept/' + d.id + '?sub=' + encodeURIComponent(s.id) + '"' + (sub && sub.id === s.id ? ' aria-current="page"' : '') + '>' + esc(s.name) + (n ? ' <span class="chip__count">' + n + '</span>' : '') + '</a></li>';
       }).join('') + '</ul>' : '';

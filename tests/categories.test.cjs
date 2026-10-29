@@ -11,6 +11,53 @@ const P = sandbox.window.ZSProduct;
 const ctx = { departments: D.departments, brands: [], products: [] };
 const draft = () => ({ title: 'Phone', seller: 'test', category: 'tech', sub: 'phones', priceZMW: 100, stock: 'in' });
 
+test('every department has two valid, illustrated local demo products in different subcategories', () => {
+  const X = sandbox.window.ZS_SAMPLE;
+  const local = X.products.filter(p => p.source !== 'china');
+  assert.equal(new Set(X.products.map(p => p.id)).size, X.products.length);
+  for (const d of D.departments) {
+    const items = local.filter(p => p.category === d.id);
+    assert(items.length >= 2, d.id + ' needs at least two sample products');
+    assert(new Set(items.map(p => p.sub)).size >= 2, d.id + ' needs different subcategories');
+  }
+  for (const p of local) {
+    assert.equal(p.sample, true, p.id);
+    assert(X.sellers.some(s => s.id === p.seller), p.id);
+    assert.equal(P.validate(p, { departments: D.departments, brands: X.brands, products: X.products }).length, 0, p.id);
+    assert(fs.existsSync(p.image), p.image);
+    assert(p.demoSales.every(n => Number.isInteger(n) && n >= 0), p.id);
+  }
+  assert.equal(D.products.some(p => p.sample), false, 'live catalogue must not contain demo listings');
+});
+
+test('sample promotions reference products owned by their seller', () => {
+  const X = sandbox.window.ZS_SAMPLE;
+  for (const pr of X.promotions) {
+    assert.equal(pr.sample, true);
+    for (const id of pr.products) {
+      const p = X.products.find(p => p.id === id);
+      assert(p, id);
+      assert.equal(p.seller, pr.seller, pr.id + ': ' + id);
+    }
+    if (pr.demoDays) assert(pr.demoDays[0] <= 0 && pr.demoDays[1] > 0);
+  }
+});
+
+test('stock planner follows all departments and migrates saved sector choices without losing targets', () => {
+  const source = fs.readFileSync('js/stock-planner.js', 'utf8').replace('  window.ZSStock = {',
+    '  window.plannerTest = { sectors: SECTORS, load: function(saved) { H = { store: { get: function() { return saved; } } }; return loadSettings(); } };\n  window.ZSStock = {');
+  const context = { window: { ZS_CATALOGUE: D } };
+  vm.runInNewContext(source, context);
+  const planner = context.window.plannerTest;
+  for (const d of D.departments) assert(planner.sectors.some(s => s.id === d.id && s.name === d.name), d.id);
+  for (const [before, after] of [['grocery', 'essentials'], ['phones', 'tech'], ['fashion', 'womens'], ['pets', 'pets'], ['missing', 'other']]) {
+    const settings = planner.load({ sector: before, low: 7, high: 12 });
+    assert.equal(settings.sector, after);
+    assert.equal(settings.low, 7);
+    assert.equal(settings.high, 12);
+  }
+});
+
 test('category identifiers, product subcategories and artwork are consistent', () => {
   assert.equal(new Set(D.departments.map(d => d.id)).size, D.departments.length);
   const groups = new Set(D.departmentGroups.map(g => g[0]));
