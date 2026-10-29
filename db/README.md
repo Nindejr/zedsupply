@@ -55,6 +55,7 @@ Apply once, in order, using a migration runner or `psql -v ON_ERROR_STOP=1`:
 6. `migrations/006_orders_aftersales.sql`
 7. `migrations/007_subcategories.sql`
 8. `migrations/008_address_limit_lock.sql`
+9. `migrations/009_locations.sql`
 
 Migration 004 adds optional item condition, required notes for non-new items, validated feature bullets and additional category-template fields. Extra variation axes use the existing custom-option relationships. See [the detailed product brief](../PRODUCT-FEATURES.md) for frontend field mapping and acceptance criteria.
 
@@ -65,6 +66,8 @@ Migration 006 adds what checkout and after-sales need: saved addresses, the deli
 Migration 007 adds department groups, subcategories and a subcategory on each product, which must belong to the product's own department. The rows come from `departmentGroups` and `departments` in js/catalogue.js.
 
 Migration 008 makes the 10-address limit hold when two addresses are saved at the same moment, by locking the buyer's row before counting. The concurrency test found the gap in 006: two simultaneous saves each counted 9 and both went through.
+
+Migration 009 adds provinces and towns (with centre coordinates for matching a device position to the nearest town), seller stock locations with collection details, the provinces a seller delivers to, delivery estimates by distance, and delivery or collection on orders. Buyers' exact positions are never stored, only their town and province.
 
 Migration 003 corrects committed migration 002 without rewriting migration history. Existing invalid prices, mixed-product options or incomplete combinations abort the transaction. Existing offers are backfilled from the current seller range; if historical terms differ or the product no longer has a range, reconcile those records from authoritative order/offer history before migrating. Do not guess historical prices.
 
@@ -111,8 +114,8 @@ Suggested next-step routes (design only, not implemented):
 
 ## Reproducible checks
 
-Run `node --test tests/*.test.cjs` for the JavaScript tests. For SQL, apply all eight migrations in order to an isolated database, then run each `.sql` file in `db/tests/` with `psql -v ON_ERROR_STOP=1 -f <file>`. For concurrency, run `npm install --no-save pg` then `node db/tests/concurrency.mjs` against that database (never one holding real data): it interleaves two live connections to check the rating cache, one open offer per buyer, single redemption of an accepted offer and the address limit. The SQL tests roll back their fixtures. `integrity.sql` and `product_details.sql` cover invalid data, purchase links, review aggregates, conditions, features and custom options. `aftersales_categories.sql` covers migrations 005–007: the new units, extra photos, offer ranges scaled to a variant's price, saved addresses, order snapshots, cancellations, returns, complaints and subcategories.
+Run `node --test tests/*.test.cjs` for the JavaScript tests. For SQL, apply all nine migrations in order to an isolated database, then run each `.sql` file in `db/tests/` with `psql -v ON_ERROR_STOP=1 -f <file>`. For concurrency, run `npm install --no-save pg` then `node db/tests/concurrency.mjs` against that database (never one holding real data): it interleaves two live connections to check the rating cache, one open offer per buyer, single redemption of an accepted offer and the address limit. The SQL tests roll back their fixtures. `integrity.sql` and `product_details.sql` cover invalid data, purchase links, review aggregates, conditions, features and custom options. `aftersales_categories.sql` covers migrations 005–007: the new units, extra photos, offer ranges scaled to a variant's price, saved addresses, order snapshots, cancellations, returns, complaints and subcategories.
 
-Latest check (29 October 2026), on a native PostgreSQL 18.6 server (Windows, port 5432) in a dedicated `zedsupply_test` database rebuilt from empty: all eight migrations applied cleanly, all three SQL test files passed, and all four concurrency tests passed; all 22 JavaScript tests passed under Node.js 26. The same migrations and SQL tests also passed in PGlite 0.5.13. Deliberately broken copies of the new SQL tests failed as expected, so they are not passing trivially. The concurrency test found the address-limit race fixed by migration 008.
+Latest check (29 October 2026), on a native PostgreSQL 18.6 server (Windows, port 5432) in a dedicated `zedsupply_test` database rebuilt from empty: all nine migrations applied cleanly, all four SQL test files passed, and all four concurrency tests passed; all 26 JavaScript tests passed under Node.js 26. The same migrations and SQL tests also passed in PGlite 0.5.13. Deliberately broken copies of the new SQL tests failed as expected, so they are not passing trivially. The concurrency test found the address-limit race fixed by migration 008, and `locations.sql` found that a collection point could be saved without an address, fixed in 009 before release.
 
 References: [PostgreSQL CHECK semantics](https://www.postgresql.org/docs/16/ddl-constraints.html), [transaction isolation](https://www.postgresql.org/docs/16/transaction-iso.html), [PGlite test engine](https://pglite.dev/docs/).

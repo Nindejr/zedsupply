@@ -56,6 +56,11 @@
     ['sellers', 'brands', 'products', 'promotions', 'vouchers'].forEach(function (k) { D[k] = (D[k] || []).concat(X[k] || []); });
     D.banners = (D.banners || []).slice(0, 2).concat(X.banners || [], (D.banners || []).slice(2));
     if (!D.demoOrder) D.demoOrder = X.demoOrder;
+    // Sample delivery times, so the demo can show dates, while the real ones are still unset
+    var liveEst = (S.delivery || {}).estimates || {};
+    if (X.deliveryEstimates && S.delivery && !Object.keys(liveEst).some(function (k) { return liveEst[k]; })) {
+      S.delivery.estimates = X.deliveryEstimates; S.delivery.sampleEstimates = true;
+    }
     S.isSample = true;
     // Sample sales are [this month, last month], so the demo's trending and top picks never go stale
     var mk = function (d) { return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2); }, n0 = new Date();
@@ -263,10 +268,13 @@
 
   function allPromos() { return D.promotions.concat(store.get('promos', [])); }
   function promoStatus(pr) { return today < pr.starts ? 'upcoming' : (today > pr.ends ? 'ended' : 'live'); }
+  // A promotion limited to some provinces (areas) applies only when the buyer's location is in one
+  function promoHere(pr) { return !(pr.areas && pr.areas.length) || (!!loc && pr.areas.indexOf(provinceOf(loc)) !== -1); }
+  function promoAreasText(pr) { return pr.areas && pr.areas.length ? 'Only in ' + pr.areas.map(provinceName).filter(Boolean).join(', ') : ''; }
   function livePromoFor(p) {
     var best = null;
     allPromos().forEach(function (pr) {
-      if (promoStatus(pr) === 'live' && pr.products.indexOf(p.id) !== -1 && (!best || pr.discount > best.discount)) best = pr;
+      if (promoStatus(pr) === 'live' && pr.products.indexOf(p.id) !== -1 && promoHere(pr) && (!best || pr.discount > best.discount)) best = pr;
     });
     return best;
   }
@@ -457,9 +465,10 @@
   }
 
   /* ---------- Delivery location ----------
-     { town, area, landmark }. Kept for this browser tab (sessionStorage) unless the
-     customer ticks "Remember on this device" (localStorage). Never sent anywhere
-     except inside WhatsApp messages the customer chooses to send. No GPS. */
+     { town, area, landmark, province, mode: 'delivery' | 'collection', via: 'typed' | 'gps' }.
+     Kept for this browser tab (sessionStorage) unless the customer ticks "Remember on this
+     device" (localStorage). Never sent anywhere except inside WhatsApp messages the customer
+     chooses to send. GPS only finds the nearest town on the device; coordinates aren't kept. */
   var loc = readLoc();
   function cleanText(v, max) { return String(v || '').replace(/[\r\n]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, max); }
   function readLoc() {
@@ -471,18 +480,19 @@
   function locShort() { return loc ? (loc.area ? loc.area + ', ' : '') + loc.town : ''; }
   function locFull() { return loc ? locShort() + (loc.landmark ? ' (' + loc.landmark + ')' : '') : ''; }
   function saveLoc(l) {
-    loc = l && l.town ? { town: l.town, area: l.area || '', landmark: l.landmark || '', remember: !!l.remember } : null;
+    loc = l && l.town ? { town: l.town, area: l.area || '', landmark: l.landmark || '', province: l.province || (townInfo(l.town) || {}).province || '',
+      mode: l.mode === 'collection' ? 'collection' : 'delivery', via: l.via === 'gps' ? 'gps' : 'typed', remember: !!l.remember } : null;
     mem.location = loc;
     try { localStorage.removeItem('zs-location'); } catch (e) { /* blocked */ }
     try { sessionStorage.removeItem('zs-location'); } catch (e) { /* blocked */ }
     if (loc) {
-      var data = JSON.stringify({ town: loc.town, area: loc.area, landmark: loc.landmark });
+      var data = JSON.stringify({ town: loc.town, area: loc.area, landmark: loc.landmark, province: loc.province, mode: loc.mode, via: loc.via });
       try { (loc.remember ? localStorage : sessionStorage).setItem('zs-location', data); } catch (e) { /* memory only */ }
     }
     refreshLoc();
   }
   function waUrl(message) {
-    if (loc) message += '\nDelivery location: ' + locFull();
+    if (loc) message += '\n' + (loc.mode === 'collection' ? 'My location (collecting): ' : 'Delivery location: ') + locFull();
     return WA + encodeURIComponent(message);
   }
   function syncWa(scope) {
@@ -493,7 +503,12 @@
       : '<span class="pstock pstock--low">Not set yet. Add it so we can confirm delivery to your area.</span>';
   }
   function refreshLoc() {
-    $$('[data-location-label]').forEach(function (el) { el.textContent = loc ? 'Deliver to: ' + locShort() : 'Deliver to: set location'; });
+    $$('[data-location-label]').forEach(function (el) { el.textContent = loc ? (loc.mode === 'collection' ? 'Collect near: ' : 'Deliver to: ') + locShort() : 'Deliver to: set location'; });
+    // Header pin: "Deliver to / Kitwe" or "Collect near / Kitwe"
+    $$('[data-loc-pin]').forEach(function (el) { el.textContent = loc ? loc.town : 'Set location'; });
+    $$('[data-loc-pin-mode]').forEach(function (el) { el.textContent = loc && loc.mode === 'collection' ? 'Collect near' : 'Deliver to'; });
+    // Product page delivery block follows the new location straight away
+    $$('[data-fulfil]').forEach(function (el) { var fp = product(el.getAttribute('data-fulfil')); if (fp) el.innerHTML = fulfilHTML(fp); });
     $$('[data-loc-summary]').forEach(function (el) { el.innerHTML = locSummaryHTML(); });
     var locErr = $('#co-loc-err'); if (locErr && loc) locErr.hidden = true;
     // Pre-fill the help centre contact form, unless the customer has typed their own
@@ -501,6 +516,124 @@
     if (cf && (!cf.value || cf.getAttribute('data-auto'))) { cf.value = locFull(); cf.setAttribute('data-auto', '1'); }
     syncWa(document);
   }
+  /* ---------- Places, GPS, seller locations and delivery estimates ----------
+     Provinces and towns come from settings in catalogue.js. A seller's stock location and the
+     buyer's town decide the zone (same town, same province, elsewhere in Zambia), which gives
+     the delivery estimate (settings.delivery.estimates) and whether the seller delivers there. */
+  var LOCSET = S.location || {};
+  var PROVINCES = S.provinces || [];
+  var TOWNS = (S.towns || []).map(function (t) { return { name: t[0], province: t[1], lat: t[2], lng: t[3] }; });
+  function provinceName(id) { var p = PROVINCES.filter(function (x) { return x[0] === id; })[0]; return p ? p[1] : ''; }
+  function townInfo(name) { var n = String(name || '').trim().toLowerCase(); return TOWNS.filter(function (t) { return t.name.toLowerCase() === n; })[0] || null; }
+  function provinceOf(l) { return !l ? '' : l.province || (townInfo(l.town) || {}).province || ''; }
+  // Great-circle distance in km
+  function kmBetween(lat1, lng1, lat2, lng2) {
+    var r = Math.PI / 180, dLat = (lat2 - lat1) * r, dLng = (lng2 - lng1) * r;
+    var h = Math.sin(dLat / 2) * Math.sin(dLat / 2) + Math.cos(lat1 * r) * Math.cos(lat2 * r) * Math.sin(dLng / 2) * Math.sin(dLng / 2);
+    return 2 * 6371 * Math.asin(Math.min(1, Math.sqrt(h)));
+  }
+  function nearestTown(lat, lng) {
+    var best = null;
+    TOWNS.forEach(function (t) { var km = kmBetween(lat, lng, t.lat, t.lng); if (!best || km < best.km) best = { town: t, km: km }; });
+    return best;
+  }
+  // The device's GPS, turned into the nearest town here; done({ town, province } | { error })
+  function locateMe(done) {
+    if (LOCSET.gps === false || !navigator.geolocation) return done({ error: 'This browser can\'t share your location. Choose your town instead.' });
+    navigator.geolocation.getCurrentPosition(function (pos) {
+      var n = nearestTown(pos.coords.latitude, pos.coords.longitude);
+      if (!n || n.km > (Number(LOCSET.gpsMaxKm) || 120)) return done({ error: 'You seem to be far from the towns we deliver to' + (n ? ' (nearest: ' + n.town.name + ', ' + Math.round(n.km) + ' km)' : '') + '. Choose your town instead.' });
+      done({ town: n.town.name, province: n.town.province, km: n.km });
+    }, function (err) {
+      done({ error: err && err.code === 1 ? 'Location sharing was declined. You can choose your town instead.' : 'We couldn\'t get your location just now. Choose your town instead.' });
+    }, { enableHighAccuracy: false, timeout: 12000, maximumAge: 600000 });
+  }
+  function useGps(status, after) {
+    if (status) { status.className = 'pmeta'; status.textContent = 'Finding your nearest town…'; }
+    locateMe(function (r) {
+      if (r.error) { if (status) { status.className = 'form-status is-error'; status.textContent = r.error; } else toast(esc(r.error)); return; }
+      saveLoc({ town: r.town, area: loc && loc.town === r.town ? loc.area : '', landmark: loc && loc.town === r.town ? loc.landmark : '', province: r.province, mode: loc ? loc.mode : 'delivery', via: 'gps', remember: loc ? loc.remember : false });
+      if (status) { status.className = 'form-status'; status.textContent = 'Found: ' + r.town + ', ' + provinceName(r.province) + ' Province. Add your area below so the rider can find you.'; }
+      if (after) after(r);
+    });
+  }
+  // A seller's stock location: their Seller Centre setting on this device, then catalogue.js, then city
+  function sellerLoc(s) {
+    if (!s) return null;
+    var l = (store.get('seller-locations', {}) || {})[s.id] || s.location || (s.city ? { town: s.city } : null);
+    if (!l || !l.town) return null;
+    return { town: l.town, area: l.area || '', province: l.province || (townInfo(l.town) || {}).province || '',
+      collection: l.collection || { enabled: false }, deliversTo: l.deliversTo && l.deliversTo !== 'all' ? l.deliversTo : 'all' };
+  }
+  // How far an order travels: 'town', 'province' or 'country'; '' when either end is unknown
+  function zoneFor(s) {
+    var sl = sellerLoc(s);
+    if (!sl || !loc) return '';
+    if (sl.town.toLowerCase() === String(loc.town).toLowerCase()) return 'town';
+    var bp = provinceOf(loc);
+    return bp && bp === sl.province ? 'province' : 'country';
+  }
+  // Does the seller deliver to the buyer's province? Unknown places get the benefit of the doubt.
+  function deliversHere(s) {
+    var sl = sellerLoc(s), bp = provinceOf(loc);
+    return !sl || !loc || sl.deliversTo === 'all' || !bp || sl.deliversTo.indexOf(bp) !== -1;
+  }
+  function collectionAt(s) { var sl = sellerLoc(s); return sl && sl.collection && sl.collection.enabled ? sl : null; }
+  // The working day n days ahead, skipping closed days; orders after the cutoff start tomorrow
+  function workingDay(n) {
+    var d = new Date(now.getFullYear(), now.getMonth(), now.getDate()), closed = DELIVERY.closedDays || [];
+    var left = n + (now.getHours() >= (Number(DELIVERY.cutoff) || 24) ? 1 : 0);
+    while (left > 0) { d = shift(d, 1); if (closed.indexOf(d.getDay()) === -1) left--; }
+    return d;
+  }
+  function shortDate(d) { return DAYS[d.getDay()].slice(0, 3) + ' ' + d.getDate() + ' ' + MONTHS3[d.getMonth()]; }
+  function estimateFor(zone) {
+    var e = zone && (DELIVERY.estimates || {})[zone];
+    if (!e || e.length !== 2) return null;
+    var from = workingDay(e[0]), to = workingDay(e[1]);
+    return { min: e[0], max: e[1], text: e[0] === e[1] ? 'Arrives ' + shortDate(from) : 'Arrives ' + shortDate(from) + ' – ' + shortDate(to) };
+  }
+  // One line for a seller's parcel: when it arrives, or where to collect it
+  function fulfilLine(s) {
+    if (!loc) return '';
+    var sl = sellerLoc(s);
+    if (loc.mode === 'collection') { var c = collectionAt(s); return c ? 'Collect in ' + c.town + (c.collection.hours ? ' · ' + c.collection.hours : '') : 'No collection from this seller · delivered instead'; }
+    if (!deliversHere(s)) return 'Doesn\'t deliver to ' + (provinceName(provinceOf(loc)) || loc.town) + ' yet';
+    var est = estimateFor(zoneFor(s));
+    return (sl ? 'Ships from ' + sl.town + ' · ' : '') + (est ? est.text : 'delivery time confirmed on WhatsApp');
+  }
+  // Product page: where it comes from, whether it reaches the buyer, and when
+  function fulfilHTML(p) {
+    if (p.source === 'china') return '<p>' + esc(p.shipping) + '</p>';
+    var s = seller(p.seller), sl = sellerLoc(s), out;
+    if (!loc) {
+      out = '<p class="fulfil__main">' + (sl ? 'Ships from ' + esc(sl.town) : esc(S.deliveryText || '')) + '</p>' +
+        '<p class="pmeta"><button class="link-btn" type="button" data-open-location aria-haspopup="dialog">Set your location</button> to see when it can reach you, and stock near you.</p>';
+    } else if (loc.mode === 'collection') {
+      var c = collectionAt(s);
+      out = c ? '<p class="fulfil__main">Collect from ' + esc(s.name) + '</p><p class="pmeta">' + esc([c.collection.address, c.town].filter(Boolean).join(', ')) + (c.collection.hours ? ' · ' + esc(c.collection.hours) : '') + '</p>' +
+          (zoneFor(s) !== 'town' ? '<p class="pstock pstock--low">That\'s in ' + esc(c.town) + ', not ' + esc(loc.town) + '.</p>' : '')
+        : '<p class="pstock pstock--low">This seller doesn\'t offer collection.</p><p class="pmeta"><button class="link-btn" type="button" data-set-mode="delivery">Switch to delivery</button></p>';
+    } else if (!deliversHere(s)) {
+      var cc = collectionAt(s);
+      out = '<p class="pstock pstock--out">Doesn\'t deliver to ' + esc(provinceName(provinceOf(loc)) || loc.town) + ' yet</p>' +
+        (cc ? '<p class="pmeta">You can collect it in ' + esc(cc.town) + '. <button class="link-btn" type="button" data-set-mode="collection">Switch to collection</button></p>' : '<p class="pmeta">Ask us on WhatsApp: we may be able to arrange it.</p>');
+    } else {
+      var zone = zoneFor(s), est = estimateFor(zone);
+      out = '<p class="fulfil__main">' + (est ? esc(est.text) : 'Delivery to ' + esc(loc.town) + ': time confirmed on WhatsApp') + '</p>' +
+        '<p class="pmeta">' + (zone === 'town' ? 'In stock near you, in ' + esc(sl.town) : sl ? 'Ships from ' + esc(sl.town) : '') + (est && DELIVERY.sampleEstimates ? ' · sample delivery times' : '') + '</p>';
+    }
+    if (loc && !user()) out += '<p class="pmeta"><a href="#/account">Sign in</a> to keep your location and see the most accurate dates and offers.</p>';
+    return '<div class="fulfil">' + out + '</div>';
+  }
+  // Delivery or collection: saved with the location; remembered for this visit before one is set
+  var pendingMode = 'delivery';
+  function coMode() { return loc ? loc.mode : pendingMode; }
+  function setMode(mode) {
+    pendingMode = mode === 'collection' ? 'collection' : 'delivery';
+    if (loc) { var l = {}; for (var k in loc) l[k] = loc[k]; l.mode = pendingMode; saveLoc(l); }
+  }
+
   var cfField = $('#contact-location');
   if (cfField) cfField.addEventListener('input', function () { cfField.removeAttribute('data-auto'); });
 
@@ -552,12 +685,48 @@
   });
 
   var locForm = $('#location-form');
+  // The dialog's HTML is the same on every page; GPS, province and delivery-or-collection are added here
+  if (locForm) {
+    var townField = locForm.town.closest('.field');
+    var gpsRow = document.createElement('div');
+    gpsRow.className = 'loc-gps';
+    gpsRow.innerHTML = (LOCSET.gps !== false && navigator.geolocation ? '<button class="btn btn--secondary btn--block" type="button" id="loc-gps"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/><circle cx="12" cy="12" r="7"/></svg>Use my current location</button>' +
+      '<p class="hint">Finds your nearest town on this device. Your exact position isn\'t saved or sent.</p><p class="pmeta" id="loc-gps-status" role="status" aria-live="polite"></p><p class="loc-or"><span>or enter it</span></p>' : '');
+    townField.parentNode.insertBefore(gpsRow, townField);
+    var provField = document.createElement('div');
+    provField.className = 'field';
+    provField.innerHTML = '<label for="loc-province">Province</label><select id="loc-province" name="province"><option value="">Choose a province</option>' +
+      PROVINCES.map(function (p) { return '<option value="' + esc(p[0]) + '">' + esc(p[1]) + '</option>'; }).join('') + '</select>';
+    townField.parentNode.insertBefore(provField, townField.nextSibling);
+    var modeField = document.createElement('fieldset');
+    modeField.className = 'field loc-mode';
+    modeField.innerHTML = '<legend>How do you want your orders?</legend>' +
+      '<div class="check"><input type="radio" name="mode" id="loc-mode-delivery" value="delivery" checked><label for="loc-mode-delivery">Deliver them to me</label></div>' +
+      '<div class="check"><input type="radio" name="mode" id="loc-mode-collection" value="collection"><label for="loc-mode-collection">I\'ll collect from the seller</label></div>';
+    var rememberRow = locForm.remember.closest('.check');
+    rememberRow.parentNode.insertBefore(modeField, rememberRow);
+    // Town suggestions from the full list, and the province filled in from a known town
+    var townList = $('#zm-towns');
+    if (townList && TOWNS.length) townList.innerHTML = TOWNS.map(function (t) { return '<option value="' + esc(t.name) + '"></option>'; }).join('');
+    locForm.town.addEventListener('input', function () { var t = townInfo(locForm.town.value); if (t) locForm.province.value = t.province; });
+    var gpsBtn = $('#loc-gps');
+    if (gpsBtn) gpsBtn.addEventListener('click', function () {
+      useGps($('#loc-gps-status'), function (r) {
+        locForm.town.value = r.town; locForm.province.value = r.province;
+        locForm.area.focus();
+      });
+    });
+  }
   function openLocation() {
     if (!locForm) return;
+    hideLocTip(true);
     locForm.town.value = loc ? loc.town : '';
     locForm.area.value = loc ? loc.area : '';
     locForm.landmark.value = loc ? loc.landmark : '';
+    locForm.province.value = provinceOf(loc);
     locForm.remember.checked = !!(loc && loc.remember);
+    var mode = $('#loc-mode-' + (loc && loc.mode === 'collection' ? 'collection' : 'delivery')); if (mode) mode.checked = true;
+    var st = $('#loc-gps-status'); if (st) { st.textContent = ''; st.className = 'pmeta'; }
     $('#loc-clear').hidden = !loc;
     openDialog($('#location-dialog'));
   }
@@ -566,9 +735,12 @@
       e.preventDefault();
       var town = cleanText(locForm.town.value, 60);
       if (!town) { locForm.town.focus(); return; }
-      saveLoc({ town: town, area: cleanText(locForm.area.value, 60), landmark: cleanText(locForm.landmark.value, 100), remember: locForm.remember.checked });
+      var modePick = $('input[name="mode"]:checked', locForm);
+      saveLoc({ town: town, area: cleanText(locForm.area.value, 60), landmark: cleanText(locForm.landmark.value, 100), province: locForm.province.value,
+        mode: modePick ? modePick.value : 'delivery', via: loc && loc.town === town ? loc.via : 'typed', remember: locForm.remember.checked });
       closeDialog($('#location-dialog'));
-      toast('Delivering to ' + esc(locShort()));
+      toast((loc.mode === 'collection' ? 'Collecting near ' : 'Delivering to ') + esc(locShort()));
+      if (onIndex && /^#\/(cart|dept|search|deals|store|brand|promo)/.test(location.hash)) route();
     });
     $('#loc-clear').addEventListener('click', function () {
       saveLoc(null);
@@ -576,6 +748,50 @@
       toast('Delivery location cleared');
     });
   }
+
+  /* ---------- First-visit bubble at the location pin ----------
+     Shown once (until dismissed or a location is set), pointing at the pin in the header. */
+  var locTip = null;
+  function hideLocTip(remember) {
+    if (locTip) { locTip.remove(); locTip = null; window.removeEventListener('resize', placeLocTip); }
+    if (remember) store.set('loc-tip-seen', true);
+  }
+  function placeLocTip() {
+    var pin = $('#loc-pin');
+    if (!locTip || !pin) return;
+    var r = pin.getBoundingClientRect(), w = locTip.offsetWidth, vw = document.documentElement.clientWidth;
+    var left = Math.max(12, Math.min(vw - w - 12, r.left + r.width / 2 - w / 2 + window.scrollX));
+    locTip.style.top = (r.bottom + window.scrollY + 12) + 'px';
+    locTip.style.left = left + 'px';
+    locTip.style.setProperty('--arrow', Math.max(16, Math.min(w - 16, r.left + r.width / 2 + window.scrollX - left)) + 'px');
+  }
+  function showLocTip() {
+    var pin = $('#loc-pin');
+    if (LOCSET.tip === false || loc || locTip || store.get('loc-tip-seen', false) || !pin || !pin.offsetParent) return;
+    locTip = document.createElement('div');
+    locTip.className = 'loc-tip';
+    locTip.setAttribute('role', 'dialog');
+    locTip.setAttribute('aria-labelledby', 'loc-tip-title');
+    locTip.innerHTML = '<button class="loc-tip__x" type="button" data-loc-tip="close" aria-label="Close">×</button>' +
+      '<p class="loc-tip__title" id="loc-tip-title">Where are you?</p>' +
+      '<p>Set your town to see what\'s in stock near you, delivery times and offers for your area, and whether you can collect.</p>' +
+      '<div class="btn-row">' + (LOCSET.gps !== false && navigator.geolocation ? '<button class="btn btn--primary btn--sm" type="button" data-loc-tip="gps">Use my location</button>' : '') +
+      '<button class="btn btn--secondary btn--sm" type="button" data-loc-tip="choose">Choose a town</button></div>' +
+      '<button class="link-btn" type="button" data-loc-tip="later">Not now</button><p class="pmeta" role="status" aria-live="polite" data-loc-tip-status></p>';
+    document.body.appendChild(locTip);
+    placeLocTip();
+    window.addEventListener('resize', placeLocTip);
+    locTip.addEventListener('click', function (e) {
+      var b = e.target.closest('[data-loc-tip]'); if (!b) return;
+      var act = b.getAttribute('data-loc-tip');
+      if (act === 'gps') {
+        useGps($('[data-loc-tip-status]', locTip), function () { hideLocTip(true); toast('Showing delivery to ' + esc(loc.town) + '. <button class="link-btn" type="button" data-open-location>Change or add your area</button>'); if (onIndex && location.hash.indexOf('#/') === 0) route(); });
+      } else if (act === 'choose') { hideLocTip(true); openLocation(); }
+      else hideLocTip(true);
+    });
+    locTip.addEventListener('keydown', function (e) { if (e.key === 'Escape') { hideLocTip(true); pin.focus(); } });
+  }
+  setTimeout(showLocTip, 1500);
 
   /* ---------- Data saver ---------- */
   // Swap 3D category and store artwork for the tiny line icons
@@ -828,7 +1044,10 @@
       '<div class="ship-scope" role="radiogroup" aria-label="Where is it going?">' + Object.keys(SCOPES).map(function (s) {
         return '<label class="chip ship-scope__opt"><input type="radio" name="co-scope" value="' + s + '"' + (s === shipScope ? ' checked' : '') + '> ' + esc(SCOPES[s]) + '</label>';
       }).join('') + '</div>' +
-      (DELIVERY.estimates && DELIVERY.estimates[shipScope] ? '<p class="pmeta ship-estimate">Usually delivered in ' + esc(DELIVERY.estimates[shipScope]) + '.</p>' : '') +
+      (function () {
+        var e = (DELIVERY.estimates || {})[shipScope];
+        return e && e.length === 2 ? '<p class="pmeta ship-estimate">Usually delivered in ' + (e[0] === e[1] ? e[0] : e[0] + '–' + e[1]) + ' working day' + (e[1] === 1 ? '' : 's') + (DELIVERY.sampleEstimates ? ' (sample times)' : '') + '.</p>' : '';
+      })() +
       opt('', 'Zed Supply arranges it', 'We confirm the courier and fee on WhatsApp') +
       top.map(function (c) { return opt(c.id, c.name, c.unlicensed ? 'Licence not confirmed' : ''); }).join('') +
       (rest.length ? '<div class="field"><label for="co-ship-more">Or choose another courier (' + rest.length + ')</label><select id="co-ship-more"><option value="">Choose a courier…</option>' +
@@ -952,7 +1171,7 @@
     var otherSellers = others.filter(function (x) { return x.seller && x.seller !== p.seller; }).length;
     return '<li><article class="pcard">' +
       '<div class="pflags">' + (rank ? '<span class="rank">#' + rank + '<span class="visually-hidden"> in this list</span></span>' : '') + (pr.off ? '<span class="flag-sale">-' + pr.off + '%</span>' : '') +
-        (pr.deal ? '<span class="badge badge--deal">' + esc(DEAL_REASONS[pr.deal.reason] || 'Deal') + '</span>' : '') + (pr.promo ? '<span class="badge">Promotion</span>' : '') + (p.sample ? '<span class="tag-sample">Sample</span>' : '') + '</div>' +
+        (pr.deal ? '<span class="badge badge--deal">' + esc(DEAL_REASONS[pr.deal.reason] || 'Deal') + '</span>' : '') + (pr.promo ? '<span class="badge">Promotion</span>' : '') + (/^(town|province)$/.test(zoneFor(s)) ? '<span class="badge badge--near">Near you</span>' : '') + (p.sample ? '<span class="tag-sample">Sample</span>' : '') + '</div>' +
       likeBtn(p) +
       '<a class="pmedia" href="' + R + 'product/' + esc(p.id) + '" tabindex="-1" aria-hidden="true">' + media(p) + '</a>' +
       '<div class="pbody">' +
@@ -976,6 +1195,7 @@
       '<span class="promo__off">' + (Number(pr.discount) || 0) + '% off</span>' +
       '<' + h + '>' + esc(pr.title) + '</' + h + '>' +
       '<p>' + esc(se.name) + (s ? ' · ' + esc(s.name) : '') + (pr.sample ? ' · Sample' : '') + (pr.demo ? ' · Demo' : '') + '</p>' +
+      (promoAreasText(pr) ? '<p>' + esc(promoAreasText(pr)) + (promoHere(pr) ? '' : ' · not your area') + '</p>' : '') +
       '<p class="promo__cta">View promotion →</p></a></li>';
   }
   function sortPromos(list) {
@@ -1019,6 +1239,13 @@
       $$('[data-like="' + lid + '"]').forEach(function (b) { b.setAttribute('aria-pressed', String(on)); });
       toast(on ? 'Saved to your wishlist <a href="' + R + 'wishlist">View</a>' : 'Removed from your wishlist');
       if (onIndex && location.hash.indexOf('#/wishlist') === 0) route();
+      return;
+    }
+    var modeBtn = e.target.closest('[data-set-mode]');
+    if (modeBtn) {
+      setMode(modeBtn.getAttribute('data-set-mode'));
+      toast(loc && loc.mode === 'collection' ? 'Showing collection from sellers near ' + esc(loc.town) : 'Showing delivery to ' + esc(loc ? loc.town : 'you'));
+      if (onIndex && /^#\/(cart|dept|search|deals)/.test(location.hash)) route();
       return;
     }
     var step = e.target.closest('[data-step]');
@@ -1656,6 +1883,8 @@
     var html = crumbs(opts.crumbs) + head(opts.title, opts.sub) + (opts.extra || '') +
       '<div class="toolbar"><p class="result-count" id="lst-count" role="status"></p><div class="toolbar__filters">' +
       '<label class="inline-check"><input type="checkbox" id="lst-promo"> On promotion</label><label class="inline-check"><input type="checkbox" id="lst-stock"> In stock</label>' +
+      // With a location: sellers in the buyer's town or province, and sellers who offer collection there
+      (loc ? '<label class="inline-check"><input type="checkbox" id="lst-near"> Near ' + esc(loc.town) + '</label><label class="inline-check"><input type="checkbox" id="lst-collect"> Collection in ' + esc(loc.town) + '</label>' : '') +
       '<label for="lst-sort" class="visually-hidden">Sort by</label><select id="lst-sort"><option value="">Sort: Relevance</option><option value="asc">Price: low to high</option><option value="desc">Price: high to low</option><option value="rating">Top rated</option></select></div></div>' +
       '<details class="listing-filters"' + (window.matchMedia && matchMedia('(min-width: 900px)').matches ? ' open' : '') + '><summary>Refine products</summary><div class="listing-filters__grid">' +
       (categoryValues.length > 1 ? facetSelect('lst-category', 'Department', categoryValues) : '') +
@@ -1707,6 +1936,8 @@
         if (age && ZP.ages(p).indexOf(age)===-1) return false;
         if (stars && (ratingOf(p)||{avg:0}).avg<stars) return false;
         if (checked('lst-promo') && !onDeal(p)) return false;
+        if (checked('lst-near') && !/^(town|province)$/.test(zoneFor(seller(p.seller)))) return false;
+        if (checked('lst-collect') && !(collectionAt(seller(p.seller)) && zoneFor(seller(p.seller)) === 'town')) return false;
         if (filterState.stock && ['in','low'].indexOf(ZP.stockState(p))===-1) return false;
         if (filterState.colour && ZP.colours(p).indexOf(filterState.colour)===-1) return false;
         if (filterState.size && !(p.options||{}).size && (!a.size || ZP.sizeToken(a.size)!==filterState.size)) return false;
@@ -1917,7 +2148,7 @@
           '</div>' +
           '<aside class="buybox" aria-label="Buy this product">' +
             '<div data-price-box>' + priceHTML(pr) + '</div><p class="pmeta" id="pdp-total" aria-live="polite"></p><div data-stock>' + stockHTML(p, v0) + '</div>' +
-            '<p>' + esc(p.source === 'china' ? p.shipping : S.deliveryText) + '</p>' +
+            '<div data-fulfil="' + esc(p.id) + '">' + fulfilHTML(p) + '</div>' +
             (sellerCouriers(s).length ? '<p class="pmeta">Ships with ' + sellerCouriers(s).map(function (id) { return esc(courier(id).name); }).join(', ') + '. <a href="help.html#couriers">About couriers</a></p>' : '') +
             '<p class="pmeta"><button class="link-btn" type="button" data-open-location aria-haspopup="dialog"><span data-location-label>Deliver to: set location</span></button></p>' +
             '<div><label for="pdp-qty" class="pmeta">Quantity</label><div class="qty"><button type="button" data-step="-1" data-target="#pdp-qty" aria-label="Decrease quantity">−</button><input id="pdp-qty" type="number" min="1" max="99" value="1" inputmode="numeric"><button type="button" data-step="1" data-target="#pdp-qty" aria-label="Increase quantity">+</button></div></div>' +
@@ -2135,11 +2366,15 @@
         '<div class="cart"><div>' +
           (groups.length > 1 ? '<p class="pmeta cart__split">Your items come from ' + groups.length + ' sellers, so they may arrive in separate parcels. We confirm delivery for each on WhatsApp.</p>' : '') +
           groups.map(function (g) {
-            return '<section class="cart-group" aria-label="' + esc(g.s ? 'Sold by ' + g.s.name : 'Zed Supply') + '"><p class="cart-group__head">' + (g.s ? 'Sold and sent by <a href="#/store/' + esc(g.s.id) + '">' + esc(g.s.name) + '</a>' + verifiedHTML(g.s) : 'Sourced by Zed Supply') + '</p>' +
+            return '<section class="cart-group" aria-label="' + esc(g.s ? 'Sold by ' + g.s.name : 'Zed Supply') + '"><p class="cart-group__head">' + (g.s ? 'Sold and sent by <a href="#/store/' + esc(g.s.id) + '">' + esc(g.s.name) + '</a>' + verifiedHTML(g.s) : 'Sourced by Zed Supply') + (g.s ? '<span class="cart-group__fulfil" data-group-seller="' + esc(g.s.id) + '">' + esc(fulfilLine(g.s)) + '</span>' : '') + '</p>'+
               '<ul class="lines">' + g.list.map(function (x) { return lineHTML(x.it, x.i); }).join('') + '</ul></section>';
           }).join('') + savedHTML +
         '</div><aside class="summary" id="checkout-steps" aria-labelledby="sum-title" tabindex="-1"><h2 id="sum-title">Checkout</h2>' +
-          step(1, 'Delivery',
+          step(1, 'Delivery or collection',
+            '<fieldset class="field co-mode"><legend>How do you want this order?</legend>' +
+              '<div class="check"><input type="radio" name="co-mode" id="co-mode-delivery" value="delivery"' + (coMode() === 'delivery' ? ' checked' : '') + '><label for="co-mode-delivery">Deliver it to me</label></div>' +
+              '<div class="check"><input type="radio" name="co-mode" id="co-mode-collection" value="collection"' + (coMode() === 'collection' ? ' checked' : '') + '><label for="co-mode-collection">I\'ll collect it from the seller' + (groups.length > 1 ? 's' : '') + '</label></div>' +
+              '<p class="form-status is-error" id="co-mode-warn" hidden></p></fieldset>' +
             '<div class="field"><label for="co-name">Your name *</label><input id="co-name" autocomplete="name" required aria-describedby="co-name-err" value="' + esc(u.name || '') + '"><p class="form-status is-error" id="co-name-err" hidden></p></div>' +
             (book.length ? '<div class="field"><label for="co-address">Saved address</label><select id="co-address"><option value="">Choose a saved address…</option>' + book.map(function (a) { return '<option value="' + esc(a.id) + '">' + esc(a.label + ': ' + addressLine(a)) + '</option>'; }).join('') + '</select><p class="hint"><a href="#/addresses">Manage addresses</a></p></div>' : '') +
             '<div class="deliver-box" id="co-loc-box"><p class="deliver-box__label">Deliver to *</p><p data-loc-summary>' + locSummaryHTML() + '</p><button class="link-btn" type="button" data-open-location aria-haspopup="dialog">Set or change delivery location</button>' +
@@ -2190,7 +2425,13 @@
         if (chosenAddress && chosenAddress.phone) m += '\nRecipient phone: ' + chosenAddress.phone;
         if (chosenAddress && chosenAddress.instructions) m += '\nDelivery instructions: ' + chosenAddress.instructions;
         if (note) m += '\nNotes: ' + note;
-        if (COURIERS.length) m += '\nDelivery: ' + shipSummary();
+        if (coMode() === 'collection') {
+          // Where to collect each seller's parcel; a seller without collection delivers instead
+          m += '\nCollection: I\'ll collect' + groups.map(function (g) {
+            var c = collectionAt(g.s);
+            return '\n- ' + (g.s ? g.s.name : 'Zed Supply') + ': ' + (c ? [c.collection.address, c.town].filter(Boolean).join(', ') + (c.collection.hours ? ' (' + c.collection.hours + ')' : '') : 'no collection, please deliver');
+          }).join('');
+        } else if (COURIERS.length) m += '\nDelivery: ' + shipSummary();
         if (w.day || w.slot) m += '\nPreferred delivery: ' + [w.day ? dayLabel(w.day) : 'any day', w.slot ? slotLabel(w.slot) : 'any time'].join(', ');
         var g = gift();
         if (g.on) m += '\nGift: yes' + (g.noPrice ? ', leave prices out of the parcel' : '') + (g.message ? '\nGift message: ' + g.message : '');
@@ -2221,6 +2462,20 @@
         var start = match || (!loc && book2.filter(function (a) { return a.isDefault; })[0]);
         if (start) { addrSel.value = start.id; if (match) { chosenAddress = match; } else addrSel.dispatchEvent(new Event('change')); }
       }
+      // Delivery or collection for this order: courier choice only applies to delivery, and the
+      // seller lines and the WhatsApp message follow the choice
+      var syncMode = function () {
+        var col = coMode() === 'collection', shipBox = $('#ship-wrap'), warn = $('#co-mode-warn');
+        if (shipBox) shipBox.hidden = col;
+        $$('[data-group-seller]').forEach(function (el) { el.textContent = fulfilLine(seller(el.getAttribute('data-group-seller'))); });
+        var noCollect = groups.filter(function (g) { return g.s && !collectionAt(g.s); }).map(function (g) { return g.s.name; });
+        warn.hidden = !(col && noCollect.length);
+        warn.textContent = col && noCollect.length ? noCollect.join(' and ') + (noCollect.length === 1 ? ' doesn\'t' : ' don\'t') + ' offer collection, so ' + (noCollect.length === 1 ? 'that parcel' : 'those parcels') + ' will be delivered.' : '';
+        $('#co-loc-box .deliver-box__label').textContent = col ? 'Your location (to find collection points near you)' : 'Deliver to *';
+        syncCo();
+      };
+      $$('input[name="co-mode"]', view).forEach(function (r) { r.addEventListener('change', function () { setMode(r.value); syncMode(); }); });
+      syncMode();
       var saveAddr = $('#co-save-address');
       if (saveAddr) saveAddr.addEventListener('click', function () {
         if (!loc) { openLocation(); return; }
@@ -2263,7 +2518,8 @@
         if (hasCardNumber($('#co-name').value + ' ' + $('#co-note').value + ' ' + gift().message)) { e.preventDefault(); toast(esc(CARD_WARNING)); $('#co-note').focus(); return; }
         // Like an address on Amazon: a name and a delivery location are needed before the order goes
         var nameEl = $('#co-name'), nameErr = $('#co-name-err'), locErr = $('#co-loc-err');
-        var noName = !nameEl.value.trim(), noLoc = !loc;
+        // A location is needed to deliver; collecting needs only a name
+        var noName = !nameEl.value.trim(), noLoc = !loc && coMode() !== 'collection';
         nameErr.hidden = !noName; nameErr.textContent = noName ? 'Enter your name.' : '';
         nameEl.setAttribute('aria-invalid', String(noName));
         locErr.hidden = !noLoc; locErr.textContent = noLoc ? 'Set where to deliver, so we can quote the delivery fee.' : '';
@@ -2273,7 +2529,7 @@
           return;
         }
         var list = orders();
-        list.unshift({ ref: ref, date: today, items: items.map(function (it) { return it.opt ? { id: it.p.id, qty: it.qty, price: it.each, opt: it.opt, label: it.label } : { id: it.p.id, qty: it.qty, price: it.each }; }), total: total, status: 0, deliverTo: locFull(), pay: payChoice, ship: COURIERS.length ? shipSummary() : '', shipId: shipChoice, message: co.getAttribute('data-wa-message'), vat: vat, when: when(), gift: gift().on ? gift() : null, addressId: chosenAddress ? chosenAddress.id : '' });
+        list.unshift({ ref: ref, date: today, items: items.map(function (it) { return it.opt ? { id: it.p.id, qty: it.qty, price: it.each, opt: it.opt, label: it.label } : { id: it.p.id, qty: it.qty, price: it.each }; }), total: total, status: 0, deliverTo: locFull(), pay: payChoice, ship: COURIERS.length ? shipSummary() : '', shipId: shipChoice, message: co.getAttribute('data-wa-message'), vat: vat, when: when(), gift: gift().on ? gift() : null, addressId: chosenAddress ? chosenAddress.id : '', mode: coMode() });
         store.set('orders', list);
         setCart([]);
         store.set('voucher', '');
@@ -2384,7 +2640,8 @@
         '<aside class="summary"><h2>Items</h2><ul class="lines">' + o.items.map(function (it) { var p = product(it.id); return '<li class="line line--plain"><div><a class="line__title" href="#/product/' + it.id + '">' + esc(p ? p.title : it.id) + '</a><p class="pmeta">' + (it.label ? esc(it.label) + ' · ' : '') + 'Quantity ' + (parseInt(it.qty, 10) || 0) + ' · ' + kwacha(it.price * it.qty) + '</p>' +
           (p && !o.sample ? '<a class="link-btn" href="#/product/' + encodeURIComponent(it.id) + '?review=1">' + (((store.get('reviews', {})[it.id]) || []).some(function (v) { return v.mine; }) ? 'Edit your review' : 'Rate this item') + '<span class="visually-hidden">: ' + esc(p.title) + '</span></a>' : '') + '</div></li>'; }).join('') + '</ul>' +
         '<dl class="totals"><div class="is-total"><dt>Total</dt><dd>' + kwacha(o.total) + '</dd></div>' + (o.vat ? vatRowHTML(o.vat) : '') + '</dl>' +
-        (o.ship ? '<div class="deliver-box"><p class="deliver-box__label">Delivery</p><p>' + esc(o.ship) + '</p></div>' : '') +
+        (o.mode === 'collection' ? '<div class="deliver-box"><p class="deliver-box__label">Collection</p><p>You\'re collecting this order. We confirm where and when on WhatsApp.</p></div>'
+          : o.ship ? '<div class="deliver-box"><p class="deliver-box__label">Delivery</p><p>' + esc(o.ship) + '</p></div>' : '') +
         (o.when && (o.when.day || o.when.slot) ? '<div class="deliver-box"><p class="deliver-box__label">Preferred delivery</p><p>' + esc([o.when.day ? dayLabel(o.when.day) : 'Any day', o.when.slot ? slotLabel(o.when.slot) : 'any time'].join(', ')) + '</p></div>' : '') +
         (o.gift ? '<div class="deliver-box"><p class="deliver-box__label">Gift</p><p>' + (o.gift.message ? '“' + esc(o.gift.message) + '”' : 'Yes') + (o.gift.noPrice ? '<br><span class="pmeta">Prices left out of the parcel</span>' : '') + '</p></div>' : '') +
         (o.pay ? '<div class="deliver-box"><p class="deliver-box__label">Payment</p><p>' + esc(o.pay) + '</p></div>' : '') +
@@ -2605,6 +2862,24 @@
             return '<li class="order-row"><span><a href="#/product/' + esc(p.id) + '"><strong>' + esc(p.title) + '</strong></a><br><span class="pmeta">' + esc(p.id) + ' · ' + bits.join(' · ') + (listingsApi.get(p.id) ? ' · edited in this browser' : '') + '</span></span>' +
               '<a class="link-btn" href="#/listing/' + encodeURIComponent(p.id) + '">Edit<span class="visually-hidden"> ' + esc(p.title) + '</span></a></li>';
           }).join('') + '</ul>' : '<p>No products yet.</p>') + '</section>' +
+        (function () {
+          // Where the stock is, collection and delivery areas: decides "near you", estimates and collection
+          var sl = sellerLoc(s) || { town: '', area: '', province: '', collection: { enabled: false }, deliversTo: 'all' }, col = sl.collection || {};
+          var limited = sl.deliversTo !== 'all';
+          return '<form class="form form--card sc-products" id="sc-location" aria-labelledby="sc-l-title"><h2 id="sc-l-title">Your store location</h2>' +
+            '<p class="pmeta">Where your stock is. Buyers nearby see "Near you" and faster delivery estimates, and can collect if you offer it.</p>' +
+            (LOCSET.gps !== false && navigator.geolocation ? '<p><button class="btn btn--secondary btn--sm" type="button" id="sl-gps">Use my current location</button> <span class="pmeta" id="sl-gps-status" role="status" aria-live="polite"></span></p>' : '') +
+            '<div class="field-row"><div class="field"><label for="sl-town">Town or city *</label><input id="sl-town" list="zm-towns" maxlength="60" required value="' + esc(sl.town) + '"></div>' +
+            '<div class="field"><label for="sl-province">Province</label><select id="sl-province"><option value="">Choose a province</option>' + PROVINCES.map(function (pv) { return '<option value="' + pv[0] + '"' + (pv[0] === sl.province ? ' selected' : '') + '>' + esc(pv[1]) + '</option>'; }).join('') + '</select></div></div>' +
+            '<div class="field"><label for="sl-area">Area or street</label><input id="sl-area" maxlength="60" value="' + esc(sl.area) + '"></div>' +
+            '<div class="check"><input type="checkbox" id="sl-collect"' + (col.enabled ? ' checked' : '') + '><label for="sl-collect">Buyers can collect from me</label></div>' +
+            '<div class="field-row" id="sl-collect-fields"' + (col.enabled ? '' : ' hidden') + '><div class="field"><label for="sl-caddr">Collection address</label><input id="sl-caddr" maxlength="120" placeholder="e.g. Shop 4, Cairo Road" value="' + esc(col.address || '') + '"></div>' +
+              '<div class="field"><label for="sl-chours">Collection hours</label><input id="sl-chours" maxlength="60" placeholder="e.g. Mon–Sat 08:00–17:00" value="' + esc(col.hours || '') + '"></div></div>' +
+            '<fieldset class="field"><legend>Where you deliver</legend><div class="check"><input type="radio" name="sl-areas" id="sl-areas-all" value="all"' + (limited ? '' : ' checked') + '><label for="sl-areas-all">All of Zambia</label></div>' +
+              '<div class="check"><input type="radio" name="sl-areas" id="sl-areas-some" value="some"' + (limited ? ' checked' : '') + '><label for="sl-areas-some">Only these provinces</label></div>' +
+              '<div class="checks" id="sl-provs"' + (limited ? '' : ' hidden') + '>' + PROVINCES.map(function (pv) { return '<div class="check"><input type="checkbox" id="sl-p-' + pv[0] + '" value="' + pv[0] + '"' + (limited && sl.deliversTo.indexOf(pv[0]) !== -1 ? ' checked' : '') + '><label for="sl-p-' + pv[0] + '">' + esc(pv[1]) + '</label></div>'; }).join('') + '</div></fieldset>' +
+            '<p class="form-status" role="status" tabindex="-1"></p><p class="hint">Prototype: saved in this browser only, until seller accounts launch.</p><button class="btn btn--primary" type="submit">Save location</button></form>';
+        })() +
         (complaintsOn() ? (function () {
           // Until sellers sign in on the server (orderOptions.complaints.sellerDashboard), Zed Supply passes
           // complaints on by WhatsApp. This prototype lists those made on this device about the store.
@@ -2626,6 +2901,8 @@
           '<div class="field-row"><div class="field"><label for="pn-start">Starts</label><input id="pn-start" type="date" value="' + today + '" required></div>' +
           '<div class="field"><label for="pn-end">Ends</label><input id="pn-end" type="date" min="' + today + '" required></div></div>' +
           '<fieldset class="field"><legend>Products in this promotion</legend><div class="checks">' + (mine.length ? mine.map(function (p) { return '<div class="check"><input type="checkbox" id="pn-p-' + p.id + '" value="' + p.id + '" checked><label for="pn-p-' + p.id + '">' + esc(p.title) + '</label></div>'; }).join('') : '<p>No products yet.</p>') + '</div></fieldset>' +
+          '<fieldset class="field"><legend>Where it applies</legend><p class="hint">Leave all unticked for the whole of Zambia, or tick provinces to run it only there. Buyers see it once their location is in one of them.</p><div class="checks">' +
+            PROVINCES.map(function (pv) { return '<div class="check"><input type="checkbox" id="pn-a-' + pv[0] + '" value="' + pv[0] + '"><label for="pn-a-' + pv[0] + '">' + esc(pv[1]) + '</label></div>'; }).join('') + '</div></fieldset>' +
           '<div class="field"><label for="pn-img">Banner image (optional)</label><input id="pn-img" type="file" accept="image/jpeg,image/png,image/webp" aria-describedby="pn-img-hint">' +
           '<p class="hint" id="pn-img-hint">Shown in the homepage banner and on your promotion while it\'s live. Best size 1600 × 500 pixels; we crop and resize it for you. Keep important words in the middle.</p></div>' +
           '<p class="form-status" role="status" tabindex="-1"></p><button class="btn btn--primary" type="submit">Publish promotion</button></form></div>' +
@@ -2660,7 +2937,8 @@
       $('#sc-new').addEventListener('submit', function (e) {
         e.preventDefault();
         var st = $('.form-status', e.target), start = $('#pn-start').value, end = $('#pn-end').value;
-        var picked = $$('#sc-new .checks input:checked').map(function (c) { return c.value; });
+        var picked = $$('#sc-new input[id^="pn-p-"]:checked').map(function (c) { return c.value; });
+        var areas = $$('#sc-new input[id^="pn-a-"]:checked').map(function (c) { return c.value; });
         var fail = function (m) { st.className = 'form-status is-error'; st.textContent = m; st.focus(); };
         if (end < start) return fail('The end date must be on or after the start date.');
         if (!picked.length) return fail('Choose at least one product.');
@@ -2670,6 +2948,7 @@
           btn.disabled = false; btn.textContent = 'Publish promotion';
           if (image === null) return fail('That image couldn\'t be used. Choose a JPEG, PNG or WebP under 10 MB.');
           var promo = { id: 'U' + Date.now().toString(36), demo: true, seller: s.id, title: $('#pn-title').value.trim(), season: $('#pn-season').value, discount: Math.min(90, Math.max(5, parseInt($('#pn-off').value, 10) || 10)), starts: start, ends: end, products: picked, image: image };
+          if (areas.length) promo.areas = areas;
           var list = store.get('promos', []).concat([promo]);
           var note = '';
           if (!trySave('promos', list)) {
@@ -2682,6 +2961,40 @@
           route();
         });
       });
+      var locSeller = $('#sc-location');
+      if (locSeller) {
+        $('#sl-town', locSeller).addEventListener('input', function () { var t = townInfo(this.value); if (t) $('#sl-province', locSeller).value = t.province; });
+        $('#sl-collect', locSeller).addEventListener('change', function () { $('#sl-collect-fields', locSeller).hidden = !this.checked; });
+        $$('input[name="sl-areas"]', locSeller).forEach(function (r) { r.addEventListener('change', function () { $('#sl-provs', locSeller).hidden = r.value === 'all' && r.checked; }); });
+        var slGps = $('#sl-gps', locSeller);
+        if (slGps) slGps.addEventListener('click', function () {
+          var stat = $('#sl-gps-status', locSeller);
+          stat.textContent = 'Finding your nearest town…';
+          // The seller's own location: fills the form only; it doesn't change their buyer location
+          locateMe(function (r) {
+            if (r.error) { stat.textContent = r.error; return; }
+            $('#sl-town', locSeller).value = r.town; $('#sl-province', locSeller).value = r.province;
+            stat.textContent = 'Found: ' + r.town + '. Add your area, then save.';
+          });
+        });
+        locSeller.addEventListener('submit', function (e) {
+          e.preventDefault();
+          var st = $('.form-status', locSeller), town = cleanText($('#sl-town', locSeller).value, 60);
+          var fail = function (m, el) { st.className = 'form-status is-error'; st.textContent = m; (el || st).focus(); };
+          if (!town) return fail('Enter the town where your stock is.', $('#sl-town', locSeller));
+          var some = $('#sl-areas-some', locSeller).checked, provs = $$('#sl-provs input:checked', locSeller).map(function (c) { return c.value; });
+          if (some && !provs.length) return fail('Tick at least one province, or choose All of Zambia.');
+          var collect = $('#sl-collect', locSeller).checked;
+          if (collect && !cleanText($('#sl-caddr', locSeller).value, 120)) return fail('Add the collection address, so buyers know where to come.', $('#sl-caddr', locSeller));
+          var all = store.get('seller-locations', {});
+          all[s.id] = { town: town, area: cleanText($('#sl-area', locSeller).value, 60), province: $('#sl-province', locSeller).value,
+            collection: { enabled: collect, address: cleanText($('#sl-caddr', locSeller).value, 120), hours: cleanText($('#sl-chours', locSeller).value, 60) },
+            deliversTo: some ? provs : 'all' };
+          store.set('seller-locations', all);
+          toast('Store location saved');
+          route();
+        });
+      }
       var courierForm = $('#sc-couriers');
       if (courierForm) $('#scc-q', courierForm).addEventListener('input', function (e) {
         var t = e.target.value.trim().toLowerCase();

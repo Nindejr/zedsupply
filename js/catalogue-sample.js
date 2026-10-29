@@ -9,6 +9,10 @@
    To launch a real product, add it to js/catalogue.js (not here).
 */
 window.ZS_SAMPLE = {
+  // [SAMPLE] delivery times in working days, used in demo mode only while the live
+  // settings.delivery.estimates are still empty, so the demo can show delivery dates
+  deliveryEstimates: { town: [1, 2], province: [2, 4], country: [3, 7], world: null },
+
   // Sample advert slide, added to the banner in demo mode
   banners: [
     { id: 'sample-ad', sample: true, image: 'assets/banners/sample-ad-wide.webp', imageMobile: 'assets/banners/sample-ad-mobile.webp', alt: 'Sample advert: your banner here. Replace with real advertising artwork.', link: '#/sell' }
@@ -16,9 +20,9 @@ window.ZS_SAMPLE = {
 
   // Registered sellers [SAMPLE]
   sellers: [
-    { id: 'store-a', sample: true, couriers: ['rapidriders', 'zampost'], name: 'Sample Store A', city: 'Lusaka', verified: true, about: '[SAMPLE] Office, tech and home products.', colours: ['#0A2A66', '#0057AE'] },
-    { id: 'store-b', sample: true, couriers: ['kingsway', 'fedex', 'dhl'], name: 'Sample Store B', city: 'Lusaka', verified: true, about: '[SAMPLE] Solar, power and small business equipment.', colours: ['#0F5E2E', '#1A8A3A'] },
-    { id: 'store-c', sample: true, couriers: ['dropsync', 'yango', 'zampost'], name: 'Sample Store C', city: 'Lusaka', verified: false, about: '[SAMPLE] Fashion, homeware and everyday essentials.', colours: ['#7C2D12', '#C2410C'] }
+    { id: 'store-a', sample: true, couriers: ['rapidriders', 'zampost'], name: 'Sample Store A', city: 'Lusaka', location: { town: 'Lusaka', area: 'Cairo Road', collection: { enabled: true, address: '[SAMPLE] Shop 4, Cairo Road', hours: 'Mon–Sat 08:00–17:00' }, deliversTo: 'all' }, verified: true, about: '[SAMPLE] Office, tech and home products.', colours: ['#0A2A66', '#0057AE'] },
+    { id: 'store-b', sample: true, couriers: ['kingsway', 'fedex', 'dhl'], name: 'Sample Store B', city: 'Kitwe', location: { town: 'Kitwe', area: 'Freedom Avenue', collection: { enabled: false }, deliversTo: ['copperbelt', 'central', 'lusaka', 'northwestern'] }, verified: true, about: '[SAMPLE] Solar, power and small business equipment.', colours: ['#0F5E2E', '#1A8A3A'] },
+    { id: 'store-c', sample: true, couriers: ['dropsync', 'yango', 'zampost'], name: 'Sample Store C', city: 'Lusaka', location: { town: 'Lusaka', area: 'Kabulonga', collection: { enabled: true, address: '[SAMPLE] Kabulonga Shopping Centre', hours: 'Mon–Fri 09:00–18:00' }, deliversTo: ['lusaka', 'central', 'southern'] }, verified: false, about: '[SAMPLE] Fashion, homeware and everyday essentials.', colours: ['#7C2D12', '#C2410C'] }
   ],
 
   // Brand stores [SAMPLE]
@@ -116,7 +120,7 @@ window.ZS_SAMPLE = {
      Seller Centre demo; those are saved in that browser only until Phase 2. */
   promotions: [
     { id: 'P1', sample: true, seller: 'store-a', title: 'Grand opening specials', season: 'own', discount: 10, starts: '2026-10-20', ends: '2026-11-30', products: ['L001', 'L005', 'L009'], about: '[SAMPLE] Opening offers across office and home.' },
-    { id: 'P2', sample: true, seller: 'store-b', title: 'Beat load-shedding: solar week', season: 'own', discount: 15, starts: '2026-10-24', ends: '2026-11-15', products: ['L002', 'L006'], about: '[SAMPLE] Solar lighting for power cuts.' },
+    { id: 'P2', sample: true, seller: 'store-b', title: 'Beat load-shedding: solar week', season: 'own', discount: 15, areas: ['copperbelt', 'northwestern'], starts: '2026-10-24', ends: '2026-11-15', products: ['L002', 'L006'], about: '[SAMPLE] Solar lighting for power cuts.' },
     { id: 'P3', sample: true, seller: 'store-b', title: 'Black Friday weekend', season: 'blackfriday', discount: 20, starts: '2026-11-27', ends: '2026-11-30', products: ['L004', 'L010'], about: '[SAMPLE] Tech and business equipment.' },
     { id: 'P4', sample: true, seller: 'store-c', title: 'Festive season deals', season: 'christmas', discount: 20, starts: '2026-12-01', ends: '2026-12-26', products: ['L003', 'L007', 'L008'], about: '[SAMPLE] Gifts and homeware for the holidays.' },
     { id: 'P5', sample: true, seller: 'store-a', title: 'Back to school', season: 'school', discount: 10, starts: '2027-01-04', ends: '2027-01-31', products: ['L011', 'L001'], about: '[SAMPLE] School bags and stationery.' },

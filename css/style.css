@@ -1702,3 +1702,36 @@ main .section .pcard .pmedia, .pcard .pmedia { background: rgb(235 243 251 / .45
 .dept-dir__subs li { max-width: none; }
 .dept-dir__subs a { color: var(--color-text); text-decoration: none; }
 .dept-dir__subs a:hover { color: var(--color-secondary); text-decoration: underline; }
+
+/* ---------- Location: header pin, first-visit bubble, dialog extras, delivery block ---------- */
+.hact--loc { border: 0; background: none; font: inherit; cursor: pointer; text-align: left; }
+.hact--loc:focus-visible { outline: 3px solid var(--color-focus); outline-offset: 2px; }
+.hact--loc [data-loc-pin] { display: inline-block; max-width: 9rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: bottom; }
+.loc-tip {
+  position: absolute; z-index: 60; width: min(20rem, calc(100vw - 24px)); padding: 1rem 1.1rem 0.85rem;
+  border-radius: var(--radius); background: var(--color-surface); color: var(--color-text);
+  border: 1px solid rgb(226 169 58 / 0.7); box-shadow: 0 18px 44px rgb(10 42 102 / 0.26), 0 0 0 4px rgb(255 255 255 / 0.4);
+  animation: loc-tip-in 0.25s ease-out;
+}
+.loc-tip::before { content: ""; position: absolute; top: -9px; left: calc(var(--arrow, 50%) - 9px); width: 16px; height: 16px; background: var(--color-surface); border-top: 1px solid rgb(226 169 58 / 0.7); border-left: 1px solid rgb(226 169 58 / 0.7); transform: rotate(45deg); }
+.loc-tip p { margin: 0 0 0.75rem; font-size: 0.9rem; max-width: none; }
+.loc-tip__title { font-weight: 700; color: var(--color-heading); font-size: 1rem !important; margin-bottom: 0.35rem !important; padding-right: 1.5rem; }
+.loc-tip .btn-row { margin-bottom: 0.4rem; }
+.loc-tip .link-btn { font-size: 0.85rem; }
+.loc-tip [data-loc-tip-status]:empty { display: none; }
+.loc-tip__x { position: absolute; top: 0.35rem; right: 0.45rem; min-width: 36px; min-height: 36px; border: 0; background: none; font-size: 1.35rem; line-height: 1; color: var(--color-muted); cursor: pointer; border-radius: 50%; }
+.loc-tip__x:hover { background: var(--color-surface-2); color: var(--color-text); }
+@keyframes loc-tip-in { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .loc-tip { animation: none; } }
+.loc-gps { display: grid; gap: 0.35rem; }
+.loc-gps .btn svg { width: 20px; height: 20px; margin-right: 0.4rem; vertical-align: -4px; }
+.loc-gps .hint, .loc-gps .pmeta, .loc-gps .form-status { margin: 0; }
+.loc-gps [role="status"]:empty { display: none; }
+.loc-or { display: flex; align-items: center; gap: 0.6rem; margin: 0.35rem 0 0; font-size: 0.8rem; color: var(--color-muted); }
+.loc-or::before, .loc-or::after { content: ""; flex: 1; border-top: 1px solid var(--color-border); }
+.loc-mode { border: 0; padding: 0; margin: 0; display: grid; gap: 0.4rem; }
+.fulfil { display: grid; gap: 0.2rem; padding: 0.65rem 0.75rem; border-radius: var(--radius-sm); background: var(--color-surface-2); }
+.fulfil p { margin: 0; }
+.fulfil__main { font-weight: 700; color: var(--color-heading); }
+.badge--near { background: var(--zm-green); color: #FFFFFF; box-shadow: none; }
+.cart-group__fulfil { display: block; font-weight: 400; color: var(--color-muted); font-size: 0.85rem; }

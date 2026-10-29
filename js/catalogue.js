@@ -48,11 +48,16 @@ window.ZS_CATALOGUE = {
 
     // ---- Delivery days and times ----
     // Buyers pick a preferred day and time at checkout; it's confirmed on WhatsApp.
-    // estimates: typical delivery time by distance, shown at checkout once filled in ('' hides it).
+    // estimates: typical delivery time in working days, [fewest, most], by how far the parcel
+    //   travels from the seller: town (same town), province (same province), country (elsewhere
+    //   in Zambia), world (outside Zambia). null = not known yet: buyers see "confirmed on
+    //   WhatsApp" instead of a date. With figures in, products show "Arrives Tue 4 Nov – Thu 6 Nov".
+    // cutoff: orders after this hour (24-hour clock) count from the next working day.
     // leadDays: the earliest day a buyer can pick, counted from today. closedDays: 0 = Sunday … 6 = Saturday.
     delivery: {
       enabled: true,
-      estimates: { town: '', country: '', world: '' },      // e.g. '1–2 working days'
+      estimates: { town: null, province: null, country: null, world: null },   // e.g. town: [1, 2]
+      cutoff: 14,
       leadDays: 1, daysAhead: 14, closedDays: [0],
       slots: [
         { id: 'morning', label: 'Morning (08:00–12:00)' },
@@ -60,6 +65,36 @@ window.ZS_CATALOGUE = {
         { id: 'evening', label: 'Evening (17:00–19:00)' }
       ]
     },
+
+    // ---- Location ----
+    // Buyers set where they are (typed, or found from their device's GPS) and whether they want
+    // delivery or to collect from the seller. GPS is matched on the device to the nearest town
+    // below; the coordinates themselves are never stored or sent.
+    // tip: the first-visit bubble pointing at the location pin in the header.
+    // gpsMaxKm: further than this from every town below, GPS asks the buyer to choose a town.
+    location: { gps: true, tip: true, gpsMaxKm: 120 },
+    provinces: [
+      ['lusaka', 'Lusaka'], ['copperbelt', 'Copperbelt'], ['central', 'Central'], ['southern', 'Southern'], ['eastern', 'Eastern'],
+      ['northern', 'Northern'], ['muchinga', 'Muchinga'], ['luapula', 'Luapula'], ['northwestern', 'North-Western'], ['western', 'Western']
+    ],
+    // Towns: [name, province id, latitude, longitude]. Approximate town centres, for matching GPS
+    // to the nearest town and for the town suggestions. Add towns freely.
+    towns: [
+      ['Lusaka', 'lusaka', -15.417, 28.283], ['Kafue', 'lusaka', -15.767, 28.183], ['Chongwe', 'lusaka', -15.333, 28.683], ['Chilanga', 'lusaka', -15.550, 28.267],
+      ['Luangwa', 'lusaka', -15.617, 30.417],
+      ['Kitwe', 'copperbelt', -12.802, 28.213], ['Ndola', 'copperbelt', -12.959, 28.637], ['Chingola', 'copperbelt', -12.529, 27.854], ['Mufulira', 'copperbelt', -12.550, 28.241],
+      ['Luanshya', 'copperbelt', -13.137, 28.417], ['Kalulushi', 'copperbelt', -12.833, 28.083], ['Chililabombwe', 'copperbelt', -12.367, 27.833],
+      ['Kabwe', 'central', -14.447, 28.446], ['Kapiri Mposhi', 'central', -13.967, 28.683], ['Mumbwa', 'central', -14.983, 27.067], ['Mkushi', 'central', -13.617, 29.400],
+      ['Serenje', 'central', -13.233, 30.233],
+      ['Livingstone', 'southern', -17.842, 25.854], ['Choma', 'southern', -16.817, 26.983], ['Mazabuka', 'southern', -15.850, 27.767], ['Monze', 'southern', -16.267, 27.483],
+      ['Siavonga', 'southern', -16.533, 28.717], ['Kalomo', 'southern', -17.033, 26.483],
+      ['Chipata', 'eastern', -13.633, 32.650], ['Petauke', 'eastern', -14.250, 31.333], ['Lundazi', 'eastern', -12.283, 33.167], ['Katete', 'eastern', -14.050, 32.050],
+      ['Kasama', 'northern', -10.213, 31.181], ['Mbala', 'northern', -8.850, 31.367], ['Mpulungu', 'northern', -8.767, 31.117],
+      ['Chinsali', 'muchinga', -10.550, 32.067], ['Mpika', 'muchinga', -11.833, 31.450], ['Nakonde', 'muchinga', -9.333, 32.750],
+      ['Mansa', 'luapula', -11.200, 28.883], ['Kawambwa', 'luapula', -9.783, 29.083], ['Nchelenge', 'luapula', -9.350, 28.733],
+      ['Solwezi', 'northwestern', -12.183, 26.400], ['Kabompo', 'northwestern', -13.600, 24.200], ['Zambezi', 'northwestern', -13.533, 23.100], ['Mwinilunga', 'northwestern', -11.733, 24.433],
+      ['Mongu', 'western', -15.283, 23.133], ['Kaoma', 'western', -14.800, 24.800], ['Sesheke', 'western', -17.467, 24.300], ['Senanga', 'western', -16.117, 23.267]
+    ],
 
     // ---- Orders: gifts, cancelling, saved addresses, complaints ----
     // gifts: a gift message and "leave prices out of the parcel" at checkout.
@@ -348,7 +383,14 @@ window.ZS_CATALOGUE = {
      Demo content lives in js/catalogue-sample.js (view it with ?demo=1);
      copy an entry from there as a starting point for a real one. */
 
-  // Registered sellers: { id, name, city, verified, about, colours: [a, b], couriers: ['zampost', ...] (optional, courier ids from js/couriers.js) }
+  /* Registered sellers: { id, name, city, verified, about, colours: [a, b], couriers: ['zampost', ...]
+     (optional, courier ids from js/couriers.js), and optionally:
+       location: where the stock is, which decides delivery estimates and "near you":
+         { town: 'Lusaka', area: 'Cairo Road',
+           collection: { enabled: true, address: 'Shop 4, Cairo Road', hours: 'Mon–Sat 08:00–17:00' },
+           deliversTo: 'all' or province ids such as ['lusaka', 'central'] }
+         Without a location, city is used and the seller is taken to deliver everywhere.
+     Sellers can also set this in the Seller Centre (saved in their browser until accounts launch). */
   sellers: [],
 
   /* Brand stores: { id, name, tagline, colours: [a, b], featured, logo }

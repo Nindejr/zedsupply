@@ -161,6 +161,11 @@
       </form>
 
       <nav class="header-actions" aria-label="Your account">
+        <button class="hact hact--loc" type="button" id="loc-pin" data-open-location aria-haspopup="dialog" aria-controls="location-dialog">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22s7-6.2 7-12a7 7 0 0 0-14 0c0 5.8 7 12 7 12z"/><circle cx="12" cy="10" r="2.5"/></svg>
+          <span class="hact__label"><small data-loc-pin-mode>Deliver to</small><span data-loc-pin>Set location</span></span>
+          <span class="visually-hidden">: choose where to deliver or collect</span>
+        </button>
         <a class="hact" href="index.html#/account">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>
           <span class="hact__label"><small data-greet>Hello, sign in</small>My Account</span>
@@ -335,6 +340,8 @@
         <dl class="details">
           <div><dt>Where we deliver</dt><dd><span class="placeholder">[DELIVERY AREAS]</span></dd></div>
           <div><dt>How long it takes</dt><dd><span class="placeholder">[DELIVERY TIMES]</span></dd></div>
+          <div><dt>Your location</dt><dd>Use the pin at the top of the page to set your town, by typing it or with "Use my current location" (we find your nearest town on your device and don't keep your exact position). You'll then see what's in stock near you, delivery estimates from each seller, offers for your area, and where you can collect.</dd></div>
+          <div><dt>Delivery or collection</dt><dd>Choose to have your order delivered, or to collect it from the seller where they offer collection. You can switch at checkout. If a seller doesn't offer collection, we deliver that parcel instead.</dd></div>
           <div><dt>Choosing a day and time</dt><dd>At checkout you can pick a preferred delivery day and a morning, afternoon or evening slot. We confirm it with you and the seller on WhatsApp.</dd></div>
           <div><dt>Gifts</dt><dd>Tick "This order is a gift" at checkout to add a gift message, and we'll leave prices out of the parcel.</dd></div>
           <div><dt>What it costs</dt><dd><span class="placeholder">[DELIVERY COSTS]</span>. Delivery is always confirmed on WhatsApp before you pay.</dd></div>
