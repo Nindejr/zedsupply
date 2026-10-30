@@ -33,7 +33,7 @@
   // Match the storefront's departments while keeping saved legacy sector selections usable.
   var legacySectors = SECTORS;
   var sectorAliases = { essentials: 'grocery', tech: 'phones', computers: 'phones', smarthome: 'phones', tv: 'phones', games: 'phones',
-    womens: 'fashion', mens: 'fashion', girls: 'fashion', boys: 'fashion', beauty: 'fashion', luggage: 'fashion',
+    salaula: 'fashion', womens: 'fashion', mens: 'fashion', girls: 'fashion', boys: 'fashion', beauty: 'fashion', luggage: 'fashion',
     arts: 'home', toys: 'baby', sports: 'health', business: 'hardware', pets: 'other' };
   if (window.ZS_CATALOGUE && window.ZS_CATALOGUE.departments.length) {
     SECTORS = window.ZS_CATALOGUE.departments.map(function (d) {
