@@ -137,3 +137,47 @@ Free plan limits to plan around:
 | Publishable (anon) key | Public: safe in the website; row-level security is what protects the data |
 | Database password | Never in the website or the repository |
 | Secret (service_role) key | Never in the website or the repository; it ignores row-level security |
+
+## Scale and reliability review (30 October 2026)
+
+Checked against a large-store checklist (availability, consistency, security, checkout). Zed Supply is a static website on GitHub Pages's CDN with Supabase (managed PostgreSQL) behind it, on free plans. That suits the current size. The aim is to make checkout and data **correct** now and to move to bigger infrastructure only when traffic shows it's needed.
+
+### Implemented foundations
+
+Migration 014 prepares database functions; the storefront still uses local browser storage and WhatsApp checkout. Server checkout, verified sign-in, cart synchronisation and database search are not connected to the website yet. Stock reservation and server-calculated prices therefore apply only to orders placed through the future verified server endpoint. Guest retries must also be authorised by that endpoint; matching a phone number is not proof of ownership.
+
+| Checklist item | How Zed Supply covers it |
+| --- | --- |
+| No overselling when many buy the last item | `app.place_order()` (migration 014) locks each product or variation row, checks stock and takes it in one transaction, in a fixed order to reduce deadlock risk. Stock can't go below zero. Tested with five buyers ordering the last item at once. Cancelling gives the stock back, once. |
+| Charged once on double click or dropped connection | The order reference doubles as an idempotency key: sending the same order again returns the first one. Tested with the same order sent twice at once. The website's order link also ignores a second click. Payments must use the same reference as the provider's idempotency key (Stage 2). |
+| Prices can't be tampered with | The database function works out prices, promotions (by province), deals, accepted offers, add-ons, vouchers and VAT from the database, excluding sellers marked as not VAT-registered. The browser sends only product, variation, quantity and choices. |
+| Guest checkout | Orders can be placed without an account, with a name and phone number. The WhatsApp checkout needs no account already. |
+| Carts on every device | `cart_items` keeps a signed-in buyer's cart. The website will sync it at sign-in (Stage 3). |
+| Data security | HTTPS everywhere (GitHub Pages and Supabase). Sign-in by one-time code, so there are no passwords to store. Row-level security on every table, with tests for each role. Card numbers are never stored: the checkout warns if one is typed, and card payments will use a provider's hosted page. |
+| API abuse | Supabase limits sign-in and code requests. Migration 014 limits how fast one account can post complaints, messages, reviews, offers, cancellations, returns and listings. |
+| Input sanitising | The API uses parameterised queries, so SQL injection doesn't apply. The website escapes everything it shows (`esc()`), and the database limits text lengths. |
+| Fast, light pages | WebP images sized for their slots, lazy loading, a CDN for every file, versioned files for caching. |
+| Search that forgives typos | `search_products()` uses trigram matching on titles and tags ("solr panel" finds "solar panel"), with an index. Filters by colour, size, price, rating and condition already exist in the browser. |
+| Indexes | Added the missing indexes that the security rules and joins use. |
+| Graceful degradation | The storefront is static, so it keeps working if Supabase is down. Stage 3 must keep that: if the API fails, fall back to the WhatsApp order. |
+
+### Planned
+
+| Item | When |
+| --- | --- |
+| Payment idempotency and webhooks | Stage 2, with the payment provider. Store the provider's transaction ID with a unique constraint, so a repeated webhook can't credit an order twice. |
+| Product pages search engines can read | Generate a static page and structured data (Product, Offer, AggregateRating) per product at publish time, plus a product sitemap. Needed once live sellers list products. |
+| Error monitoring | Sentry's free plan for website errors; Supabase's built-in logs and query statistics for the database. |
+| Automated tests on every push | A GitHub Actions workflow with a PostgreSQL service running the JavaScript, SQL and concurrency tests. |
+| Load test | Before launch, a short k6 or Locust run against a copy of the project, never the live one. The free plan's limits will show first. |
+| Backups | The free plan has none. Until upgrading, take a manual `npx supabase db dump` regularly and keep it off GitHub (the repository is public). |
+| Project pausing | Free projects pause after a week without traffic. Upgrade before taking real orders. |
+
+### Not needed at this size
+
+| Item | Why not now | Revisit when |
+| --- | --- | --- |
+| Microservices | One managed database with small server functions is simpler, cheaper and has fewer ways to fail. Services can be split out later. | Separate teams own separate parts, or one part needs to scale on its own |
+| NoSQL catalogue | PostgreSQL with JSONB already handles flexible product details, and one database keeps orders and stock consistent. | Catalogue reads outgrow PostgreSQL with caching |
+| Redis cache, read replicas, auto-scaling | The static site is already on a CDN; Supabase handles the database. These cost money and add parts. | Database CPU stays high or queries slow down under real traffic (paid plans add replicas) |
+| Elasticsearch or Algolia | PostgreSQL trigram search covers typos at this size, for free. | Tens of thousands of products, or search needs synonyms and ranking beyond tags |

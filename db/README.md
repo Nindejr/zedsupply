@@ -60,6 +60,7 @@ Apply once, in order, using a migration runner or `psql -v ON_ERROR_STOP=1`:
 11. `supabase/migrations/20261029000011_advisor_fixes.sql` (from Supabase's security advisor: trigger functions can't be called through the API, helpers get a fixed `search_path`)
 12. `supabase/migrations/20261029000012_review_security.sql` (verified account linking, privilege revocation on identity deletion, child-content moderation, immutable public photos and restricted table privileges)
 13. `supabase/migrations/20261029000013_api_grants.sql` (table rights for the API roles: new Supabase projects grant none by default)
+14. `supabase/migrations/20261030000014_checkout_integrity.sql` (server-side order placement with stock locking and repeat protection, guest orders, carts per account, posting limits, typo-tolerant search, missing indexes)
 
 Migration 012 creates the application account only once a phone or email is confirmed.
 Existing ordinary buyer records can then be linked; records with staff or store access
@@ -155,12 +156,19 @@ Suggested next-step routes (design only, not implemented):
 Run `node --test tests/*.test.cjs` for the JavaScript tests. For SQL, use an isolated, empty database:
 
 1. Run `db/tests/supabase_stub.sql`.
-2. Apply all thirteen migrations in order, without the seed.
+2. Apply all fourteen migrations in order, without the seed.
 3. Run the other `.sql` files in `db/tests/` with `psql -v ON_ERROR_STOP=1 -f <file>`.
 
-Never run the stub on the Supabase project. `rls.sql` signs in the way the API does, as a visitor, two buyers, two sellers and staff, and checks what each can read and change. For concurrency, run `npm install --no-save pg` then `node db/tests/concurrency.mjs` against that database (never one holding real data): it interleaves two live connections to check the rating cache, one open offer per buyer, single redemption of an accepted offer and the address limit. The SQL tests roll back their fixtures. `integrity.sql` and `product_details.sql` cover invalid data, purchase links, review aggregates, conditions, features and custom options. `aftersales_categories.sql` covers migrations 005–007: the new units, extra photos, offer ranges scaled to a variant's price, saved addresses, order snapshots, cancellations, returns, complaints and subcategories.
+`checkout.sql` covers placing orders on the server: prices, promotions by province, deals, offers, add-ons, vouchers, VAT, stock, repeated references, guest orders, cancellations returning stock, carts, posting limits and search. Never run the stub on the Supabase project. `rls.sql` signs in the way the API does, as a visitor, two buyers, two sellers and staff, and checks what each can read and change. For concurrency, run `npm install --no-save pg` then `node db/tests/concurrency.mjs` against that database (never one holding real data): it interleaves live connections to check the rating cache, one open offer per buyer, single redemption of an accepted offer, the address limit, five buyers ordering the last item at once, and the same order sent twice at once. The SQL tests roll back their fixtures. `integrity.sql` and `product_details.sql` cover invalid data, purchase links, review aggregates, conditions, features and custom options. `aftersales_categories.sql` covers migrations 005–007: the new units, extra photos, offer ranges scaled to a variant's price, saved addresses, order snapshots, cancellations, returns, complaints and subcategories.
 
-Latest check, for migrations 012 and 013 (29 October 2026), on native PostgreSQL 18.6 with the stub copying the project's default grants:
+Latest check, for migration 014 (30 October 2026), on native PostgreSQL 18.6 rebuilt from empty:
+
+- The stub, all fourteen migrations and all six SQL test files passed.
+- All six concurrency tests and all 27 JavaScript tests passed.
+- With the row lock and the stock check removed, five simultaneous buyers all "bought" the last item and stock went to −4, and the concurrency test failed as expected.
+- After the review follow-up, `checkout.sql` also covers sellers who aren't VAT-registered (left out of VAT whether prices include it or not), guests unable to use saved addresses, products whose variations are all inactive, and a guest reference reused with another phone number. Everything above was re-run after it, including the concurrency tests, and each migration also applied when run as one transaction.
+
+Earlier check, for migrations 012 and 013 (29 October 2026), on native PostgreSQL 18.6 with the stub copying the project's default grants:
 
 - The stub and all thirteen migrations applied, and all five SQL test files passed.
 - All four concurrency tests and all 27 JavaScript tests passed.

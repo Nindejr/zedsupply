@@ -30,6 +30,10 @@ CREATE OR REPLACE FUNCTION auth.jwt() RETURNS jsonb LANGUAGE sql STABLE AS $$
 $$;
 GRANT USAGE ON SCHEMA auth TO anon, authenticated, service_role;
 
+-- Supabase installs extensions such as pg_trgm in their own schema
+CREATE SCHEMA IF NOT EXISTS extensions;
+GRANT USAGE ON SCHEMA extensions TO anon, authenticated, service_role;
+
 CREATE SCHEMA IF NOT EXISTS storage;
 CREATE TABLE IF NOT EXISTS storage.buckets (
   id text PRIMARY KEY, name text NOT NULL, public boolean DEFAULT false,

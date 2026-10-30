@@ -66,7 +66,29 @@ err = await race(
 n = (await S.query(`SELECT count(*)::int n FROM user_addresses WHERE user_id = 7004`)).rows[0].n;
 report('the 10-address limit holds when two are saved at once', n === 10, `${n} saved; second attempt: ${err ? err.message : 'accepted'}`);
 
+// 5. Five buyers press Buy at the same moment for the last one in stock (migration 014): one gets it
+await S.query(`INSERT INTO products (id, title, department_id, seller_id, price_zmw, status, stock_qty) VALUES
+  ('RQ', 'Last one', 'rt', 'rs', 50, 'active', 1), ('RS', 'Plenty', 'rt', 'rs', 50, 'active', 5)`);
+const buyers = Array.from({ length: 5 }, () => new pg.Client(cfg));
+await Promise.all(buyers.map(c => c.connect()));
+const place = (c, ref, id) => c.query(`SELECT app.place_order($1::jsonb) r`, [JSON.stringify({ ref, contact_name: 'Guest', recipient_phone: '+260970000000', items: [{ product_id: id, quantity: 1 }] })])
+  .then(res => res.rows[0].r, e => e);
+const outcomes = await Promise.all(buyers.map((c, i) => place(c, 'ZS-RACE0' + i, 'RQ')));
+const sold = outcomes.filter(o => !(o instanceof Error)).length;
+const left = (await S.query(`SELECT stock_qty FROM products WHERE id = 'RQ'`)).rows[0].stock_qty;
+report('the last item is sold once when five buyers order at once', sold === 1 && left === 0, `${sold} order(s) placed, ${left} left; others: ${outcomes.filter(o => o instanceof Error).map(e => e.message)[0] || 'none refused'}`);
+
+// 6. The same order sent twice at once (double click, retry): one order, stock taken once
+const twice = await Promise.all([place(buyers[0], 'ZS-TWICE1', 'RS'), place(buyers[1], 'ZS-TWICE1', 'RS')]);
+const made = (await S.query(`SELECT count(*)::int n FROM orders WHERE ref = 'ZS-TWICE1'`)).rows[0].n;
+const stock = (await S.query(`SELECT stock_qty FROM products WHERE id = 'RS'`)).rows[0].stock_qty;
+report('an order sent twice at once is placed once', made === 1 && stock === 4 && twice.every(t => !(t instanceof Error)) && twice.some(t => t.replayed),
+  `${made} order(s), ${stock} left; ${twice.map(t => t instanceof Error ? t.message : (t.replayed ? 'replayed' : 'placed')).join(', ')}`);
+await Promise.all(buyers.map(c => c.end()));
+
 // Remove the fixtures (the cascade takes their orders, reviews, offers and addresses)
+await S.query(`DELETE FROM order_items WHERE product_id IN ('RQ', 'RS'); DELETE FROM orders WHERE ref LIKE 'ZS-RACE%' OR ref = 'ZS-TWICE1';
+  DELETE FROM products WHERE id IN ('RQ', 'RS');`);
 await S.query(`DELETE FROM reviews WHERE product_id = 'RP'; DELETE FROM order_items WHERE product_id = 'RP';
   DELETE FROM price_commitments WHERE product_id = 'RP'; DELETE FROM orders WHERE id BETWEEN 7101 AND 7104;
   DELETE FROM user_addresses WHERE user_id BETWEEN 7001 AND 7004; DELETE FROM users WHERE id BETWEEN 7001 AND 7004;

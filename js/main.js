@@ -2541,6 +2541,8 @@
       });
       syncCo();
       co.addEventListener('click', function (e) {
+        // A second click on the same order (double click) sends nothing more
+        if (orders().some(function (o) { return o.ref === ref; })) { e.preventDefault(); return; }
         var reserved = {}, unavailable = items.some(function (it) {
           if (!ZP.hasOptions(it.p)) return false;
           var current = variantOf(it.p, it.opt);
