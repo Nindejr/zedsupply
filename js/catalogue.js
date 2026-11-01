@@ -45,7 +45,8 @@ window.ZS_CATALOGUE = {
     // listed prices already include VAT (usual for shops), so totals show "Includes VAT".
     // A seller who isn't VAT-registered can set vatRegistered: false on their seller entry, and
     // their items are left out of the VAT figure.
-    vat: { rate: 16, included: true, registered: true, tpin: '[TPIN]' },
+    vat: { rate: 16, included: true, registered: false, tpin: '', verified: false }, // Enable only after business registration is confirmed.
+    business: { legalName: '', streetAddress: '', supportHours: '', deliveryApproved: false, returnsApproved: false },
 
     // ---- Delivery days and times ----
     // Buyers pick a preferred day and time at checkout; it's confirmed on WhatsApp.
@@ -132,14 +133,14 @@ window.ZS_CATALOGUE = {
     // languages: [id, name] pairs for the language menu, which appears with two or more. Add a
     //   language only after js/lang/<id>.js has been translated and checked by a native speaker.
     buyerProtection: { enabled: false, holdDays: 3, preview: true },
-    payments: { prompt: false },
+    payments: { prompt: false, contractValidated: false },
     layby: { enabled: false, depositPct: 20, weeks: 8, preview: true },
     pickupPoints: [],
     alerts: true,
     questions: true,
     share: true,
     staff: { preview: true },
-    api: { url: '', key: '' },
+    api: { enabled: false, url: '', key: '' }, // Activate only after staging acceptance and all migrations.
     languages: [['en', 'English']],
 
     whatsapp: '260979050042',

@@ -1,0 +1,1136 @@
+{
+  "brand": "Zed Supply",
+  "version": 1,
+  "assets": [
+    {
+      "path": "assets/products/C001.webp",
+      "branding": "ZED SUPPLY / ZS",
+      "method": "pixel-composite-v1",
+      "width": 600,
+      "height": 600,
+      "bytes": 16268,
+      "sourceSha256": "38c9f4292ff4880baacae8da1ed7f78bd0f6effe2f008168e3de1eedddecb156",
+      "sha256": "7b9504791e768dd4e57318d48d5f45530747e9f6012fdb436f344affe85a9f32"
+    },
+    {
+      "path": "assets/products/C002.webp",
+      "branding": "ZED SUPPLY / ZS",
+      "method": "pixel-composite-v1",
+      "width": 600,
+      "height": 600,
+      "bytes": 30162,
+      "sourceSha256": "10889817064ce195d6b206cfc33d911bf4f9022e8026f4e25349a6301dda0d4a",
+      "sha256": "ee94ee49499b9cff8053f4beb363f1d4ba783b2095caaeafd5973185d1e4732d"
+    },
+    {
+      "path": "assets/products/L001.webp",
+      "branding": "ZED SUPPLY / ZS",
+      "method": "pixel-composite-v1",
+      "width": 600,
+      "height": 600,
+      "bytes": 23942,
+      "sourceSha256": "7bda0e9424abc7fee63e976307f22c2bbb0018fd94ae9e313a93ae1284aaa307",
+      "sha256": "884bdd15b9f92b0a7e78006a6f95096f68d02d8cf2733e02fcdda800d076c6e4"
+    },
+    {
+      "path": "assets/products/L002.webp",
+      "branding": "ZED SUPPLY / ZS",
+      "method": "pixel-composite-v1",
+      "width": 600,
+      "height": 600,
+      "bytes": 25186,
+      "sourceSha256": "8fc33772e41cbfb74d474c1caa0ab23089c26743ccd497a082d09d31a0a21a7a",
+      "sha256": "49fefe53d72f5a7e88dc5e8d1294fe0c7839d2ab33af29eabb18170580b23931"
+    },
+    {
+      "path": "assets/products/L003.webp",
+      "branding": "ZED SUPPLY / ZS",
+      "method": "pixel-composite-v1",
+      "width": 600,
+      "height": 600,
+      "bytes": 31092,
+      "sourceSha256": "656d338052ea73db62066a6e37e470354649a3a35eeb9181d7a395ab6cfabbaa",
+      "sha256": "73a22d573ee74a7857a4d88e3593f6b27153af14c996609bc2848750cd82b06f"
+    },
+    {
+      "path": "assets/products/L004.webp",
+      "branding": "ZED SUPPLY / ZS",
+      "method": "pixel-composite-v1",
+      "width": 600,
+      "height": 600,
+      "bytes": 16200,
+      "sourceSha256": "037b9e1e8e310ed16ef0eb5d349af084e154333f12db248c9725da559b5cea4b",
+      "sha256": "c2cb6f013ef34053d7960ab1794cff158cbe0d7262446830c199ff1e36c36983"
+    },
+    {
+      "path": "assets/products/L005.webp",
+      "branding": "ZED SUPPLY / ZS",
+      "method": "pixel-composite-v1",
+      "width": 600,
+      "height": 600,
+      "bytes": 57922,
+      "sourceSha256": "5f274c892f9d8b2a3f18ae37500788180460fe7f71cfaae5e4731fe1c673c7e9",
+      "sha256": "c410d5559a9fe0c1860ee0665e7cb62644e528b0f7d89f356cfe9a7a761ae83d"
+    },
+    {
+      "path": "assets/products/L006.webp",
+      "branding": "ZED SUPPLY / ZS",
+      "method": "pixel-composite-v1",
+      "width": 600,
+      "height": 600,
+      "bytes": 36662,
+      "sourceSha256": "3d3e6d37af5bc587a047f5cd94528091cad7926b6ce3a28b25b0d4dd8d152e0c",
+      "sha256": "dd9af7ca4f268cc5737a0db5cc9f43d672ee6334c047129e071c99922170fc58"
+    },
+    {
+      "path": "assets/products/L007.webp",
+      "branding": "ZED SUPPLY / ZS",
+      "method": "pixel-composite-v1",
+      "width": 600,
+      "height": 600,
+      "bytes": 26914,
+      "sourceSha256": "a4184ff8bde8365cbd6a0853fda012a0872424d387300bc2f03f21aea4a252e2",
+      "sha256": "8c92ceec13bd9f714c5c99f49142136ee2bd7145143ef1aedda9c5fdcd0c3c77"
+    },
+    {
+      "path": "assets/products/L008.webp",
+      "branding": "ZED SUPPLY / ZS",
+      "method": "pixel-composite-v1",
+      "width": 600,
+      "height": 600,
+      "bytes": 19428,
+      "sourceSha256": "71d0faa6e0303cdaa7cde716a096bd29477810d37174f0618085c027f90df888",
+      "sha256": "7672770f960e4ffdf380dbe99f7cd1afd662d8df6636d07e4c8685b400c612bb"
+    },
+    {
+      "path": "assets/products/L009.webp",
+      "branding": "ZED SUPPLY / ZS",
+      "method": "pixel-composite-v1",
+      "width": 600,
+      "height": 600,
+      "bytes": 20944,
+      "sourceSha256": "a82a7ba97ba122d9938522fe290ea6cb80184710ef104229bd9c5dca08230b09",
+      "sha256": "6d1fa8298c52e37a6865faee2cab880ff344146b2f3c2a3d047138e3786bb590"
+    },
+    {
+      "path": "assets/products/L010.webp",
+      "branding": "ZED SUPPLY / ZS",
+      "method": "pixel-composite-v1",
+      "width": 600,
+      "height": 600,
+      "bytes": 28396,
+      "sourceSha256": "42819071daa7dac736e680e709fb295b7b7c00172d59bbddef67a275b012946f",
+      "sha256": "b1d3979935bbe897d32d90e199f3d20dc07988266db4acb200c4294b380fe3b9"
+    },
+    {
+      "path": "assets/products/L011.webp",
+      "branding": "ZED SUPPLY / ZS",
+      "method": "pixel-composite-v1",
+      "width": 600,
+      "height": 600,
+      "bytes": 23726,
+      "sourceSha256": "99270d32900fb9823e238ca3621b1bd2d7d2465de11fb695208b2fd8864a5494",
+      "sha256": "97d4df40a9e3cba7191e74333c3db028be98ef8e84035d6f24184ba945bb2491"
+    },
+    {
+      "path": "assets/products/L012.webp",
+      "branding": "ZED SUPPLY / ZS",
+      "method": "pixel-composite-v1",
+      "width": 600,
+      "height": 600,
+      "bytes": 26414,
+      "sourceSha256": "6827ad38754d1c647c7ec861d1c3535f3138cec9f846f44b96dbf8d42f84ae70",
+      "sha256": "20359410ff5f2e31b0f33c1acdf374d98d1febd10174a62a0d848cf656a626fb"
+    },
+    {
+      "path": "assets/products/L013.webp",
+      "branding": "ZED SUPPLY / ZS",
+      "method": "pixel-composite-v1",
+      "width": 600,
+      "height": 600,
+      "bytes": 39040,
+      "sourceSha256": "b740224ccc0c131db79a55e8dc30a1fb9e60bd7a768cb28cf9f799d47eb71d06",
+      "sha256": "2050a323b59f8903afbe5e9d78ec7ac5d55b71cf78cbe7e2b87b41848b374019"
+    },
+    {
+      "path": "assets/products/L014.webp",
+      "branding": "ZED SUPPLY / ZS",
+      "method": "pixel-composite-v1",
+      "width": 600,
+      "height": 600,
+      "bytes": 23468,
+      "sourceSha256": "41e3bbd78645ca95fd02ffb73d2c6ac76bd94577b8482bae63c0b7df73a7704e",
+      "sha256": "2d08afda0b69db23399fb03ee973afee4fb38617cc6fac3e25cf1ffbb8bc40d2"
+    },
+    {
+      "path": "assets/products/L015.webp",
+      "branding": "ZED SUPPLY / ZS",
+      "method": "pixel-composite-v1",
+      "width": 600,
+      "height": 600,
+      "bytes": 16910,
+      "sourceSha256": "f5c818cbf0ffb0199e5cac402ccb65bdd72640df6053fe6870128cd963193689",
+      "sha256": "439cb6cae187d0717411000b910174201a2e7ebeda7ee0e2a53a80ee67537392"
+    },
+    {
+      "path": "assets/products/L016.webp",
+      "branding": "ZED SUPPLY / ZS",
+      "method": "pixel-composite-v1",
+      "width": 600,
+      "height": 600,
+      "bytes": 35146,
+      "sourceSha256": "7c2e88f4c396743099d4b97f63f79a356737328fefbdd7bc5ecaf6436c07321b",
+      "sha256": "aebabcdb5e1690ef1b419b6059b2de7d034a0cb1e837041eb67cf5bfdaf53cae"
+    },
+    {
+      "path": "assets/products/demo/L020.webp",
+      "branding": "ZED SUPPLY / ZS",
+      "method": "pixel-composite-v1",
+      "width": 600,
+      "height": 600,
+      "bytes": 25834,
+      "sourceSha256": "8298482fb03fc606067f99b6c890bf3560e4bd5ff5ed4e2c4c4ac2fa6e12116d",
+      "sha256": "edcb2eeaea9e39f7b7cc64ea4f3096dafb0f69715db1482db21f676df9c5b02b"
+    },
+    {
+      "path": "assets/products/demo/L021.webp",
+      "branding": "ZED SUPPLY / ZS",
+      "method": "pixel-composite-v1",
+      "width": 600,
+      "height": 600,
+      "bytes": 29076,
+      "sourceSha256": "21091af9ae7c58c4000556880e6b885f9c8f73eaca81c1a307939a720f5af132",
+      "sha256": "a9255cab5141ec5473230dc31233724c664f07be619a4b98498e8d147baf12c1"
+    },
+    {
+      "path": "assets/products/demo/L022.webp",
+      "branding": "ZED SUPPLY / ZS",
+      "method": "pixel-composite-v1",
+      "width": 600,
+      "height": 600,
+      "bytes": 13006,
+      "sourceSha256": "317d661c2c952adb376168d843e46599a6b34f0ef95f99af8b98f8b9771e41b9",
+      "sha256": "11b7147af36c3c58b53a2f40025f4109de0759ca87ba655539ca1b3e748d5a6f"
+    },
+    {
+      "path": "assets/products/demo/L023.webp",
+      "branding": "ZED SUPPLY / ZS",
+      "method": "pixel-composite-v1",
+      "width": 600,
+      "height": 600,
+      "bytes": 13744,
+      "sourceSha256": "5c0860d1f3811db2168e36909299421dcd00a75da0487187bbe9bd5c1aa27ae4",
+      "sha256": "86d3246bacb147a49e283f1b6704604ea312f60929a1a16e70a780c0bef259ce"
+    },
+    {
+      "path": "assets/products/demo/L024.webp",
+      "branding": "ZED SUPPLY / ZS",
+      "method": "pixel-composite-v1",
+      "width": 600,
+      "height": 600,
+      "bytes": 23376,
+      "sourceSha256": "c256f4fa2d608555e221769a4d85c172bca7d168516cc2fbcaa7de815a964c9c",
+      "sha256": "a2033395c825537b4f67c26b42039f1f40d302e5a1fd1f5c5191302e282eee52"
+    },
+    {
+      "path": "assets/products/demo/L025.webp",
+      "branding": "ZED SUPPLY / ZS",
+      "method": "pixel-composite-v1",
+      "width": 600,
+      "height": 600,
+      "bytes": 31996,
+      "sourceSha256": "e71fd578b4cfd3bc2a4b652bd32d8eb7ffb9edec05618efb794f0b809a6d90da",
+      "sha256": "38a8a16150f27b9e8a5f5c4ccfa7ef89e419238995d3fb58be429f7e7812709f"
+    },
+    {
+      "path": "assets/products/demo/L026.webp",
+      "branding": "ZED SUPPLY / ZS",
+      "method": "pixel-composite-v1",
+      "width": 600,
+      "height": 600,
+      "bytes": 31740,
+      "sourceSha256": "96015f8c163f6a9fb7d072025a437f6f678c0c76d1aa45d63e058c2af9bd447d",
+      "sha256": "099b97cc1a90cb2858b0dc096b9139995651f0c23c1295048ac28752aa41a6f2"
+    },
+    {
+      "path": "assets/products/demo/L027.webp",
+      "branding": "ZED SUPPLY / ZS",
+      "method": "pixel-composite-v1",
+      "width": 600,
+      "height": 600,
+      "bytes": 33654,
+      "sourceSha256": "6e38e4a83f730c2ec34e9f9ae021a83635aa5d5deff4e352161023e359406074",
+      "sha256": "97b83c4bcc844f9ff30e1cd3566d1dae9ba41958f63c8b59b9437a17e12b99c0"
+    },
+    {
+      "path": "assets/products/demo/L028.webp",
+      "branding": "ZED SUPPLY / ZS",
+      "method": "pixel-composite-v1",
+      "width": 600,
+      "height": 600,
+      "bytes": 22702,
+      "sourceSha256": "12e7ac3f72a61863a6632ce8bf92f33798997fc81c3cb1b7b9dea217e73e7a59",
+      "sha256": "539a1d1dfcbb2506bb21c79129162e0d1df89efbe4caa067da0bb2ddb0fa56dd"
+    },
+    {
+      "path": "assets/products/demo/L029.webp",
+      "branding": "ZED SUPPLY / ZS",
+      "method": "pixel-composite-v1",
+      "width": 600,
+      "height": 600,
+      "bytes": 30910,
+      "sourceSha256": "c33d38fa17cd3489f13e51b11ac5709bdcb8e935005ebe05b0888b66ad527eb0",
+      "sha256": "b3e9ae953b908dca01038fde49d961f8076d5bd90d949c2018b48b78a5971774"
+    },
+    {
+      "path": "assets/products/demo/L030.webp",
+      "branding": "ZED SUPPLY / ZS",
+      "method": "pixel-composite-v1",
+      "width": 600,
+      "height": 600,
+      "bytes": 28376,
+      "sourceSha256": "ac4344ce61fc2f5c967a0bb29f10ba1555e7e868ea51dd607fb2ea3c8731fc0f",
+      "sha256": "faa4ad8e6e6e17ccd1ba59b016eca018612445373d0d1d29f2212f14f6eb1075"
+    },
+    {
+      "path": "assets/products/demo/L031.webp",
+      "branding": "ZED SUPPLY / ZS",
+      "method": "pixel-composite-v1",
+      "width": 600,
+      "height": 600,
+      "bytes": 27572,
+      "sourceSha256": "003352e94b53397c4edc032684df9eaa5a58f35247233da16bcb8ab2e1ab9a15",
+      "sha256": "27ae05b7f55ec256515f9e8b0ead48ce4a5b1b1b078234e0b3f7c5eb8f31d8b5"
+    },
+    {
+      "path": "assets/products/demo/L032.webp",
+      "branding": "ZED SUPPLY / ZS",
+      "method": "pixel-composite-v1",
+      "width": 600,
+      "height": 600,
+      "bytes": 12188,
+      "sourceSha256": "69e243efa688002b1425ab125ea04589f23f2433d4c8bdbc187c8cb3b807b934",
+      "sha256": "a3d23ded8ac745f3d266fb67e0ad300793ed3dfaf90e916a0ee54949c3ebc7a8"
+    },
+    {
+      "path": "assets/products/demo/L033.webp",
+      "branding": "ZED SUPPLY / ZS",
+      "method": "pixel-composite-v1",
+      "width": 600,
+      "height": 600,
+      "bytes": 41778,
+      "sourceSha256": "99caee09ac3b4f87de003725e6602c66d9d1c030c1baf69715032dcefbfe289e",
+      "sha256": "5d2e0368acd3ae5bac19067e86a6bd6789fedf518cbe0fa742dc4461a556a941"
+    },
+    {
+      "path": "assets/products/demo/L034.webp",
+      "branding": "ZED SUPPLY / ZS",
+      "method": "pixel-composite-v1",
+      "width": 600,
+      "height": 600,
+      "bytes": 34420,
+      "sourceSha256": "30fa3aa7521ab59050eb9e07f8c9ee57975b216e6b7fd05bc59c3dbfe32e49ce",
+      "sha256": "efa8ad7191605ee49a599344c362a80af5ba03a215e7bd65d72fb16f79eab204"
+    },
+    {
+      "path": "assets/products/demo/L035.webp",
+      "branding": "ZED SUPPLY / ZS",
+      "method": "pixel-composite-v1",
+      "width": 600,
+      "height": 600,
+      "bytes": 58466,
+      "sourceSha256": "51d66e0fa89f9025e67ed8687d50f2920fc043e52a3848471fa33c63d8f9780a",
+      "sha256": "60c779f051f804c3e496a0b50871f1d01707e7fd9df883e92b87b8efae704d60"
+    },
+    {
+      "path": "assets/products/demo/L036.webp",
+      "branding": "ZED SUPPLY / ZS",
+      "method": "pixel-composite-v1",
+      "width": 600,
+      "height": 600,
+      "bytes": 14480,
+      "sourceSha256": "e90fa1f4cea9b4996189501e68b675e59f3f595a14ad5a4fcde82c71d92e1ee3",
+      "sha256": "267f4909bd177bffa88a5315227a43aa603f79213667e468a33524566496309f"
+    },
+    {
+      "path": "assets/products/demo/L037.webp",
+      "branding": "ZED SUPPLY / ZS",
+      "method": "pixel-composite-v1",
+      "width": 600,
+      "height": 600,
+      "bytes": 49758,
+      "sourceSha256": "0c584c6d9c53d140a61ae79b51e7a5fc9a53ecaf753abbb76ef48e1580dac103",
+      "sha256": "6cbe357cd2a1c554bf0e895f65630c8586a92091f65e6bf34bf03edda536bf01"
+    },
+    {
+      "path": "assets/products/demo/L038.webp",
+      "branding": "ZED SUPPLY / ZS",
+      "method": "pixel-composite-v1",
+      "width": 600,
+      "height": 600,
+      "bytes": 49630,
+      "sourceSha256": "30a38a9d0e82ecdf9cb24889195ad7bf0d480e1c919355dd3d76ff2481535e48",
+      "sha256": "86dfa9e1ff3fc3af59f41611181610d7a02499ca2c7ecfd98d313d65bcf83f1a"
+    },
+    {
+      "path": "assets/products/demo/L039.webp",
+      "branding": "ZED SUPPLY / ZS",
+      "method": "pixel-composite-v1",
+      "width": 600,
+      "height": 600,
+      "bytes": 42656,
+      "sourceSha256": "8ec471735185a6ed5c00cd47d387538362bf73244a16aebf64c45a734e6da40d",
+      "sha256": "1c1cb34c03d7bda637417a10904aa540a92d8c84e46fc29311d6ddaa0a2cc9ba"
+    },
+    {
+      "path": "assets/products/demo/L040.webp",
+      "branding": "ZED SUPPLY / ZS",
+      "method": "pixel-composite-v1",
+      "width": 600,
+      "height": 600,
+      "bytes": 28694,
+      "sourceSha256": "eba02cd1f1052946eb36ab25033d282aef5bb893455456f49be155e59b0576e1",
+      "sha256": "b2b29eb88eb50f9030bf6cf9a7bbef266e52356c86cc2ff1526bec54b274d3ae"
+    },
+    {
+      "path": "assets/products/demo/L041-shapes.webp",
+      "branding": "ZED SUPPLY / ZS",
+      "method": "pixel-composite-v1",
+      "width": 600,
+      "height": 600,
+      "bytes": 25634,
+      "sourceSha256": "96062c2ce58eb3ec0886b355f1b1dffc21945faa3836c42874b369685069fd60",
+      "sha256": "203094f792708d35f9458d3968a4834b5a069a531968879602c0c293e35e017a"
+    },
+    {
+      "path": "assets/products/demo/L041.webp",
+      "branding": "ZED SUPPLY / ZS",
+      "method": "pixel-composite-v1",
+      "width": 600,
+      "height": 600,
+      "bytes": 36864,
+      "sourceSha256": "04e76534ae16ad7ddc661892f05691b216560c07d9a550a422ec136bec55e00d",
+      "sha256": "e641d568d0597b1811a74f829fa2f660bde011d033bd9eff52edbff5344d25f9"
+    },
+    {
+      "path": "assets/products/demo/L042.webp",
+      "branding": "ZED SUPPLY / ZS",
+      "method": "pixel-composite-v1",
+      "width": 600,
+      "height": 600,
+      "bytes": 41766,
+      "sourceSha256": "7b927b5f996133e4310854fb4ea4b5d7918a80b6cb97a76729502e63d4fd4864",
+      "sha256": "e26b29601dcd18db3f8fdde1b966c9a97cc5a77c0ae11de7b0d01092f4e6cee4"
+    },
+    {
+      "path": "assets/products/demo/L043.webp",
+      "branding": "ZED SUPPLY / ZS",
+      "method": "pixel-composite-v1",
+      "width": 600,
+      "height": 600,
+      "bytes": 21384,
+      "sourceSha256": "48efc86b2448553a00174e2e3d28d1a35ba546c95f8befc8845d876aee4826c6",
+      "sha256": "7fa62bf25c48678ebc9e04c5bb11cf072536c9f8efee16658f1fcab8e82e168b"
+    },
+    {
+      "path": "assets/products/demo/L044.webp",
+      "branding": "ZED SUPPLY / ZS",
+      "method": "pixel-composite-v1",
+      "width": 600,
+      "height": 600,
+      "bytes": 20688,
+      "sourceSha256": "f6e5c0d69cfef50ee462c7036bc00428b962494b5d2f909c6c97f218330fcbb6",
+      "sha256": "2f746b8acd17f9b3b602b6c70659069ac84845b42dc6cbfb06400a21a815ba03"
+    },
+    {
+      "path": "assets/products/demo/L045.webp",
+      "branding": "ZED SUPPLY / ZS",
+      "method": "pixel-composite-v1",
+      "width": 600,
+      "height": 600,
+      "bytes": 39390,
+      "sourceSha256": "12fb0ec4ccd043ce3c91f71a715feb25f6ecf2b5d0d3970dc7a0501d64b18fc2",
+      "sha256": "49b44fe4437294f8d79d6d344a537a9d578c8392e01de0f1a3c153cbb7b132ad"
+    },
+    {
+      "path": "assets/products/demo/L046.webp",
+      "branding": "ZED SUPPLY / ZS",
+      "method": "pixel-composite-v1",
+      "width": 600,
+      "height": 600,
+      "bytes": 19642,
+      "sourceSha256": "0322c1e618a060738b4f9f42313e293ec3bb62a5a84f5ecf3fbe16b122839087",
+      "sha256": "09943744537832b6e2e82e939b5eb41715f646617f699bda6a7bb9c701ec86c4"
+    },
+    {
+      "path": "assets/products/demo/L047.webp",
+      "branding": "ZED SUPPLY / ZS",
+      "method": "pixel-composite-v1",
+      "width": 600,
+      "height": 600,
+      "bytes": 29542,
+      "sourceSha256": "9193d00bdd46f7d25b39efefc215e5d288665485e6e355f0143e30899f1ca0e7",
+      "sha256": "39f977f13936dde0661d3ec6e695183905bb4f6905bc4a26d3f782ce6074daed"
+    },
+    {
+      "path": "assets/products/demo/L048.webp",
+      "branding": "ZED SUPPLY / ZS",
+      "method": "pixel-composite-v1",
+      "width": 600,
+      "height": 600,
+      "bytes": 26920,
+      "sourceSha256": "49ba37c21c716b6ce5813a6ba72cda254f69517f779cb60bd357a872e0dd7150",
+      "sha256": "1cadd5b0503ce5b1a8858076d9138c5c62ddcd7522a33e96a3fc5bc62a129fc6"
+    },
+    {
+      "path": "assets/products/demo/L049.webp",
+      "branding": "ZED SUPPLY / ZS",
+      "method": "pixel-composite-v1",
+      "width": 600,
+      "height": 600,
+      "bytes": 57904,
+      "sourceSha256": "9991c2ace1c95a3cfe0fb44f849e4016e50a9b663b20d9f74ec18c32c9798e10",
+      "sha256": "6a4786102b73e9711ab4ed9cc05b24c0f7d36c2ddba499835ef4c1833d4d34df"
+    },
+    {
+      "path": "assets/products/demo/L050.webp",
+      "branding": "ZED SUPPLY / ZS",
+      "method": "pixel-composite-v1",
+      "width": 600,
+      "height": 600,
+      "bytes": 23520,
+      "sourceSha256": "69dc246a1288793c966fb0edc46bd0016d0082f9c6ed73a28ff8a26f0cae697d",
+      "sha256": "ebf6b2a96388bcded42d4c34a2c6d68e71c535f9f036076c62ca00efab9f869b"
+    },
+    {
+      "path": "assets/products/demo/L051.webp",
+      "branding": "ZED SUPPLY / ZS",
+      "method": "pixel-composite-v1",
+      "width": 600,
+      "height": 600,
+      "bytes": 52504,
+      "sourceSha256": "f01b2e565564487bbb96be8bb18173dab6c20b9b72a5745b456976bd5cb2118c",
+      "sha256": "fc094a6848b1a561b64b5d523767e06c71bba14ebd769eafdd2eb6c158f87537"
+    },
+    {
+      "path": "assets/products/demo/L052.webp",
+      "branding": "ZED SUPPLY / ZS",
+      "method": "pixel-composite-v1",
+      "width": 600,
+      "height": 600,
+      "bytes": 42948,
+      "sourceSha256": "b054447505150ffff67d571161be6f6dd98f718bfa773f47a1a339a4bac754c3",
+      "sha256": "def22048bc84f3d23319e80fa5079d511b30ebe3fb387bfd568106d0972d28c2"
+    },
+    {
+      "path": "assets/products/demo/L053.webp",
+      "branding": "ZED SUPPLY / ZS",
+      "method": "pixel-composite-v1",
+      "width": 600,
+      "height": 600,
+      "bytes": 36546,
+      "sourceSha256": "e2c3257cfa1eaa05bc6b8b619fc1e6e5bd8e86f1094a8fdd5970162c9165f319",
+      "sha256": "2772665dd5a4029b92efb8ca6f10deab2c41be61f88a802818ecdbe0d3bc21e8"
+    },
+    {
+      "path": "assets/products/demo/L054.webp",
+      "branding": "ZED SUPPLY / ZS",
+      "method": "pixel-composite-v1",
+      "width": 600,
+      "height": 600,
+      "bytes": 55382,
+      "sourceSha256": "16ee662ced0435f30c599734ebea8ca4df888ac82fb76b8390fb8eaf292de8ae",
+      "sha256": "1757bf6b0a6cbd0d9c3c5bac2ec3abda421554ef87a673363ce51f7c099b7cd7"
+    },
+    {
+      "path": "assets/products/demo/L055.webp",
+      "branding": "ZED SUPPLY / ZS",
+      "method": "pixel-composite-v1",
+      "width": 600,
+      "height": 600,
+      "bytes": 18336,
+      "sourceSha256": "09d5f1f5d5f16ef21eb75c6aa04b7207fb51d7bf86d5b25af99ae14307f7082b",
+      "sha256": "b79a6745bc58ee910df4f2f312fb5c6e7f290108b38efeff52bb90a7fc01c559"
+    },
+    {
+      "path": "assets/categories-3d/agri.webp",
+      "branding": "ZED SUPPLY / ZS",
+      "method": "pixel-composite-v1",
+      "width": 200,
+      "height": 200,
+      "bytes": 11728,
+      "sourceSha256": "65e48cb1158925ddaac25789f0cb3dba996df3ad960e4e25abf14b9d17e84bd4",
+      "sha256": "e264ffaf09460f21091ec448a74105c5878a992ab8034baf8c1956a9a4db1e53"
+    },
+    {
+      "path": "assets/categories-3d/arts.webp",
+      "branding": "ZED SUPPLY / ZS",
+      "method": "pixel-composite-v1",
+      "width": 256,
+      "height": 256,
+      "bytes": 16718,
+      "sourceSha256": "69f1ab049556e58adae1ffe627b754f9369d9d4eff81c7394ae02a888ac10e07",
+      "sha256": "9ae1ebad02495bda1627449acb20f2abd9f9e5dc487fb6b4b5deb77f286ff199"
+    },
+    {
+      "path": "assets/categories-3d/auto.webp",
+      "branding": "ZED SUPPLY / ZS",
+      "method": "pixel-composite-v1",
+      "width": 200,
+      "height": 200,
+      "bytes": 10164,
+      "sourceSha256": "4a91348595844879d35a144a2593271c317bc51a63bffd764ec5e2394ea4e760",
+      "sha256": "afd299a24ddf8c65e107c495d83c70055d7ddd71f3b09c2ebf8cb31bf2cb53cc"
+    },
+    {
+      "path": "assets/categories-3d/baby.webp",
+      "branding": "ZED SUPPLY / ZS",
+      "method": "pixel-composite-v1",
+      "width": 200,
+      "height": 200,
+      "bytes": 10168,
+      "sourceSha256": "f88cddece341c55d711cd04fcbb55278223b5758331bbba1d88ec37949dfa5eb",
+      "sha256": "b00da68737ae47187adc2dfeca4260d1639bf86cda56f0146d69f7ff01b59413"
+    },
+    {
+      "path": "assets/categories-3d/beauty.webp",
+      "branding": "ZED SUPPLY / ZS",
+      "method": "pixel-composite-v1",
+      "width": 256,
+      "height": 256,
+      "bytes": 14576,
+      "sourceSha256": "b76c25818d3d47515d440f887de228f0c24211c78cb8b54ee3074d6f2bc03240",
+      "sha256": "3be6873db01200d3759491ebada6c95e115ee5e53e064c61613fc3b8d84e4cf8"
+    },
+    {
+      "path": "assets/categories-3d/boys.webp",
+      "branding": "ZED SUPPLY / ZS",
+      "method": "pixel-composite-v1",
+      "width": 256,
+      "height": 256,
+      "bytes": 18768,
+      "sourceSha256": "9a1ad7afcea134b6c14a67218604085f95eace04919bc0d1b525648517e09082",
+      "sha256": "28dc1539a4d82189eaf58c2c9fbaf9df04ea7519527d6111e8b0b448c501b61c"
+    },
+    {
+      "path": "assets/categories-3d/business.webp",
+      "branding": "ZED SUPPLY / ZS",
+      "method": "pixel-composite-v1",
+      "width": 200,
+      "height": 200,
+      "bytes": 9356,
+      "sourceSha256": "0a259b414dd350905d3c1a20539ae0038199b0cdbc818429e5603ae8afd5228a",
+      "sha256": "dafa81aec010967b3939131f9764fc19f94629f52d65fe6f8e295d711e5fb1ce"
+    },
+    {
+      "path": "assets/categories-3d/computers.webp",
+      "branding": "ZED SUPPLY / ZS",
+      "method": "pixel-composite-v1",
+      "width": 256,
+      "height": 256,
+      "bytes": 12758,
+      "sourceSha256": "476b50682638b2a7aed5e39decf229119686613774fc932e5320202798181626",
+      "sha256": "89237f99fd583ed1de83dc01eb84d1b4e2746f24a53cb7778cf30712f734247b"
+    },
+    {
+      "path": "assets/categories-3d/essentials.webp",
+      "branding": "ZED SUPPLY / ZS",
+      "method": "pixel-composite-v1",
+      "width": 200,
+      "height": 200,
+      "bytes": 11214,
+      "sourceSha256": "7176679d26118e33b1874ab60d8be4123840889d03067a1f41f4d0b963078054",
+      "sha256": "81e4361b8e8fec36ac263d9bf26ae299f2826bed67638d6a0ad6c6d60a017ffa"
+    },
+    {
+      "path": "assets/categories-3d/fashion.webp",
+      "branding": "ZED SUPPLY / ZS",
+      "method": "pixel-composite-v1",
+      "width": 200,
+      "height": 200,
+      "bytes": 11648,
+      "sourceSha256": "f04151716e55c7f5f6a88194521959282b3e7378773642ce0d8cd641b6107b2b",
+      "sha256": "a34eebd867ea0a4cb6bfffa2015601811736ca5874580d04ac22aa82ceea9d0e"
+    },
+    {
+      "path": "assets/categories-3d/games.webp",
+      "branding": "ZED SUPPLY / ZS",
+      "method": "pixel-composite-v1",
+      "width": 256,
+      "height": 256,
+      "bytes": 13314,
+      "sourceSha256": "189ac59faa3db855971b4a8a61c603a34d70176873a977072ecbfc2d8dab338e",
+      "sha256": "51825edfb6a4c28b51ea3532ce9b16395361a1926010282cc573bde7d6128be9"
+    },
+    {
+      "path": "assets/categories-3d/girls.webp",
+      "branding": "ZED SUPPLY / ZS",
+      "method": "pixel-composite-v1",
+      "width": 256,
+      "height": 256,
+      "bytes": 17674,
+      "sourceSha256": "19eb33eb0e7d668858e91ac69044dadf6e4c04af6c4d28b1919130047fa9973c",
+      "sha256": "ae126e039cde9df25400c6e678c38ecf15d55911e07e561fd7b2f2f330f5a4f7"
+    },
+    {
+      "path": "assets/categories-3d/hardware.webp",
+      "branding": "ZED SUPPLY / ZS",
+      "method": "pixel-composite-v1",
+      "width": 200,
+      "height": 200,
+      "bytes": 12366,
+      "sourceSha256": "06e0bfe6365719105b7f2629b1a7e4c7357898453f5f1b05a964659193518970",
+      "sha256": "5718e6a611692b91b7316e0fdeac9194e8b6644f0eec7705ef9d0349110061d8"
+    },
+    {
+      "path": "assets/categories-3d/health.webp",
+      "branding": "ZED SUPPLY / ZS",
+      "method": "pixel-composite-v1",
+      "width": 200,
+      "height": 200,
+      "bytes": 9094,
+      "sourceSha256": "e9e544b3b5430ca7d16161c918925d2a3e0db8788cde43210c34c5fcf5e50ea3",
+      "sha256": "d4e0efcf02a62bef93cef21c12be9b3753592d8256f32c384ecd95250880857b"
+    },
+    {
+      "path": "assets/categories-3d/home.webp",
+      "branding": "ZED SUPPLY / ZS",
+      "method": "pixel-composite-v1",
+      "width": 200,
+      "height": 200,
+      "bytes": 8504,
+      "sourceSha256": "9dfdac24502b7a02c49e9ac8f5657a4b84b6e1aa0a15bf4eebf1fc3ed763263c",
+      "sha256": "e02d571ab8f018b0b36acf644af15a738a23935d2493e552d059520792875b04"
+    },
+    {
+      "path": "assets/categories-3d/luggage.webp",
+      "branding": "ZED SUPPLY / ZS",
+      "method": "pixel-composite-v1",
+      "width": 256,
+      "height": 256,
+      "bytes": 16252,
+      "sourceSha256": "8401967d8d9e0a4e8c3b8e1ca4b6787a918d693c6c12a6de69c67fcfd6bf7463",
+      "sha256": "1c863baeb16f2944439d84e303b725cdad73e02280ab8a3699ecbc5c78821b4e"
+    },
+    {
+      "path": "assets/categories-3d/mens.webp",
+      "branding": "ZED SUPPLY / ZS",
+      "method": "pixel-composite-v1",
+      "width": 256,
+      "height": 256,
+      "bytes": 16680,
+      "sourceSha256": "fe2b839abcf4465b8c8e3b2d709d0e50b775b4774a27d8372a6413a2082cd55a",
+      "sha256": "7bce603c93ef45830c4284b03525af4f8f0f75d7d02b9b83ec892374b646b5d5"
+    },
+    {
+      "path": "assets/categories-3d/office.webp",
+      "branding": "ZED SUPPLY / ZS",
+      "method": "pixel-composite-v1",
+      "width": 200,
+      "height": 200,
+      "bytes": 8800,
+      "sourceSha256": "ba102e7020637c739d2ab69dbe44bcc08e99ba70e0628ade3b718b4824e1105e",
+      "sha256": "f0c12023c98367f8ed90f8c21f6add4763fdd38c71684cdc8b0025e4e1f59b03"
+    },
+    {
+      "path": "assets/categories-3d/pets.webp",
+      "branding": "ZED SUPPLY / ZS",
+      "method": "pixel-composite-v1",
+      "width": 256,
+      "height": 256,
+      "bytes": 18428,
+      "sourceSha256": "cb58d5ea42ecd720bce04db49112b66e2f13dda825c45e2a7fce2d15266302a0",
+      "sha256": "9feb81407a0cc90cdd38b2ebf82c0f8232ae45e916e45e8a581779a21f502781"
+    },
+    {
+      "path": "assets/categories-3d/salaula.webp",
+      "branding": "ZED SUPPLY / ZS",
+      "method": "pixel-composite-v1",
+      "width": 224,
+      "height": 224,
+      "bytes": 10840,
+      "sourceSha256": "a20d17410af2fdfe077e72c9409142ee8db05979e074c7143cc14e55896daf53",
+      "sha256": "07632f8d2fe8f44cc4596bc570957f0f8f0d3e8b3170e702c448241a6e442204"
+    },
+    {
+      "path": "assets/categories-3d/smarthome.webp",
+      "branding": "ZED SUPPLY / ZS",
+      "method": "pixel-composite-v1",
+      "width": 256,
+      "height": 256,
+      "bytes": 9952,
+      "sourceSha256": "45690aeefaea9d0cf1abb981f16a689ba43459e38a853c4cd31f58d98716c386",
+      "sha256": "98f9917735e3f9e6951dfeee4918bba5d9d4e77a695c0badefbdeb0d810af1d0"
+    },
+    {
+      "path": "assets/categories-3d/solar.webp",
+      "branding": "ZED SUPPLY / ZS",
+      "method": "pixel-composite-v1",
+      "width": 200,
+      "height": 200,
+      "bytes": 11262,
+      "sourceSha256": "8c00479f17077b1e80980e657f9949cfddc967a32c211c191da75063d56d4731",
+      "sha256": "85aec6822bd43500898e00ac5187838fb63871a80c68509339ac1c689a07db1a"
+    },
+    {
+      "path": "assets/categories-3d/sports.webp",
+      "branding": "ZED SUPPLY / ZS",
+      "method": "pixel-composite-v1",
+      "width": 256,
+      "height": 256,
+      "bytes": 13218,
+      "sourceSha256": "9bf2756f17c421b3033633f0833b56086c2fc6a5288f05a51a8e48e09ea163ec",
+      "sha256": "edd7dd386bbcfe405eb39ed18f75a6aeb6ac9c1d10752acc177a72b60e837968"
+    },
+    {
+      "path": "assets/categories-3d/tech.webp",
+      "branding": "ZED SUPPLY / ZS",
+      "method": "pixel-composite-v1",
+      "width": 200,
+      "height": 200,
+      "bytes": 9334,
+      "sourceSha256": "be8287935bfbc76181318793d679cdba16e4cfec190292be46bd44d2c08966fc",
+      "sha256": "9bc2d02e499175457ce6eb4c36842b6132aa3c0387e40024b35949a4b039a98c"
+    },
+    {
+      "path": "assets/categories-3d/toys.webp",
+      "branding": "ZED SUPPLY / ZS",
+      "method": "pixel-composite-v1",
+      "width": 256,
+      "height": 256,
+      "bytes": 19842,
+      "sourceSha256": "d0f35d4c1f82e2b98c5412064690de347bc9334886e0ed39127e67f148c69c79",
+      "sha256": "2e838c5bb2bcdd4e266a3ccb6133e5c92011776e3f46c5ed45ac9d5f70003372"
+    },
+    {
+      "path": "assets/categories-3d/tv.webp",
+      "branding": "ZED SUPPLY / ZS",
+      "method": "pixel-composite-v1",
+      "width": 256,
+      "height": 256,
+      "bytes": 12994,
+      "sourceSha256": "155911f968a072b69840e69c4164a588459a8cd4475784684ec24e3bffe4111e",
+      "sha256": "3573fd4805ace75f3f9229c560d67d0f00745bda4ff3dd5035b7be23e937fb9d"
+    },
+    {
+      "path": "assets/banners/sample-ad-mobile.webp",
+      "branding": "ZED SUPPLY / ZS",
+      "method": "pixel-composite-v1",
+      "width": 800,
+      "height": 640,
+      "bytes": 33822,
+      "sourceSha256": "de5cfac6d25e19be32ae117b0ed2c41f5c96064741083003ad75870988a9fb3c",
+      "sha256": "f02e51aac63eee045497c9fbacb4824622d287567e2db4d028ca9ce182b17b4b"
+    },
+    {
+      "path": "assets/banners/sample-ad-wide.webp",
+      "branding": "ZED SUPPLY / ZS",
+      "method": "pixel-composite-v1",
+      "width": 1600,
+      "height": 500,
+      "bytes": 39782,
+      "sourceSha256": "b6a222adaaf7d5f5dce665aa166a026706387e5a7d132f7d9d3c8b5c6d9bffbe",
+      "sha256": "f3792b987dd092fd86524cac4b38c55a70129462226ad915d8e651aec0da95c8"
+    },
+    {
+      "path": "assets/banners/alternatives/business-3d-mobile.webp",
+      "branding": "ZED SUPPLY / ZS",
+      "method": "pixel-composite-v1",
+      "width": 800,
+      "height": 640,
+      "bytes": 47376,
+      "sourceSha256": "353a3c5cad0a6d6ee952ecd891e442579c52f2e4bc551aaa5e240d8b7840a781",
+      "sha256": "39d0f718f934666636b11999d8ea18c56d522a48c2a9072a1c7e8ffa74c92f15"
+    },
+    {
+      "path": "assets/banners/alternatives/business-3d.webp",
+      "branding": "ZED SUPPLY / ZS",
+      "method": "pixel-composite-v1",
+      "width": 1440,
+      "height": 480,
+      "bytes": 39634,
+      "sourceSha256": "c04a0b0fef6bfa70ab4c905a43bff7610a28283d3f589dfb6315e54a166f7f24",
+      "sha256": "c7168fdfbbcab5ec4f108c1d7ffe980e6150e30d6630063f7f802e7225ee15c5"
+    },
+    {
+      "path": "assets/banners/alternatives/marketplace-3d-mobile.webp",
+      "branding": "ZED SUPPLY / ZS",
+      "method": "pixel-composite-v1",
+      "width": 800,
+      "height": 640,
+      "bytes": 45686,
+      "sourceSha256": "c21fa732f0c91d1ea1f766e8b31eee83a89f820656166c3ffc2ba7a51341b479",
+      "sha256": "72a1afa2cb724c44d84755e03712a809584ac1bc8b5ffc06cc8b538cfe8e4869"
+    },
+    {
+      "path": "assets/banners/alternatives/marketplace-3d.webp",
+      "branding": "ZED SUPPLY / ZS",
+      "method": "pixel-composite-v1",
+      "width": 1440,
+      "height": 480,
+      "bytes": 36682,
+      "sourceSha256": "988f31c03806af64b65fa69bb948a99301cb9322b2bf2c167c0c4e97f74b03b4",
+      "sha256": "a78d250d76014500fe1f21e11b5c76b60c5807a3f0820f79b766777d4d7cceaa"
+    },
+    {
+      "path": "assets/banners/alternatives/solar-3d-mobile.webp",
+      "branding": "ZED SUPPLY / ZS",
+      "method": "pixel-composite-v1",
+      "width": 800,
+      "height": 640,
+      "bytes": 45928,
+      "sourceSha256": "0cfb3807ba54fe22074f3303b533afdee764e28cb08e743a086a5af247ca84f9",
+      "sha256": "40963faa34fb5547aadcf64cfd4f1a48eed12fda0913db959340e279f367c9d4"
+    },
+    {
+      "path": "assets/banners/alternatives/solar-3d.webp",
+      "branding": "ZED SUPPLY / ZS",
+      "method": "pixel-composite-v1",
+      "width": 1440,
+      "height": 480,
+      "bytes": 41166,
+      "sourceSha256": "e955696c9b3d965c5c4e1292a980d9224a6cfcc9f58f1caaf5b4d17a0a6aee98",
+      "sha256": "2022b633aa265e0d303a6b6f7cbfedb56149912dabdf388f2064d541c7083060"
+    },
+    {
+      "path": "assets/banners/alternatives/world-3d-mobile.webp",
+      "branding": "ZED SUPPLY / ZS",
+      "method": "pixel-composite-v1",
+      "width": 800,
+      "height": 640,
+      "bytes": 58162,
+      "sourceSha256": "5fa08920b8517a3847d794ef7290446bd06f22476132f7ad0ac68a1fa8a81e0b",
+      "sha256": "26f1e2502df24edf50e8f287b34a2b13edf4d5cf33c98d4eccf7a99470fd8ec8"
+    },
+    {
+      "path": "assets/banners/alternatives/world-3d.webp",
+      "branding": "ZED SUPPLY / ZS",
+      "method": "pixel-composite-v1",
+      "width": 1440,
+      "height": 480,
+      "bytes": 47042,
+      "sourceSha256": "8973d2a44854f29e94ef94fb76692414a439444918efd86ad3de5f50fe3d228d",
+      "sha256": "ee70705672900e54e50a1d007320f057621fe57cb9f1ae14f42b4c070a16eb0d"
+    },
+    {
+      "path": "assets/banners/collections/connected-mobile.webp",
+      "branding": "ZED SUPPLY / ZS",
+      "method": "pixel-composite-v1",
+      "width": 800,
+      "height": 900,
+      "bytes": 49794,
+      "sourceSha256": "4e9f24885965dc65dc6780dfbd6de318cc5ff3928aeaeb0b0272ee3181ba38ca",
+      "sha256": "3a4a6d93a1c9cb72dfe7569dac1504d02e215b730b49e3642b45b748eb4a9e53"
+    },
+    {
+      "path": "assets/banners/collections/connected-wide.webp",
+      "branding": "ZED SUPPLY / ZS",
+      "method": "pixel-composite-v1",
+      "width": 1600,
+      "height": 500,
+      "bytes": 54266,
+      "sourceSha256": "31dd4b419024901822001f12522d798a4ba8554da7108795ca91964800cc2cf5",
+      "sha256": "2577b692df785a5b51ab7c76ee82fd5fa5572a7cab9476e95eaea820eaf6ec42"
+    },
+    {
+      "path": "assets/banners/collections/enterprise-mobile.webp",
+      "branding": "ZED SUPPLY / ZS",
+      "method": "pixel-composite-v1",
+      "width": 800,
+      "height": 900,
+      "bytes": 54618,
+      "sourceSha256": "38de58b18ca10038469b50b6f643c3de1b16470f161fa6f606d7a217a32da8f9",
+      "sha256": "e30fd4aa9c40ff7468d2e36d513d0279e1116692f43588b5d510b612b00c540a"
+    },
+    {
+      "path": "assets/banners/collections/enterprise-wide.webp",
+      "branding": "ZED SUPPLY / ZS",
+      "method": "pixel-composite-v1",
+      "width": 1600,
+      "height": 500,
+      "bytes": 61830,
+      "sourceSha256": "1c3974868cb759615dea1aeeef4ee834be108aca113dc7e55f6b816efffe05bc",
+      "sha256": "c7ab58c4164bbdefdc5856bc9674462d32b1ebd10abc48da2e1ab2a170e96674"
+    },
+    {
+      "path": "assets/banners/collections/everyday-mobile.webp",
+      "branding": "ZED SUPPLY / ZS",
+      "method": "pixel-composite-v1",
+      "width": 800,
+      "height": 900,
+      "bytes": 48334,
+      "sourceSha256": "394c20c7bfbc5cf3b140b93a949d014713c8d5b2a137027fbcc6e0dd085b343a",
+      "sha256": "7fb75fc952c798cc360ab99c4c122c44e3a29e881c7e47a9c98d6195fd8a618a"
+    },
+    {
+      "path": "assets/banners/collections/everyday-wide.webp",
+      "branding": "ZED SUPPLY / ZS",
+      "method": "pixel-composite-v1",
+      "width": 1600,
+      "height": 500,
+      "bytes": 51708,
+      "sourceSha256": "53171aa1130768702e9b73788c09ec59640df2d71ae6e2567f7889a18fe42109",
+      "sha256": "e232545af547f9c0e74535df1402fe0d6fb04870871b62653e009b2dd16a0a4b"
+    },
+    {
+      "path": "assets/banners/seasons/blackfriday-mobile.webp",
+      "branding": "ZED SUPPLY / ZS",
+      "method": "pixel-composite-v1",
+      "width": 800,
+      "height": 900,
+      "bytes": 47566,
+      "sourceSha256": "09c297da650a32c78ce165b75f1904469111b92d6fb54757ca378c906f9867cf",
+      "sha256": "2980a3bb8d74ea58c3b5bbf5e7bbbac472940dede7bbce79c04bf531a0429d15"
+    },
+    {
+      "path": "assets/banners/seasons/blackfriday-wide.webp",
+      "branding": "ZED SUPPLY / ZS",
+      "method": "pixel-composite-v1",
+      "width": 1600,
+      "height": 500,
+      "bytes": 51678,
+      "sourceSha256": "038dee401c85d5e83dfbde66b123b5c7461fad0252094e598ff8059a32293933",
+      "sha256": "f395182dbe5ffb38821028d5fe90081b6e3e5bc5988a107d7bcba5360548ed8f"
+    },
+    {
+      "path": "assets/banners/seasons/christmas-mobile.webp",
+      "branding": "ZED SUPPLY / ZS",
+      "method": "pixel-composite-v1",
+      "width": 800,
+      "height": 900,
+      "bytes": 72654,
+      "sourceSha256": "c4b016d4d58a76b7e6814f55521c9c9fd35d51fe9f8c235d86760d13681614c1",
+      "sha256": "2bb9c56fc2152b7afc6d05ad4a25880936d05bb470fbdb834b0223218c09ab9a"
+    },
+    {
+      "path": "assets/banners/seasons/christmas-wide.webp",
+      "branding": "ZED SUPPLY / ZS",
+      "method": "pixel-composite-v1",
+      "width": 1600,
+      "height": 500,
+      "bytes": 86586,
+      "sourceSha256": "6dcbf1fbbed8cbfc5fb8316d10dfe715dbf6070cda33dbf67adcfbbffda13c1b",
+      "sha256": "f927a849b3e7760519455f862c5cfcd48fda885534c6de2422cf280cdd6fad99"
+    },
+    {
+      "path": "assets/banners/seasons/easter-mobile.webp",
+      "branding": "ZED SUPPLY / ZS",
+      "method": "pixel-composite-v1",
+      "width": 800,
+      "height": 900,
+      "bytes": 65654,
+      "sourceSha256": "f67dd45b7301635b91fb7c6b4f2815682b9d09236c0c52be64636ffa1e0770bf",
+      "sha256": "0b948d54f19b6cdb20507549696bba087da8293c167cd5ba081cfbae63196ca5"
+    },
+    {
+      "path": "assets/banners/seasons/easter-wide.webp",
+      "branding": "ZED SUPPLY / ZS",
+      "method": "pixel-composite-v1",
+      "width": 1600,
+      "height": 500,
+      "bytes": 75210,
+      "sourceSha256": "9f5de9ec66fd257b1d9be831eb4b76c55c91c899168fcc02af06181f66df19b9",
+      "sha256": "7f1f74fc132e3d11b7f077c627ed4aa597b8a8875148026e622fa5e755eec775"
+    },
+    {
+      "path": "assets/banners/seasons/farmers-mobile.webp",
+      "branding": "ZED SUPPLY / ZS",
+      "method": "pixel-composite-v1",
+      "width": 800,
+      "height": 900,
+      "bytes": 69154,
+      "sourceSha256": "1db2b8be4f5a8fa964373dffcfe83b8ea3cb7355493b446ed1c79861a57bd7f6",
+      "sha256": "509600c5f9c374034d1802cc7d3f5cfb3a494c490ae4a7174acf85e387df91bc"
+    },
+    {
+      "path": "assets/banners/seasons/farmers-wide.webp",
+      "branding": "ZED SUPPLY / ZS",
+      "method": "pixel-composite-v1",
+      "width": 1600,
+      "height": 500,
+      "bytes": 81052,
+      "sourceSha256": "9209d8621dc2c4dbcb4b681f102bdd542f1bf74f47cf7f0e9c931f90892ec452",
+      "sha256": "ba609a348a40984d885028cf58fd5852570d20a3307a0a3af3f6d004f0ecd25a"
+    },
+    {
+      "path": "assets/banners/seasons/freedom-statue-mobile.webp",
+      "branding": "ZED SUPPLY / ZS",
+      "method": "pixel-composite-v1",
+      "width": 800,
+      "height": 900,
+      "bytes": 48154,
+      "sourceSha256": "d11445f0febf03e62eec22c782d2502037affd49a72e11e2e994d8c69cc24957",
+      "sha256": "bfa38d6672570ae83131c073dbdb3844a1e6ad31bc25bd6b25c901234da4245b"
+    },
+    {
+      "path": "assets/banners/seasons/freedom-statue-wide.webp",
+      "branding": "ZED SUPPLY / ZS",
+      "method": "pixel-composite-v1",
+      "width": 1600,
+      "height": 500,
+      "bytes": 51404,
+      "sourceSha256": "1add7c7926d31c705952553669bcbb9ac4abac5c25350f773689b1ce88e8fd4b",
+      "sha256": "3353149373e055c874b377f44a5f2735f89e499db21799562a08c47c48aa72b2"
+    },
+    {
+      "path": "assets/banners/seasons/independence-mobile.webp",
+      "branding": "ZED SUPPLY / ZS",
+      "method": "pixel-composite-v1",
+      "width": 800,
+      "height": 900,
+      "bytes": 66230,
+      "sourceSha256": "594505dcac3d7db39dac0070b9806b7f15bc2457833c3fd552f20eb78e93978e",
+      "sha256": "d90960bcf765ea19dd5054190f13d9d6909e96d48769d53bdb5b1c39b3c5420d"
+    },
+    {
+      "path": "assets/banners/seasons/independence-wide.webp",
+      "branding": "ZED SUPPLY / ZS",
+      "method": "pixel-composite-v1",
+      "width": 1600,
+      "height": 500,
+      "bytes": 76580,
+      "sourceSha256": "10c21d78fd931c2dd5d0f1391562e66e2ee435e3f700b92fdd471df869f958b2",
+      "sha256": "b3db9552c8f3895ae41078a2778d28c3510d08ce83780a14150d84f71a2125e4"
+    },
+    {
+      "path": "assets/banners/seasons/school-mobile.webp",
+      "branding": "ZED SUPPLY / ZS",
+      "method": "pixel-composite-v1",
+      "width": 800,
+      "height": 900,
+      "bytes": 47816,
+      "sourceSha256": "b18e87f1d8f928799f3ece6c2bbbf18bd7d386b80fa7bc9713675a68bf4d9e7e",
+      "sha256": "acbc1c7147203b30388e6907b59a5e3d96f63c604e7da8a898a8e10e22fceea1"
+    },
+    {
+      "path": "assets/banners/seasons/school-wide.webp",
+      "branding": "ZED SUPPLY / ZS",
+      "method": "pixel-composite-v1",
+      "width": 1600,
+      "height": 500,
+      "bytes": 50802,
+      "sourceSha256": "1bfe51829ee93d2586ca6aba5ab2a0eee2cf3e5a999c05958b8beeb0acbecf59",
+      "sha256": "f5e89b7e1d9e3acf2c8c7f74a462b90a61110461c3a7b0084ef52f3f0d7b4e4e"
+    },
+    {
+      "path": "assets/banners/seasons/valentines-mobile.webp",
+      "branding": "ZED SUPPLY / ZS",
+      "method": "pixel-composite-v1",
+      "width": 800,
+      "height": 900,
+      "bytes": 49114,
+      "sourceSha256": "ad97e7f842574a25e8e45a995e173e31185db04a0647d3566f9cebb5e120a38a",
+      "sha256": "99828829cadb00fcfd28c01523839e0e851cb0685de647ad780a4dbf4201bd17"
+    },
+    {
+      "path": "assets/banners/seasons/valentines-wide.webp",
+      "branding": "ZED SUPPLY / ZS",
+      "method": "pixel-composite-v1",
+      "width": 1600,
+      "height": 500,
+      "bytes": 54010,
+      "sourceSha256": "322bd43cc8a366ac6aad8fe00b860b5bab11515dfd9d439b504daf55e1b05911",
+      "sha256": "8d003b505c80664e2d1b2b7e6ac377514513d54ccf7dc58006ba6e0831014fce"
+    }
+  ]
+}

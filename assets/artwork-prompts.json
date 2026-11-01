@@ -377,6 +377,15 @@
       "width": 256,
       "height": 256,
       "prompt": "Use case: stylized-concept. Square department tile artwork for Zed Supply: a blue and white football, rolled teal exercise mat and a small pair of navy hand weights. Use the supplied existing tech department artwork as the exact STYLE REFERENCE: premium polished dimensional 3D product cluster, vivid deep royal blue and navy, teal and fresh green accent colours, tactile glossy and satin materials, rounded bevels, realistic three-quarter perspective, soft upper-left studio highlights, tiny natural occlusion shadows. Match the visual weight, saturated colours, and compact centered composition of that reference. Genuine transparent background, isolated products with no scenery, no platform or pedestal, no white square or checkerboard baked in. Complete composition with 10% clear margins; readable at 112px. No people, text, labels, badges, branding, watermark, flat vectors, outlines or emojis. One department composition, not a grid."
+    },
+    {
+      "id": "L041-shapes",
+      "type": "product",
+      "path": "assets/products/demo/L041-shapes.webp",
+      "width": 600,
+      "height": 600,
+      "prompt": "Create a production ecommerce product photograph-style realistic polished 3D studio render for a sample wooden shape sorting peg puzzle for toddlers. Square image, near-white seamless background, complete product shown in three-quarter perspective, soft upper-left lighting, subtle contact shadow, natural light birch wood grain and rounded edges. One rectangular wooden puzzle board with EXACTLY SIX chunky colored geometric shape inserts: red circle, yellow triangle, blue square, green pentagon, purple star, orange oval, each with a small natural wooden cylindrical grasping peg. All inserts fit into matching recesses. Believable tangible wood and matte painted materials, premium studio rendering matching the attached style references of ecommerce items. Comfortable margins, centered product at similar visual scale to the reference puzzle. No text, no letters, no numbers, no logos, no packaging, no badges, no extra objects. Final intended delivery will be optimized to 600x600 WebP.",
+      "generator": "Built-in image_gen.imagegen"
     }
   ]
 }

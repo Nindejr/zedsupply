@@ -1,5 +1,12 @@
 # Step 1: dynamic product schema and implementation review
 
+Current review (1 November 2026): migrations 014–015 already implement server-side
+checkout and payment recording; the old design notes below describe earlier work.
+The website still has an empty `settings.api` and browser-only accounts, so the
+customer interface is not connected to those services. Migration 016 adds durable
+notification claims and must precede deploying the updated sender. See
+[the current marketplace assessment](../MARKETPLACE-REVIEW.md).
+
 Review date: 28 October 2026. The website is HTML/CSS/vanilla JavaScript on static hosting. PostgreSQL is a **proposed Phase 2 database**, not a connected production service. No migration was applied to a live database during this review.
 
 ## Database design
@@ -62,6 +69,15 @@ Apply once, in order, using a migration runner or `psql -v ON_ERROR_STOP=1`:
 13. `supabase/migrations/20261029000013_api_grants.sql` (table rights for the API roles: new Supabase projects grant none by default)
 14. `supabase/migrations/20261030000014_checkout_integrity.sql` (server-side order placement with stock locking and repeat protection, guest orders, carts per account, posting limits, typo-tolerant search, missing indexes)
 15. `supabase/migrations/20261101000015_marketplace_features.sql` (payments and seller payouts held until delivery, pay on delivery limits, lay-by, bulk prices, pickup points, notification outbox, stock and price alerts, saved searches, review photos, questions and answers, seller trust and performance, bought together, staff actions with an audit log)
+16. `supabase/migrations/20261101000016_notification_leases.sql` (persistent notification claims, crash recovery, retry limits and restricted claim execution)
+17. `supabase/migrations/20261101000017_storefront_api.sql` (RLS-aware catalogue pages, indexed search, quote rollback, expected-total checks and VAT verification guard)
+18. `supabase/migrations/20261101000018_fulfilment_support.sql` (private shipment evidence, per-seller delivery events, account-owned support requests and staff escalation/assignment)
+19. `supabase/migrations/20261101000019_payment_attempts.sql` (durable payment requests, immutable settlement references and reconciled refund ledger)
+
+The new migrations have been exercised only on an isolated local test database.
+Apply 017–019 together before deploying the new frontend/handler integration; see
+[staging and activation instructions](../INTEGRATION-READINESS.md). `connected.sql`
+adds ownership, quote/stock rollback, evidence, escalation, payment-attempt and refund checks.
 
 Migration 012 creates the application account only once a phone or email is confirmed.
 Existing ordinary buyer records can then be linked; records with staff or store access

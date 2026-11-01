@@ -1,0 +1,31 @@
+{
+  "files": [
+    "departments/tech/index.html",
+    "departments/computers/index.html",
+    "departments/smarthome/index.html",
+    "departments/tv/index.html",
+    "departments/games/index.html",
+    "departments/womens/index.html",
+    "departments/mens/index.html",
+    "departments/girls/index.html",
+    "departments/boys/index.html",
+    "departments/salaula/index.html",
+    "departments/beauty/index.html",
+    "departments/luggage/index.html",
+    "departments/home/index.html",
+    "departments/hardware/index.html",
+    "departments/solar/index.html",
+    "departments/arts/index.html",
+    "departments/baby/index.html",
+    "departments/health/index.html",
+    "departments/pets/index.html",
+    "departments/toys/index.html",
+    "departments/sports/index.html",
+    "departments/auto/index.html",
+    "departments/business/index.html",
+    "departments/agri/index.html",
+    "departments/office/index.html",
+    "departments/essentials/index.html",
+    "index.html"
+  ]
+}

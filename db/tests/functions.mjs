@@ -11,7 +11,7 @@ const db = new pg.Client(cfg);
 await db.connect();
 const results = [];
 const report = (name, ok, detail) => { results.push(ok); console.log((ok ? 'PASS ' : 'FAIL ') + name + (detail ? ' — ' + detail : '')); };
-const env = { SUPABASE_ANON_KEY: 'anon', PAYMENT_PROVIDER: 'generic', PAYMENT_WEBHOOK_SECRET: 'whsec' };
+const env = { SUPABASE_ANON_KEY: 'anon', PAYMENT_PROVIDER: 'generic', PAYMENT_CONTRACT_VALIDATED: 'true', PAYMENT_WEBHOOK_SECRET: 'whsec' };
 const deps = {
   env: name => env[name],
   userIdForToken: async () => null,
@@ -32,7 +32,7 @@ res = await placeOrder(post(JSON.stringify({ ref: 'ZS-FUNC0002', contact_name: '
 body = await res.json();
 report('a sold-out item gets the database\'s message', res.status === 409 && /Only 1 left/.test(body.error), JSON.stringify(body));
 
-const hook = JSON.stringify({ transaction_id: 'GEN-1', order_ref: 'ZS-FUNC0001', amount: 500, status: 'successful', method: 'airtel' });
+const hook = JSON.stringify({ transaction_id: 'GEN-1', order_ref: 'ZS-FUNC0001', amount: 500, currency: 'ZMW', status: 'successful', method: 'airtel' });
 const sig = createHmac('sha256', 'whsec').update(hook).digest('hex');
 const first = await (await paymentWebhook(post(hook, { 'x-signature': sig }), deps)).json();
 const again = await (await paymentWebhook(post(hook, { 'x-signature': sig }), deps)).json();

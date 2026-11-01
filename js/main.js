@@ -39,6 +39,7 @@
     if (/[?&]demo=0\b/.test(location.search) || !allowDemo) sessionStorage.removeItem('zs-demo');
     demoOn = allowDemo && sessionStorage.getItem('zs-demo') === '1';
   } catch (e) { demoOn = allowDemo && /[?&]demo=1\b/.test(location.search); }
+  var backendInitialized = false;
   if (demoOn && !window.ZS_SAMPLE) {
     var demoScript = document.createElement('script');
     demoScript.src = versioned('js/catalogue-sample.js');
@@ -47,6 +48,11 @@
   } else start();
 
   function start() {
+  if (!demoOn && !backendInitialized && window.ZSBackend && window.ZSBackend.enabled()) {
+    backendInitialized = true;
+    window.ZSBackend.initialize().then(start, start);
+    return;
+  }
   var root = document.documentElement;
   /* Extensions (js/marketplace.js) register hooks and pages in window.ZSExt before this runs.
      A hook returns HTML to insert, or does its work and returns nothing. A failing extension is
@@ -80,6 +86,7 @@
       S.delivery.estimates = X.deliveryEstimates; S.delivery.sampleEstimates = true;
     }
     S.isSample = true;
+    S.vat = Object.assign({}, S.vat, { registered: true, tpin: '[SAMPLE TPIN]' });
     // Sample sales are [this month, last month], so the demo's trending and top picks never go stale
     var mk = function (d) { return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2); }, n0 = new Date();
     D.products.forEach(function (p) {
@@ -99,6 +106,7 @@
     });
   }
   var china = !!S.chinaOrdering;
+  function secureMode() { return !DEMO && window.ZSBackend && window.ZSBackend.enabled(); }
   var onIndex = !!document.getElementById('view');
   var R = onIndex ? '#/' : 'index.html#/';   // prefix for store links
   if (DEMO) {
@@ -121,6 +129,10 @@
     set: function (k, v) {
       mem[k] = v;
       try { localStorage.setItem('zs-' + k, JSON.stringify(v)); } catch (e) { /* blocked: memory only */ }
+    },
+    remove: function (k) {
+      delete mem[k];
+      try { localStorage.removeItem('zs-' + k); return true; } catch (e) { return false; }
     }
   };
 
@@ -285,7 +297,7 @@
   var BASE_PRODUCTS = D.products.slice();
   var products, localProducts;
   function loadProducts() {
-    var saved = listingsApi.list().filter(function (p) { return seller(p.seller); }), byIdSaved = {};
+    var saved = secureMode() ? [] : listingsApi.list().filter(function (p) { return seller(p.seller); }), byIdSaved = {};
     saved.forEach(function (p) { byIdSaved[p.id] = p; });
     D.products = BASE_PRODUCTS.map(function (p) { var s = byIdSaved[p.id]; delete byIdSaved[p.id]; return s || p; })
       .concat(saved.filter(function (p) { return byIdSaved[p.id]; }));
@@ -335,7 +347,7 @@
     return { now: nowP, was: was > nowP ? was : 0, off: was > nowP ? Math.round((1 - nowP / was) * 100) : 0, promo: promo, deal: deal };
   }
   function onDeal(p) { var pr = priceOf(p); return !!(pr.was || pr.promo || pr.deal); }
-  function reviewsFor(p) { return (p.reviews || []).concat((store.get('reviews', {})[p.id]) || []); }
+  function reviewsFor(p) { return (p.reviews || []).concat(secureMode() ? [] : (store.get('reviews', {})[p.id]) || []); }
   // { avg, count, dist } where dist[n] counts the n-star reviews; null when there are none
   function ratingOf(p) {
     var r = ZP.ratingSummary(reviewsFor(p));
@@ -452,13 +464,14 @@
   function setCart(c) { store.set('cart', c); updateCounts(); }
   function wish() { return store.get('wish', []); }
   function isLiked(id) { return wish().indexOf(id) !== -1; }
-  function user() { return store.get('user', null); }
+  function user() { return secureMode() ? window.ZSBackend.profile() : store.get('user', null); }
   // opt (optional): { colour, size, addons: [inBox index], commit: offer per item }.
   // The same product with different options is a separate line.
   function lineKey(l) { return l.id + (l.opt ? '|' + JSON.stringify(l.opt) : ''); }
   function addToCart(id, qty, opt) {
     var p = product(id), v = p ? variantOf(p, opt) : null;
     if (!p || !Number.isInteger(qty) || qty < 1 || qty > 99) { toast('Choose a whole quantity from 1 to 99.'); return false; }
+    if (p._server && p._server.stock_qty !== null && !ZP.hasOptions(p) && qty + cart().filter(function (l) { return l.id === id; }).reduce(function (n, l) { return n + l.qty; }, 0) > p._server.stock_qty) { toast('This item does not have enough stock for that quantity.'); return false; }
     if (ZP.hasOptions(p)) {
       var already = cart().filter(function (l) { var cv = l.id === id ? variantOf(p, l.opt) : null; return cv && v && cv.sku === v.sku; })
         .reduce(function (sum, l) { return sum + l.qty; }, 0);
@@ -961,7 +974,7 @@
   /* ---------- Saved addresses (settings.orderOptions.addresses) ----------
      An address book on this device for now; the same fields as user_addresses in supabase/migrations (orders_aftersales). */
   var OPTS = S.orderOptions || {};
-  function addressesOn() { return !!(OPTS.addresses && OPTS.addresses.enabled); }
+  function addressesOn() { return !secureMode() && !!(OPTS.addresses && OPTS.addresses.enabled); }
   function addresses() { return store.get('addresses', []); }
   function addressLine(a) { return [a.landmark, a.area, a.town].filter(Boolean).join(', '); }
 
@@ -1191,6 +1204,7 @@
     if (st === 'out') return '<p class="pstock pstock--out">' + (v ? 'Sold out in this option' : 'Sold out') + '</p>';
     if (st === 'low') return '<p class="pstock pstock--low">' + (v ? 'Only ' + v.stock + ' left' : 'Only a few left') + '</p>';
     if (st === 'in') return '<p class="pstock">In stock</p>';
+    if (p._server && p._server.stock_qty === 0) return '<p class="pstock pstock--out">Sold out</p>';
     if (p.stock === 'low') return '<p class="pstock pstock--low">Only a few left</p>';
     if (p.stock === 'request') return '<p class="pstock pstock--low">Sourced on request</p>';
     return '<p class="pstock">In stock</p>';
@@ -2219,7 +2233,7 @@
           '<a href="#/compare?ids=' + [p.id].concat(similarIds).map(encodeURIComponent).join(',') + '">Open full comparison</a></div>' + compareTable([p].concat(similar), false) + '</section>' : '') +
         '<section class="reviews" id="reviews" aria-labelledby="rev-title"><div>' +
           '<h2 id="rev-title">Customer reviews</h2>' + (r ? '<div class="rsum"><p class="rsum__avg"><strong>' + r.avg.toFixed(1) + '</strong><span class="visually-hidden"> out of 5</span></p><div>' + starsHTML(p) + '<p class="reviews__avg">' + r.count + (r.count === 1 ? ' rating' : ' ratings') + '</p></div></div>' + ratingBars(revs) : '<p>No reviews yet. Be the first to rate it.</p>') +
-          (u ? reviewForm(mine, bought)
+          (secureMode() ? '<p>Verified-purchase review submission is being connected. Browser-only reviews are not submitted for live listings.</p>' : u ? reviewForm(mine, bought)
             : '<p><a class="btn btn--secondary" href="#/account">Sign in to rate and review</a></p>') +
         '</div><div>' + (revs.length > 1 ? '<div class="field reviews__sort"><label for="rev-sort">Sort reviews</label><select id="rev-sort"><option value="new">Most recent</option><option value="high">Highest rated</option><option value="low">Lowest rated</option><option value="verified">Verified purchases first</option></select></div>' : '') +
           (revs.length ? '<div class="review-filters"><div class="field"><label for="rev-star">Star rating</label><select id="rev-star"><option value="">All ratings</option>' + [5,4,3,2,1].map(function (n) { return '<option value="' + n + '">' + n + (n === 1 ? ' star' : ' stars') + '</option>'; }).join('') + '</select></div><div class="field"><label for="rev-find">Search reviews</label><input id="rev-find" type="search" maxlength="80" placeholder="e.g. battery or delivery"></div>' +
@@ -2353,6 +2367,7 @@
       if (rf) rf.addEventListener('submit', function (e) {
         e.preventDefault();
         var picked = $('input[name="rev-rating"]:checked', rf), st = $('.form-status', rf);
+        if (ext('reviewPhotosReady') === false) { st.className = 'form-status is-error'; st.textContent = 'Please wait while your photos are prepared, then submit again.'; return; }
         if (!picked) { st.className = 'form-status is-error'; st.textContent = 'Choose a star rating from 1 to 5.'; st.focus(); return; }
         if (!$('#rev-text').value.trim()) { st.className = 'form-status is-error'; st.textContent = 'Write a few words about your experience.'; $('#rev-text').focus(); return; }
         var headline = cleanText($('#rev-head').value, 120);
@@ -2361,7 +2376,7 @@
         all[p.id] = (all[p.id] || []).filter(function (v) { return !v.mine; });
         var photos = ext('reviewPhotos', rf);
         all[p.id].push({ name: u.name, rating: Number(picked.value), date: today, title: headline, text: $('#rev-text').value.trim(), mine: true, verified: false, photos: photos || (mine && mine.photos) || [] });
-        store.set('reviews', all);
+        if (!saveStored('reviews', all)) { st.className = 'form-status is-error'; st.textContent = 'Your review could not be saved on this device. Try fewer photos or allow browser storage, then submit again.'; return; }
         toast(mine ? 'Your review has been updated' : 'Thanks for your review');
         route();
       });
@@ -2459,7 +2474,9 @@
             (VAT.included === false ? vatRowHTML(vat) : '') +
             '<div><dt>Delivery</dt><dd>Confirmed on WhatsApp</dd></div>' +
             '<div class="is-total"><dt>Estimated total</dt><dd>' + kwacha(total) + '</dd></div>' + (VAT.included === false ? '' : vatRowHTML(vat)) + '</dl>' +
-            '<a class="btn btn--primary btn--block" id="checkout" href="#" target="_blank" rel="noopener noreferrer">Send order on WhatsApp</a>' +
+            (secureMode() ? '<div class="field"><label for="co-phone">Recipient phone (+260…)</label><input id="co-phone" type="tel" autocomplete="tel" required value="' + esc(u.phone || '') + '"></div>' : '') +
+            '<a class="btn btn--primary btn--block" id="checkout" href="#" target="_blank" rel="noopener noreferrer">' + (secureMode() ? 'Review server total' : 'Send order on WhatsApp') + '</a>' +
+            '<div id="server-checkout-review" aria-live="polite"></div>' +
             '<p class="pmeta">Your order reaches us when you press Send in WhatsApp. We confirm the final price and delivery fee there, then send payment instructions. We never ask for your PIN.</p>' +
             '<p class="pmeta">By sending your order you agree to our <a href="privacy.html">privacy policy</a> and <a href="help.html#returns">returns and buyer protection</a>.</p>') +
           '<button class="link-btn" type="button" id="clear-cart">Empty cart</button>' +
@@ -2591,6 +2608,14 @@
           if (noName) nameEl.focus(); else $('#co-loc-box [data-open-location]').focus();
           return;
         }
+        if (secureMode()) {
+          e.preventDefault();
+          ext('serverCheckout', { ref: ref, items: items, contact_name: nameEl.value.trim(), recipient_phone: $('#co-phone').value.trim(),
+            fulfilment: coMode(), buyer_town: loc ? loc.town : '', buyer_province_id: loc ? provinceOf(loc) : '', deliver_to: locFull(),
+            payment_method: (payByName(payChoice) || {}).id || '', notes: $('#co-note').value.trim(), voucher_code: voucher,
+            preferred_date: when().day, preferred_slot: when().slot, is_gift: gift().on, gift_message: gift().message, hide_prices: gift().noPrice });
+          return;
+        }
         var list = orders();
         list.unshift({ ref: ref, date: today, items: items.map(function (it) { return it.opt ? { id: it.p.id, qty: it.qty, price: it.each, opt: it.opt, label: it.label } : { id: it.p.id, qty: it.qty, price: it.each }; }), total: total, status: 0, deliverTo: locFull(), pay: payChoice, ship: COURIERS.length ? shipSummary() : '', shipId: shipChoice, message: co.getAttribute('data-wa-message'), vat: vat, when: when(), gift: gift().on ? gift() : null, addressId: chosenAddress ? chosenAddress.id : '', mode: coMode() });
         store.set('orders', list);
@@ -2627,7 +2652,7 @@
           '<div class="field"><label for="su-email">Email (optional)</label><input id="su-email" type="email" autocomplete="email"></div>' +
           '<button class="btn btn--primary" type="submit">Continue</button></form>' +
           '<div class="band"><h2>With a Zed Supply account you can</h2>' + ticks(['Track your orders', 'Save products to your wishlist', 'Write product reviews', 'Check out faster on WhatsApp']) +
-          '<p>Selling? <a href="#/seller">Go to the Seller Centre</a></p></div></div>', 'My Account');
+          '<p>Selling? <a href="#/seller">Go to the Seller Centre</a></p><p>Using a shared device? <a href="#/device">Manage saved data</a>.</p></div></div>', 'My Account');
         $('#signin').addEventListener('submit', function (e) {
           e.preventDefault();
           store.set('user', { name: $('#su-name').value.trim(), phone: $('#su-phone').value.trim(), email: $('#su-email').value.trim() });
@@ -2651,6 +2676,7 @@
           ext('accountTiles') +
           tile('#/seller', 'Seller Centre', 'Manage your store') +
           tile('help.html', 'Help centre', 'Answers and contact') +
+          tile('#/device', 'Data on this device', 'Export or delete your saved details and activity') +
           tile('#/promotions', 'Promotions', 'Deals from sellers') +
         '</ul>' +
         '<div class="duo duo--gap"><form class="form form--card" id="acct"><h2>Your details</h2>' +
@@ -3528,6 +3554,7 @@
     }
     var parts = h.slice(2).split('?'), path = parts[0].split('/');
     var q = new URLSearchParams(parts[1] || '');
+    if (ext('route', path, q)) return;
     (views[path[0]] || EXT.views[path[0]] || views.notfound)(decodeURIComponent(path[1] || ''), q);
   }
 
@@ -3538,7 +3565,15 @@
     cart: cart, addToCart: addToCart, complaints: complaints, listings: listingsApi, loc: function () { return loc; },
     esc: esc, kwacha: kwacha, niceDate: niceDate, waUrl: waUrl, toast: toast, show: show, crumbs: crumbs, head: head, empty: empty,
     cards: cards, ratingOf: ratingOf, priceOf: priceOf, coMode: function () { return coMode(); }, provinceOf: provinceOf,
-    route: route, $: $, $$: $$, newRef: newRef, payByName: payByName, cleanText: cleanText
+    route: route, $: $, $$: $$, newRef: newRef, payByName: payByName, cleanText: cleanText, backendActive: secureMode,
+    ingest: function (rows) {
+      rows.forEach(function (row) {
+        var p = window.ZSBackend.mapProduct(row), index = BASE_PRODUCTS.findIndex(function (x) { return x.id === p.id; });
+        if (index === -1) BASE_PRODUCTS.push(p); else BASE_PRODUCTS[index] = p;
+        if (row.seller) { var s = { id: row.seller.id, name: row.seller.name, city: row.seller.city, verified: row.seller.verified, about: row.seller.about || '', colours: ['#0A2A66', '#0057AE'] }; var si = D.sellers.findIndex(function (x) { return x.id === s.id; }); if (si === -1) D.sellers.push(s); else D.sellers[si] = s; }
+      }); loadProducts();
+    },
+    clearCheckout: function () { setCart([]); store.set('voucher', ''); }, refreshCounts: updateCounts
   };
 
   // Support index.html?q=term (from other pages and search engines)
@@ -3549,5 +3584,8 @@
   }
   window.addEventListener('hashchange', route);
   route();
+  if (secureMode() && !BASE_PRODUCTS.length && location.hash.indexOf('#/') !== 0) {
+    window.ZSBackend.rpc('catalogue_page', { page_size: 24 }).then(function (rows) { window.ZS.ingest(rows); if (!home.hidden) renderHome(); }).catch(function () { toast('Live listings could not be refreshed. Please reconnect and try Search.'); });
+  }
   }
 })();

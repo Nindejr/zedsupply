@@ -12,7 +12,35 @@ Small programs that run on Supabase (Edge Functions, Deno) for the jobs the webs
 
 The request handling is in `_shared/handlers.ts` and uses only web standards, so it's tested in Node: `tests/functions.test.mjs`, and against a real database in `db/tests/functions.mjs`. `_shared/deno.ts` connects it to the database and sign-in on Supabase.
 
+Apply migration **016 before deploying the updated notification sender**. It adds
+processing leases and `app.claim_notifications()`; an overlapping run cannot claim
+the same batch while it is being sent. Claims expire after ten minutes, retries
+stop after five attempts, and claim tokens reject writes from an expired worker.
+`db/tests/notifications.mjs` checks overlap and recovery against PostgreSQL.
+Delivery is still at least once: a provider accepting a message just before a
+network failure can lead to a retry. Provider reconciliation/idempotency is needed
+before promising exactly-once messaging. No messages were sent by these tests.
+
+Incoming JSON and signed webhook bodies are limited to 32 KiB while streaming.
+Webhook payloads must be objects with finite positive amounts; API responses are
+marked `no-store`. Provider requests time out after 15 seconds. These controls
+complement, but do not replace, deployment-level rate limits and provider-specific
+payment validation and reconciliation.
+
 ## Deploy
+
+For the new connected checkout/payment flow, apply migrations **017–019** after 016
+before deploying. The frontend remains disabled until `settings.api.enabled:true`
+and confirmed project configuration are supplied. Both payment entry points also
+require `PAYMENT_CONTRACT_VALIDATED=true`; leave it unset until the actual provider
+contract has passed sandbox acceptance. Generic JSON mapping is only a test contract.
+See [integration readiness](../../INTEGRATION-READINESS.md) for the remaining work.
+
+`start-payment` now requires a verified sign-in and `attempt_key: "PAY-…"`. A repeat
+uses the stored server reference and does not send another prompt. A request with
+an uncertain provider outcome blocks new attempts until reconciliation. Webhooks
+require `currency:"ZMW"`, cents-precision amounts and the approved signature. Refunds
+are reconciled with a service-only ledger function; it does not itself send money.
 
 From the project folder, in your own terminal:
 

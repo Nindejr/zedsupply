@@ -1,0 +1,56 @@
+name: Marketplace quality
+on: [push, pull_request, workflow_dispatch]
+permissions:
+  contents: read
+jobs:
+  storefront:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - run: npm run build:storefront
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:browser
+  database:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_PASSWORD: test-only
+          POSTGRES_DB: zedsupply_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
+    env:
+      PGHOST: localhost
+      PGPORT: 5432
+      PGUSER: postgres
+      PGPASSWORD: test-only
+      PGDATABASE: zedsupply_test
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Build an isolated database and verify SQL rules
+        shell: bash
+        run: |
+          set -euo pipefail
+          psql -X -v ON_ERROR_STOP=1 -f db/tests/supabase_stub.sql
+          for migration in supabase/migrations/*.sql; do psql -X -v ON_ERROR_STOP=1 -f "$migration"; done
+          for suite in db/tests/*.sql; do
+            if [ "$suite" != 'db/tests/supabase_stub.sql' ]; then psql -X -v ON_ERROR_STOP=1 -f "$suite"; fi
+          done
+      - run: npm run test:db
+      - name: Verify reference seed is repeatable
+        run: |
+          psql -X -v ON_ERROR_STOP=1 -f supabase/seed.sql
+          psql -X -v ON_ERROR_STOP=1 -f supabase/seed.sql

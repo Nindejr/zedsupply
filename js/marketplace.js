@@ -62,7 +62,7 @@
   on('productBuybox', function (p) {
     if (p.source === 'china') return '';
     var html = tiersHTML(p) + protectionHTML();
-    if (S().alerts !== false) {
+    if (S().alerts !== false && !(Z().backendActive && Z().backendActive())) {
       html += '<div class="mx-alerts">' +
         (soldOut(p) ? '<button class="btn btn--secondary btn--block btn--sm" type="button" data-mx-alert="back_in_stock" data-id="' + esc(p.id) + '">Notify me when it\'s back</button>' : '') +
         '<button class="link-btn" type="button" data-mx-alert="price_drop" data-id="' + esc(p.id) + '">Alert me if the price drops</button></div>';
@@ -125,6 +125,21 @@
     return '<li><a href="#/alerts"><strong>Alerts' + (fired ? ' <span class="badge">' + fired + ' new</span>' : '') + '</strong><span>' + alerts().length + ' alerts · ' + searches().length + ' saved searches</span></a></li>';
   });
   function newMatches(x) { var known = x.ids || []; return searchIds(x.q, x.dept).filter(function (id) { return known.indexOf(id) === -1; }); }
+  // Explicit application keys: never clear another application's data or cookie preferences.
+  var deviceKeys = ['user', 'cart', 'wish', 'saved', 'recent', 'compare', 'orders', 'reviews', 'addresses',
+    'complaints', 'alerts', 'searches', 'questions', 'seller', 'seller-couriers', 'seller-locations',
+    'listings', 'promos', 'deals', 'voucher', 'moderation', 'staff-log', 'stock-data', 'stock-settings', 'location'];
+  EXT.views.device = function () {
+    var Zs = Z();
+    Zs.show(Zs.crumbs([['My Account', '#/account'], ['Data on this device']]) + Zs.head('Data on this device') +
+      '<div class="duo duo--gap"><section class="card"><h2>Keep a copy</h2><p>Download your saved profile, addresses, orders, reviews, shopping activity and seller work as a JSON file.</p>' +
+      '<p>The file may contain names, phone numbers, addresses and photos. Store it privately.</p><button class="btn btn--secondary" type="button" data-mx-export>Download my data</button></section>' +
+      '<section class="card"><h2>Clear this device</h2><p>Signing out removes your profile, but leaves other saved activity here. On a shared device, clear it when you finish.</p>' +
+      '<p>This deletes saved details, shopping activity, orders, reviews, alerts and seller work from this browser. Download a copy first if you need it. Cookie choices, language and data saver preferences stay.</p>' +
+      '<p>Messages you sent on WhatsApp and records held by Zed Supply are separate. <a href="privacy.html#rights">Contact us about those records</a>.</p>' +
+      '<form data-mx-clear-device><div class="check"><input id="device-confirm" type="checkbox" required><label for="device-confirm">I understand that saved data on this device will be deleted.</label></div>' +
+      '<button class="btn btn--secondary" type="submit">Delete saved data on this device</button><p class="form-status" role="status"></p></form></section></div>', 'Data on this device');
+  };
   EXT.views.alerts = function () {
     var Zs = Z();
     if (!signedIn()) { Zs.show(Zs.crumbs([['Alerts']]) + Zs.head('Alerts') + Zs.empty('Sign in to keep stock and price alerts and saved searches.', '<a class="btn btn--primary" href="#/account">Sign in</a>'), 'Alerts'); return; }
@@ -181,7 +196,7 @@
       html += '<section class="section" aria-labelledby="bt-title"><h2 id="bt-title">Frequently bought together</h2><ul class="row">' + Zs.cards(bw) + '</ul>' +
         '<p><button class="btn btn--secondary" type="button" data-mx-add-all="' + esc(all.map(function (x) { return x.id; }).join(',')) + '">Add all ' + all.length + ' to cart · ' + kw(sum) + '</button></p></section>';
     }
-    if (S().questions !== false) {
+    if (S().questions !== false && !(Z().backendActive && Z().backendActive())) {
       var qs = questionsFor(p);
       html += '<section class="section qa" id="questions" aria-labelledby="qa-title"><h2 id="qa-title">Questions and answers</h2>' +
         (qs.length ? '<dl class="qa__list">' + qs.map(function (x) {
@@ -196,13 +211,14 @@
   });
 
   /* ---------- Review photos ---------- */
-  var pendingPhotos = null;
+  var pendingPhotos = null, photoGeneration = 0, photosLoading = false;
   on('reviewFormExtra', function () {
-    pendingPhotos = null;
+    pendingPhotos = null; photosLoading = false; photoGeneration++;
     return '<div class="field"><label for="rev-photos">Add photos (optional, up to 3)</label><input id="rev-photos" type="file" accept="image/jpeg,image/png,image/webp" multiple data-mx-review-photos>' +
       '<p class="hint">Photos of the item as it arrived help other buyers. Leave out faces and addresses.</p><div class="review-photos" id="rev-photos-preview"></div></div>';
   });
   on('reviewPhotos', function () { return pendingPhotos; });
+  on('reviewPhotosReady', function () { return !photosLoading; });
   on('reviewPhotosHTML', function (v) {
     return (v.photos || []).length ? '<div class="review-photos">' + v.photos.map(function (src, i) {
       return '<img src="' + esc(src) + '" alt="Photo ' + (i + 1) + ' from ' + esc(v.name) + '\'s review" width="96" height="96" loading="lazy">';
@@ -302,6 +318,7 @@
     return m;
   });
   on('checkoutReady', function (ctx) {
+    if (Z().backendActive && Z().backendActive()) return;
     co.ctx = ctx;
     var btn = document.getElementById('checkout');
     if (!btn) return;
@@ -445,6 +462,15 @@
   /* ---------- Clicks, forms and file inputs ---------- */
   document.addEventListener('click', function (e) {
     var el;
+    if ((el = e.target.closest('[data-mx-export]'))) {
+      var data = {};
+      deviceKeys.forEach(function (key) { var value = get(key, null); if (value !== null) data[key] = value; });
+      try { var locationData = sessionStorage.getItem('zs-location'); if (locationData && !data.location) data.location = JSON.parse(locationData); } catch (err) { /* unavailable */ }
+      var blob = new Blob([JSON.stringify({ application: 'Zed Supply', exportedAt: new Date().toISOString(), data: data }, null, 2)], { type: 'application/json' });
+      var url = URL.createObjectURL(blob), link = document.createElement('a');
+      link.href = url; link.download = 'zed-supply-device-data.json'; document.body.appendChild(link); link.click(); link.remove();
+      setTimeout(function () { URL.revokeObjectURL(url); }, 1000); return;
+    }
     if ((el = e.target.closest('[data-mx-alert]'))) { addAlert(el.getAttribute('data-mx-alert'), el.getAttribute('data-id')); return; }
     if ((el = e.target.closest('[data-mx-share]'))) { share(el.getAttribute('data-mx-share')); return; }
     if ((el = e.target.closest('[data-mx-del-alert]'))) {
@@ -494,9 +520,14 @@
       set('complaints', list); staffLog('complaint ' + el.value, el.getAttribute('data-mx-cx'));
     } else if (el.matches('[data-mx-review-photos]')) {
       var files = Array.prototype.slice.call(el.files || [], 0, 3), box = document.getElementById('rev-photos-preview');
+      var generation = ++photoGeneration;
+      photosLoading = true; pendingPhotos = null;
+      if (box) { box.setAttribute('aria-busy', 'true'); box.textContent = 'Preparing photos…'; }
       Promise.all(files.map(function (f) { return shrink(f).catch(function () { return null; }); })).then(function (out) {
+        if (generation !== photoGeneration || !el.isConnected) return;
+        photosLoading = false;
         pendingPhotos = out.filter(Boolean);
-        if (box) box.innerHTML = pendingPhotos.map(function (src, i) { return '<img src="' + src + '" alt="Your photo ' + (i + 1) + '" width="72" height="72">'; }).join('');
+        if (box) { box.removeAttribute('aria-busy'); box.innerHTML = pendingPhotos.map(function (src, i) { return '<img src="' + src + '" alt="Your photo ' + (i + 1) + '" width="72" height="72">'; }).join(''); }
         if (out.length !== pendingPhotos.length) Z().toast('Some photos couldn\'t be added. Use JPEG, PNG or WebP.');
       });
     } else if (el.matches('[data-mx-csv]')) {
@@ -514,7 +545,14 @@
   });
   document.addEventListener('submit', function (e) {
     var f = e.target;
-    if (f.matches('[data-mx-ask]')) {
+    if (f.matches('[data-mx-clear-device]')) {
+      e.preventDefault();
+      if (!f.querySelector('#device-confirm').checked) return;
+      var removed = deviceKeys.map(function (key) { return Z().store.remove(key); }).every(Boolean);
+      try { sessionStorage.removeItem('zs-location'); sessionStorage.removeItem('zs-auth-session'); } catch (err) { removed = false; }
+      if (!removed) { f.querySelector('[role="status"]').textContent = 'Browser storage is blocked. Clear this website’s data in your browser settings to finish.'; return; }
+      location.reload();
+    } else if (f.matches('[data-mx-ask]')) {
       e.preventDefault();
       var q = Z().cleanText(f.querySelector('input').value, 300);
       if (q.length < 10) { Z().toast('Write your question in a few more words.'); return; }
@@ -534,6 +572,19 @@
   });
 
   /* ---------- Installable app and offline browsing ---------- */
+  function connectionStatus() {
+    var note = document.getElementById('connection-status');
+    if (!note) {
+      note = document.createElement('div'); note.id = 'connection-status';
+      note.className = 'connection-status'; note.setAttribute('role', 'status');
+      document.body.appendChild(note);
+    }
+    note.hidden = navigator.onLine !== false;
+    note.textContent = note.hidden ? '' : 'You’re offline. Saved pages may show older prices and stock. Reconnect and confirm availability before ordering.';
+  }
+  window.addEventListener('offline', connectionStatus);
+  window.addEventListener('online', connectionStatus);
+  document.addEventListener('DOMContentLoaded', connectionStatus);
   var installPrompt = null;
   if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
     window.addEventListener('load', function () { navigator.serviceWorker.register('sw.js').catch(function () { /* offline support is optional */ }); });

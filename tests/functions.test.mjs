@@ -10,7 +10,7 @@ function fakeDeps(env = {}, rows = () => [{ r: { ok: true } }]) {
   const calls = [];
   return {
     calls,
-    env: name => ({ SUPABASE_ANON_KEY: 'anon-key', ...env })[name],
+    env: name => ({ SUPABASE_ANON_KEY: 'anon-key', PAYMENT_CONTRACT_VALIDATED: 'true', ...env })[name],
     userIdForToken: async token => (token === 'good-token' ? 42 : null),
     sql: async (text, params) => { calls.push({ text, params }); const r = rows(text, params); if (r instanceof Error) throw r; return r; },
     fetch: async (url, init) => { calls.push({ url, body: JSON.parse(init.body) }); return new Response('{}', { status: env.FAIL_FETCH ? 500 : 200 }); }
@@ -66,7 +66,7 @@ test('place-order passes the database\'s own messages on, and hides other errors
 
 test('payment webhooks need the right signature and record each payment', async () => {
   const env = { PAYMENT_PROVIDER: 'generic', PAYMENT_WEBHOOK_SECRET: 's3cret' };
-  const body = JSON.stringify({ transaction_id: 'TX-1', order_ref: 'ZS-ABCD1234', amount: 250, status: 'SUCCESSFUL', method: 'mtn' });
+  const body = JSON.stringify({ transaction_id: 'TX-1', order_ref: 'ZS-ABCD1234', amount: 250, currency: 'ZMW', status: 'SUCCESSFUL', method: 'mtn' });
   const sig = createHmac('sha256', 's3cret').update(body).digest('hex');
   assert.equal((await paymentWebhook(post(body), fakeDeps())).status, 503);
   assert.equal((await paymentWebhook(post(body, { 'x-signature': 'deadbeef' }), fakeDeps(env))).status, 401);
@@ -74,7 +74,7 @@ test('payment webhooks need the right signature and record each payment', async 
   const res = await paymentWebhook(post(body, { 'x-signature': 'sha256=' + sig }), d);
   assert.equal(res.status, 200);
   assert.deepEqual(d.calls[0].params.slice(0, 6), ['generic', 'TX-1', 'ZS-ABCD1234', 250, 'paid', 'mtn']);
-  const odd = JSON.stringify({ transaction_id: 'TX-2', order_ref: 'ZS-ABCD1234', amount: 1, status: 'weird' });
+  const odd = JSON.stringify({ transaction_id: 'TX-2', order_ref: 'ZS-ABCD1234', amount: 1, currency: 'ZMW', status: 'weird' });
   assert.equal((await paymentWebhook(post(odd, { 'x-signature': createHmac('sha256', 's3cret').update(odd).digest('hex') }), fakeDeps(env))).status, 400);
   assert.equal(await validSignature('s3cret', body, sig.slice(0, -1) + (sig.endsWith('0') ? '1' : '0')), false);
 });
@@ -86,7 +86,7 @@ test('notifications wait until WhatsApp is set up, then send approved templates'
   assert.deepEqual(await res.json(), { configured: false, sent: 0 });
   const queued = [{ id: 1, to_address: '+260971110001', template: 'payment_received', payload: { ref: 'ZS-ABCD1234', amount: 250 } },
     { id: 2, to_address: '+260971110002', template: 'mystery', payload: {} }];
-  const d = fakeDeps({ CRON_SECRET: 'cron', WHATSAPP_TOKEN: 't', WHATSAPP_PHONE_ID: '123' }, text => (text.includes('RETURNING') ? queued : []));
+  const d = fakeDeps({ CRON_SECRET: 'cron', WHATSAPP_TOKEN: 't', WHATSAPP_PHONE_ID: '123' }, text => (text.includes('claim_notifications()') ? queued : []));
   res = await sendNotifications(post({}, auth), d);
   assert.deepEqual(await res.json(), { configured: true, sent: 1, tried: 2 });
   const msg = d.calls.find(c => c.url).body;
@@ -94,6 +94,66 @@ test('notifications wait until WhatsApp is set up, then send approved templates'
   assert.equal(msg.template.name, 'payment_received');
   assert.deepEqual(msg.template.components[0].parameters.map(p => p.text), ['ZS-ABCD1234', 'K250.00']);
   assert.ok(d.calls.some(c => c.text && c.text.includes("'skipped'") && c.params[0] === 2));
+});
+
+test('requests enforce byte limits even with chunked multibyte JSON', async () => {
+  let cancelled = false;
+  const stream = new ReadableStream({
+    start(c) { c.enqueue(new TextEncoder().encode(JSON.stringify({ notes: '界'.repeat(12000), items: [] }))); },
+    cancel() { cancelled = true; }
+  });
+  const d = fakeDeps();
+  const req = new Request('https://x/f', { method: 'POST', body: stream, duplex: 'half' });
+  assert.equal((await placeOrder(req, d)).status, 400);
+  assert.equal(cancelled, true);
+  assert.equal(d.calls.length, 0);
+});
+
+test('signed webhooks reject null, arrays and nonfinite amounts without database work', async () => {
+  for (const body of ['null', '[]', '{"transaction_id":"T","order_ref":"ZS-ABCD1234","amount":"Infinity","status":"paid"}']) {
+    const d = fakeDeps({ PAYMENT_PROVIDER: 'generic', PAYMENT_WEBHOOK_SECRET: 'secret' });
+    const sig = createHmac('sha256', 'secret').update(body).digest('hex');
+    const res = await paymentWebhook(post(body, { 'x-signature': sig }), d);
+    assert.equal(res.status, 400);
+    assert.equal(d.calls.length, 0);
+    assert.equal(res.headers.get('cache-control'), 'no-store');
+  }
+});
+
+test('notification transport failures release the claim and allow the remaining batch to send', async () => {
+  const d = fakeDeps({ CRON_SECRET: 'cron', WHATSAPP_TOKEN: 't', WHATSAPP_PHONE_ID: '123' }, sql =>
+    sql.includes('claim_notifications()') ? [1, 2].map(id => ({ id, claim_token: 'lease-' + id, to_address: '+260971110001', template: 'order_confirmed', payload: { ref: 'ZS-ABCD1234' } })) : []);
+  let count = 0;
+  d.fetch = async () => { if (++count === 1) throw new Error('timeout'); return new Response('{}'); };
+  const res = await sendNotifications(post({}, { authorization: 'Bearer cron' }), d);
+  assert.equal((await res.json()).sent, 1);
+  assert.ok(d.calls.some(c => c.text.includes('Delivery interrupted') && c.params[1] === 'lease-1'));
+  assert.ok(d.calls.some(c => c.text.includes("status = 'sent'") && c.params[1] === 'lease-2'));
+});
+
+test('expired payment sign-ins never fall back to guest authorization', async () => {
+  const d = fakeDeps({ PAYMENT_API_URL: 'https://pay.example', PAYMENT_API_KEY: 'k' });
+  const res = await startPayment(post({ order_ref: 'ZS-ABCD1234', phone: '+260971110001' }, { authorization: 'Bearer expired' }), d);
+  assert.equal(res.status, 401);
+  assert.equal(d.calls.length, 0);
+});
+
+test('payments stay off until provider acceptance and reject foreign currency events', async () => {
+  const body = JSON.stringify({transaction_id:'T-1',order_ref:'ZS-ABCD1234',amount:100,currency:'USD',status:'paid'});
+  const sig = createHmac('sha256','secret').update(body).digest('hex');
+  const env = {PAYMENT_PROVIDER:'generic',PAYMENT_WEBHOOK_SECRET:'secret'};
+  assert.equal((await paymentWebhook(post(body,{'x-signature':sig}),fakeDeps({...env,PAYMENT_CONTRACT_VALIDATED:'false'}))).status,503);
+  const d = fakeDeps(env);
+  assert.equal((await paymentWebhook(post(body,{'x-signature':sig}),d)).status,400);
+  assert.equal(d.calls.length,0);
+});
+
+test('replayed payment attempts never send another provider prompt', async () => {
+  const d = fakeDeps({PAYMENT_API_URL:'https://pay.example',PAYMENT_API_KEY:'key'}, () => [{r:{id:'attempt',reference:'stable-reference',amount:100,send:false,state:'unknown'}}]);
+  const res = await startPayment(post({order_ref:'ZS-ABCD1234',phone:'+260970000001',attempt_key:'PAY-12345678'},{authorization:'Bearer good-token'}),d);
+  assert.equal(res.status,200);
+  assert.equal((await res.json()).replayed,true);
+  assert.equal(d.calls.some(c => c.url),false);
 });
 
 test('daily jobs need the schedule\'s secret', async () => {
@@ -105,15 +165,15 @@ test('daily jobs need the schedule\'s secret', async () => {
 test('start-payment asks for the deposit on a new lay-by, and only for the buyer\'s own order', async () => {
   const env = { PAYMENT_API_URL: 'https://pay.example/collect', PAYMENT_API_KEY: 'k' };
   assert.equal((await startPayment(post({ order_ref: 'ZS-ABCD1234', phone: '+260971110001' }), fakeDeps())).status, 503);
-  const order = [{ id: 1, user_id: 42, recipient_phone: null, status: 'placed', owed: '3000', payment_plan: 'layby', deposit_zmw: '600', paid_zmw: '0' }];
+  const order = [{ r: { id: 'attempt-id', reference: 'ZS-ABCD1234-ATTEMPT', amount: 600, send: true, state: 'created' } }];
   let d = fakeDeps(env, () => order);
   let res = await startPayment(post({ order_ref: 'ZS-ABCD1234', phone: '0971110001' }, { authorization: 'Bearer good-token' }), d);
   assert.equal(res.status, 400);   // needs the full +260 number
-  res = await startPayment(post({ order_ref: 'ZS-ABCD1234', phone: '+260971110001' }, { authorization: 'Bearer good-token' }), d);
+  res = await startPayment(post({ order_ref: 'ZS-ABCD1234', phone: '+260971110001', attempt_key: 'PAY-12345678' }, { authorization: 'Bearer good-token' }), d);
   assert.equal(res.status, 200);
   assert.equal(d.calls.find(c => c.url).body.amount, 600);
   d = fakeDeps(env, () => order);
   res = await startPayment(post({ order_ref: 'ZS-ABCD1234', phone: '+260971110001' }), d);
-  assert.equal(res.status, 404);   // a guest can't pay for someone's account order
+  assert.equal(res.status, 401);   // a phone number is not verified account authorization
   assert.ok(!d.calls.some(c => c.url));
 });

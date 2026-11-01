@@ -16,7 +16,7 @@ export interface Deps {
 
 const ORDER_FIELDS = ['ref', 'contact_name', 'recipient_phone', 'fulfilment', 'buyer_town', 'buyer_province_id',
   'collection_point', 'pickup_point_id', 'deliver_to', 'address_id', 'delivery_scope', 'courier_id', 'preferred_date',
-  'preferred_slot', 'is_gift', 'gift_message', 'hide_prices', 'payment_method', 'payment_plan', 'voucher_code', 'notes'];
+  'preferred_slot', 'is_gift', 'gift_message', 'hide_prices', 'payment_method', 'payment_plan', 'voucher_code', 'notes', 'expected_total_zmw'];
 const ITEM_FIELDS = ['product_id', 'variant_id', 'quantity', 'addons', 'commitment_id'];
 const MAX_BODY = 32 * 1024;
 
@@ -32,7 +32,7 @@ export function cors(req: Request, env: Deps['env']): Record<string, string> {
 }
 
 function reply(status: number, body: Json, headers: Record<string, string> = {}): Response {
-  return new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json', ...headers } });
+  return new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json', 'cache-control': 'no-store', 'x-content-type-options': 'nosniff', ...headers } });
 }
 
 // Database errors raised on purpose (RAISE EXCEPTION, P0001) are meant for the buyer; anything
@@ -44,9 +44,27 @@ function dbMessage(e: unknown): { status: number; message: string } {
   return { status: 500, message: 'Something went wrong. Please try again, or order on WhatsApp.' };
 }
 
+// Count bytes while streaming, before allocating or parsing an untrusted body.
+async function readText(req: Request): Promise<string | null> {
+  if (Number(req.headers.get('content-length')) > MAX_BODY) return null;
+  if (!req.body) return '';
+  const reader = req.body.getReader(), decoder = new TextDecoder();
+  let size = 0, text = '';
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) return text + decoder.decode();
+      size += value.byteLength;
+      if (size > MAX_BODY) { void reader.cancel().catch(() => {}); return null; }
+      text += decoder.decode(value, { stream: true });
+    }
+  } catch { return null; }
+  finally { reader.releaseLock(); }
+}
+
 async function readJson(req: Request): Promise<Json | null> {
-  const text = await req.text();
-  if (text.length > MAX_BODY) return null;
+  const text = await readText(req);
+  if (text === null) return null;
   try { const v = JSON.parse(text); return v && typeof v === 'object' && !Array.isArray(v) ? v : null; } catch { return null; }
 }
 
@@ -111,16 +129,18 @@ export async function paymentWebhook(req: Request, deps: Deps): Promise<Response
   if (req.method !== 'POST') return reply(405, { error: 'Use POST' });
   const provider = deps.env('PAYMENT_PROVIDER') || '';
   const secret = deps.env('PAYMENT_WEBHOOK_SECRET') || '';
-  if (!PROVIDERS[provider] || !secret) return reply(503, { error: 'Payments are not set up yet' });
-  const raw = await req.text();
-  if (raw.length > MAX_BODY) return reply(413, { error: 'Too large' });
+  if (!PROVIDERS[provider] || !secret || deps.env('PAYMENT_CONTRACT_VALIDATED') !== 'true') return reply(503, { error: 'Payments are not set up yet' });
+  const raw = await readText(req);
+  if (raw === null) return reply(413, { error: 'Too large or unreadable' });
   const sig = req.headers.get('x-signature') || req.headers.get('x-webhook-signature') || '';
   if (!(await validSignature(secret, raw, sig))) return reply(401, { error: 'Bad signature' });
   let body: Json;
   try { body = JSON.parse(raw); } catch { return reply(400, { error: 'Not JSON' }); }
+  if (!body || typeof body !== 'object' || Array.isArray(body)) return reply(400, { error: 'Send a JSON object' });
+  if (body.currency !== 'ZMW') return reply(400, { error: 'Only ZMW settlement events are accepted' });
   const p = PROVIDERS[provider](body);
   const status = STATUS[p.status.toLowerCase()];
-  if (!p.ref || !/^ZS-[A-Z0-9]{4,12}$/.test(p.order) || !(p.amount > 0) || !status) return reply(400, { error: 'Missing or unknown fields' });
+  if (!p.ref || p.ref.length > 120 || !/^ZS-[A-Z0-9]{4,12}$/.test(p.order) || !Number.isFinite(p.amount) || !(p.amount > 0) || Math.round(p.amount * 100) / 100 !== p.amount || !status) return reply(400, { error: 'Missing or unknown fields' });
   try {
     const rows = await deps.sql('SELECT app.record_payment($1, $2, $3, $4, $5, $6, $7::jsonb) AS r',
       [provider, p.ref, p.order, p.amount, status, p.method || null, raw]);
@@ -148,30 +168,35 @@ export const TEMPLATES: Record<string, (p: Json) => string[]> = {
 // Until WHATSAPP_TOKEN and WHATSAPP_PHONE_ID are set, messages stay queued and nothing is sent.
 export async function sendNotifications(req: Request, deps: Deps): Promise<Response> {
   if (req.headers.get('authorization') !== 'Bearer ' + deps.env('CRON_SECRET') || !deps.env('CRON_SECRET')) return reply(401, { error: 'Not allowed' });
+  if (req.method !== 'POST') return reply(405, { error: 'Use POST' });
   const token = deps.env('WHATSAPP_TOKEN'), phoneId = deps.env('WHATSAPP_PHONE_ID');
   if (!token || !phoneId) return reply(200, { configured: false, sent: 0 });
   const lang = deps.env('WHATSAPP_LANGUAGE') || 'en';
-  // Claim a batch, so two runs at once never send the same message twice
-  const batch = await deps.sql(`UPDATE notifications SET attempts = attempts + 1 WHERE id IN (
-      SELECT id FROM notifications WHERE status = 'queued' AND channel = 'whatsapp' AND attempts < 5
-      ORDER BY created_at LIMIT 20 FOR UPDATE SKIP LOCKED) RETURNING id, to_address, template, payload`, []);
+  // A persistent lease keeps another run from claiming this batch after the SQL lock ends.
+  const batch = await deps.sql('SELECT * FROM app.claim_notifications()', []);
   let sent = 0;
   for (const n of batch) {
     const params = TEMPLATES[String(n.template)];
-    if (!params) { await deps.sql(`UPDATE notifications SET status = 'skipped', last_error = 'No template' WHERE id = $1`, [n.id]); continue; }
-    const res = await deps.fetch(`https://graph.facebook.com/v21.0/${phoneId}/messages`, {
-      method: 'POST',
-      headers: { authorization: 'Bearer ' + token, 'content-type': 'application/json' },
-      body: JSON.stringify({
-        messaging_product: 'whatsapp', to: String(n.to_address).replace(/^\+/, ''), type: 'template',
-        template: { name: n.template, language: { code: lang },
-          components: [{ type: 'body', parameters: params(n.payload as Json).map(text => ({ type: 'text', text })) }] }
-      })
-    });
-    if (res.ok) { sent++; await deps.sql(`UPDATE notifications SET status = 'sent', sent_at = now() WHERE id = $1`, [n.id]); }
+    if (!params) { await deps.sql(`UPDATE notifications SET status = 'skipped', last_error = 'No template', claimed_at = NULL, claim_token = NULL WHERE id = $1 AND claim_token = $2 AND status = 'processing'`, [n.id, n.claim_token]); continue; }
+    let res: Response;
+    try {
+      res = await deps.fetch(`https://graph.facebook.com/v21.0/${phoneId}/messages`, {
+        method: 'POST',
+        signal: AbortSignal.timeout(15000),
+        headers: { authorization: 'Bearer ' + token, 'content-type': 'application/json' },
+        body: JSON.stringify({
+          messaging_product: 'whatsapp', to: String(n.to_address).replace(/^\+/, ''), type: 'template',
+          template: { name: n.template, language: { code: lang },
+            components: [{ type: 'body', parameters: params(n.payload as Json).map(text => ({ type: 'text', text })) }] }
+        })
+      });
+    } catch {
+      await deps.sql(`UPDATE notifications SET status = CASE WHEN attempts >= 5 THEN 'failed' ELSE 'queued' END, last_error = 'Delivery interrupted; retry pending', claimed_at = NULL, claim_token = NULL WHERE id = $1 AND claim_token = $2 AND status = 'processing'`, [n.id, n.claim_token]);
+      continue;
+    }
+    if (res.ok) { sent++; await deps.sql(`UPDATE notifications SET status = 'sent', sent_at = now(), last_error = NULL, claimed_at = NULL, claim_token = NULL WHERE id = $1 AND claim_token = $2 AND status = 'processing'`, [n.id, n.claim_token]); }
     else {
-      const err = (await res.text()).slice(0, 500);
-      await deps.sql(`UPDATE notifications SET status = CASE WHEN attempts >= 5 THEN 'failed' ELSE 'queued' END, last_error = $2 WHERE id = $1`, [n.id, err]);
+      await deps.sql(`UPDATE notifications SET status = CASE WHEN attempts >= 5 THEN 'failed' ELSE 'queued' END, last_error = $3, claimed_at = NULL, claim_token = NULL WHERE id = $1 AND claim_token = $2 AND status = 'processing'`, [n.id, n.claim_token, 'Provider HTTP ' + res.status]);
     }
   }
   return reply(200, { configured: true, sent, tried: batch.length });
@@ -181,6 +206,7 @@ export async function sendNotifications(req: Request, deps: Deps): Promise<Respo
 // lay-bys not paid by their date
 export async function dailyJobs(req: Request, deps: Deps): Promise<Response> {
   if (req.headers.get('authorization') !== 'Bearer ' + deps.env('CRON_SECRET') || !deps.env('CRON_SECRET')) return reply(401, { error: 'Not allowed' });
+  if (req.method !== 'POST') return reply(405, { error: 'Use POST' });
   const released = await deps.sql('SELECT app.release_due_payouts() AS n', []);
   const expired = await deps.sql('SELECT app.expire_laybys() AS n', []);
   return reply(200, { payouts_released: released[0].n, laybys_expired: expired[0].n });
@@ -195,27 +221,32 @@ export async function startPayment(req: Request, deps: Deps): Promise<Response> 
   if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: h });
   if (req.method !== 'POST') return reply(405, { error: 'Use POST' }, h);
   const url = deps.env('PAYMENT_API_URL'), key = deps.env('PAYMENT_API_KEY');
-  if (!url || !key) return reply(503, { error: 'Mobile money prompts are not set up yet. Pay with the instructions we send on WhatsApp.' }, h);
+  if (!url || !key || deps.env('PAYMENT_CONTRACT_VALIDATED') !== 'true' || !url.startsWith('https://')) return reply(503, { error: 'Mobile money prompts are not set up yet. Pay with the instructions we send on WhatsApp.' }, h);
   const body = await readJson(req);
   const ref = String((body && body.order_ref) || ''), phone = String((body && body.phone) || '').replace(/[^\d+]/g, '');
   if (!/^ZS-[A-Z0-9]{4,12}$/.test(ref) || !/^\+?260\d{9}$/.test(phone)) return reply(400, { error: 'Send the order reference and a Zambian mobile number' }, h);
   const auth = req.headers.get('authorization') || '';
   const token = auth.startsWith('Bearer ') ? auth.slice(7) : '';
   const userId = token && token !== deps.env('SUPABASE_ANON_KEY') ? await deps.userIdForToken(token) : null;
-  const rows = await deps.sql(`SELECT id, user_id, recipient_phone, status, coalesce(total_zmw, 0) + coalesce(delivery_zmw, 0) - paid_zmw AS owed,
-      payment_plan, deposit_zmw, paid_zmw FROM orders WHERE ref = $1`, [ref]);
-  const o = rows[0];
-  const own = o && (userId !== null ? Number(o.user_id) === userId : o.user_id === null && o.recipient_phone === (phone.startsWith('+') ? phone : '+' + phone));
-  if (!own) return reply(404, { error: 'We couldn\'t find that order for you' }, h);
-  if (o.status === 'cancelled' || !(Number(o.owed) > 0)) return reply(409, { error: 'Nothing is owed on this order' }, h);
-  // A lay-by's first payment is the deposit; after that, any amount up to what's owed
-  const amount = o.payment_plan === 'layby' && Number(o.paid_zmw) === 0 ? Number(o.deposit_zmw) : Number(o.owed);
+  if (token && token !== deps.env('SUPABASE_ANON_KEY') && userId === null) return reply(401, { error: 'Your sign-in has expired. Sign in again.' }, h);
+  if (userId === null) return reply(401, { error: 'Sign in with a verified account to request payment' }, h);
+  const attemptKey = String(body && body.attempt_key || '');
+  if (!/^PAY-[a-zA-Z0-9-]{8,64}$/.test(attemptKey)) return reply(400, { error: 'Send a stable payment attempt key' }, h);
+  let attempt: Json;
+  try {
+    const rows = await deps.sql('SELECT app.begin_payment($1, $2, $3, $4) AS r', [ref, userId, phone.startsWith('+') ? phone : '+' + phone, attemptKey]);
+    attempt = rows[0].r as Json;
+  } catch (e) { const m = dbMessage(e); return reply(m.status, { error: m.message }, h); }
+  const amount = Number(attempt.amount);
+  if (!attempt.send) return reply(200, { started: true, amount, replayed: true, state: attempt.state }, h);
   const res = await deps.fetch(url, {
     method: 'POST',
-    headers: { authorization: 'Bearer ' + key, 'content-type': 'application/json' },
-    body: JSON.stringify({ reference: ref + '-' + Date.now().toString(36).toUpperCase(), order_ref: ref, amount, currency: 'ZMW',
+    signal: AbortSignal.timeout(15000),
+    headers: { authorization: 'Bearer ' + key, 'content-type': 'application/json', 'idempotency-key': String(attempt.reference) },
+    body: JSON.stringify({ reference: attempt.reference, order_ref: ref, amount, currency: 'ZMW',
       phone: phone.replace(/^\+/, ''), callback_url: deps.env('PAYMENT_CALLBACK_URL') })
-  });
-  if (!res.ok) { console.error('payment provider', res.status, (await res.text()).slice(0, 300)); return reply(502, { error: 'The payment service didn\'t answer. Try again in a minute.' }, h); }
+  }).catch(() => null);
+  await deps.sql(`UPDATE payment_attempts SET state = $2 WHERE id = $1 AND state = 'created'`, [attempt.id, res && res.ok ? 'submitted' : 'unknown']);
+  if (!res || !res.ok) { console.error('payment provider unavailable', res ? res.status : 'network'); return reply(502, { error: 'Payment confirmation is uncertain. Do not repeat the payment; check its status with support.' }, h); }
   return reply(200, { started: true, amount }, h);
 }

@@ -1,0 +1,24 @@
+{
+  "name": "zed-supply",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Zambia-first marketplace storefront and backend regression checks",
+  "scripts": {
+    "test": "node --test tests/*.test.cjs tests/*.test.mjs",
+    "brand:artwork": "node scripts/brand-artwork.cjs",
+    "build:storefront": "node scripts/build-storefront.cjs",
+    "check:launch": "node scripts/check-launch.cjs",
+    "test:browser": "playwright test",
+    "test:db": "node db/tests/concurrency.mjs && node db/tests/functions.mjs && node db/tests/notifications.mjs"
+  },
+  "engines": {
+    "node": ">=24"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.64.1",
+    "axe-core": "4.14.0",
+    "pg": "8.23.1",
+    "sharp": "0.35.5"
+  }
+}

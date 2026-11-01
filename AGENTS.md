@@ -7,6 +7,7 @@
 - Department artwork uses dimensional, polished product compositions with the established blue, teal and green accents and transparent backgrounds. Supply actual 3D raster artwork for new departments.
 - Do not substitute flat SVG illustrations, emoji, CSS drawings or generic line icons for primary product or department artwork. Existing SVGs remain appropriate for interface controls and data-saver fallbacks.
 - Use the imagegen skill for generated raster artwork. Save optimized production assets in the workspace, update their catalogue references, and check visual consistency before finishing. Keep sample labels in the interface rather than baking text into product images.
+- All sample product, department, collection and promotional raster artwork must carry the owner's approved Zed Supply / ZS branding inside the image pixels. Exact watermark overlays are explicitly authorized; use `scripts/brand-artwork.cjs` for repeatable branding and preserve transparency and file-size budgets. Keep unbranded source artwork only in private, unpublished storage. Keep sample/price labels in the interface; brand inscriptions are a separate owner requirement. Visible branding discourages reuse but does not guarantee protection against copying or removal.
 
 ## Clean up after each task
 

@@ -32,3 +32,5 @@ node_modules/
 # Local previews
 .preview-chrome/
 preview-*.png
+test-results/
+playwright-report/

@@ -1,0 +1,65 @@
+const { test, expect } = require('@playwright/test');
+const axe = require.resolve('axe-core/axe.min.js');
+
+test.beforeEach(async ({ page }) => {
+  // No analytics, advertisements, maps or payment provider traffic during local checks.
+  await page.route('**/*', route => {
+    const url = new URL(route.request().url());
+    return url.hostname === '127.0.0.1' || url.protocol === 'data:' ? route.continue() : route.fulfill({ status: 200, body: '' });
+  });
+});
+
+for (const route of ['', '#/departments', '#/search?q=solar', '#/product/L041', '#/cart', '#/account', '#/device', '#/seller', '#/staff', 'help.html', 'privacy.html']) {
+  test('usable layout, working artwork and accessible content: ' + (route || 'home'), async ({ page }) => {
+    const errors = [];
+    page.on('pageerror', e => errors.push(e.message));
+    const url = route.endsWith('.html') ? route + '?demo=1' : 'index.html?demo=1&theme=off' + route;
+    await page.goto(url);
+    await expect(page.locator('main')).toBeVisible();
+    await expect(page.locator('html')).not.toHaveClass(/no-js/);
+    if (!route.endsWith('.html')) await page.waitForFunction(() => !!window.ZS);
+    await expect(page.locator('h1:visible').first()).not.toContainText("We couldn't find that");
+    await page.evaluate(() => document.fonts.ready);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
+    const broken = await page.locator('img:visible').evaluateAll(images => images.filter(img => img.complete && img.naturalWidth === 0 && img.getAttribute('src')).map(img => img.getAttribute('src')));
+    expect(broken).toEqual([]);
+    await page.evaluate(require('node:fs').readFileSync(axe, 'utf8'));
+    const results = await page.evaluate(async () => (await axe.run(document, { runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa'] } })).violations.map(v => ({ id: v.id, nodes: v.nodes.map(n => n.target) })));
+    expect(results).toEqual([]);
+    expect(errors).toEqual([]);
+  });
+}
+
+test('offline browsing explains cached stock and prices', async ({ page, context }) => {
+  await page.goto('/index.html?demo=1');
+  await context.setOffline(true);
+  await expect(page.locator('#connection-status')).toBeVisible();
+  await expect(page.locator('#connection-status')).toContainText('older prices and stock');
+  await context.setOffline(false);
+  await expect(page.locator('#connection-status')).toBeHidden();
+});
+
+test('device export and deletion preserve preferences and unrelated site data', async ({ page }) => {
+  await page.goto('/index.html?demo=0#/device');
+  await page.evaluate(() => {
+    localStorage.setItem('zs-user', JSON.stringify({ name: 'Test Buyer', phone: '+260970000001' }));
+    localStorage.setItem('zs-addresses', JSON.stringify([{ town: 'Lusaka', street: 'Private test street' }]));
+    localStorage.setItem('zs-consent', 'denied'); localStorage.setItem('zs-datasaver', 'true');
+    localStorage.setItem('other-app', 'untouched');
+  });
+  const downloadEvent = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Download my data' }).click();
+  const download = await downloadEvent;
+  const stream = await download.createReadStream();
+  let raw = '';
+  for await (const chunk of stream) raw += chunk;
+  const exported = JSON.parse(raw);
+  expect(exported.data.user.name).toBe('Test Buyer');
+  expect(exported.data.addresses[0].street).toBe('Private test street');
+  expect(exported.data['other-app']).toBeUndefined();
+  await page.getByLabel('I understand that saved data on this device will be deleted.').check();
+  await Promise.all([page.waitForEvent('load'), page.getByRole('button', { name: 'Delete saved data on this device' }).click()]);
+  const saved = await page.evaluate(() => ({ user: localStorage.getItem('zs-user'), addresses: localStorage.getItem('zs-addresses'),
+    consent: localStorage.getItem('zs-consent'), saver: localStorage.getItem('zs-datasaver'), other: localStorage.getItem('other-app') }));
+  expect(saved).toEqual({ user: null, addresses: null, consent: 'denied', saver: 'true', other: 'untouched' });
+});

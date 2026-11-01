@@ -15,11 +15,18 @@ Match the listing's product, colour, contents and visible specifications.
 
 Export square 600 × 600 WebP files under 80 KB into `products/demo/` for samples
 or `products/` for confirmed live listings. Use one image per distinct product.
-Do not bake sample notices, prices, badges, logos or watermarks into images.
+Do not bake sample notices, prices or promotion badges into images. The owner has
+explicitly approved pixel-level **ZED SUPPLY / ZS branding** on sample artwork.
+Generate the clean 3D subject first, then run `npm run brand:artwork` to apply exact,
+consistent inscriptions without changing the illustrated product. This supersedes
+the earlier no-watermark rule. Do not brand third-party seller photos as Zed Supply
+designs without appropriate authorization.
 Avoid readable letters or numbers on the product itself (alphabet puzzles, keypads,
 labels): image generators misspell them. Prompt for blank, shape or picture
 versions instead, and check every visible character before accepting an image.
-`products/demo/L041.webp` shows "HIJKLMH" and should be regenerated this way.
+The L041 listing now uses `products/demo/L041-shapes.webp`, a six-shape wooden
+peg puzzle without lettering. The superseded alphabet render is retained as an
+existing source asset and is no longer referenced by the catalogue.
 Keep sample notices in the storefront and sample metadata on the listing.
 
 ## Departments
@@ -43,3 +50,22 @@ all images load, transparency survives export, and data-saver mode uses icons.
 Flat vector illustrations, emoji and CSS drawings are unsuitable substitutes for
 the primary product and department artwork. Banners and promotional collections
 should follow their existing 3D reference artwork and responsive dimensions.
+
+## Branding and private sources
+
+The 113 current product, department, collection and banner WebP files have baked-in
+Zed Supply / ZS inscriptions. Products and banners use a repeated light inscription
+and a legible corner mark. Department inscriptions are clipped to their existing
+alpha silhouette so transparent backgrounds remain transparent.
+
+`scripts/brand-artwork.cjs` uses Sharp, as explicitly authorized by the owner for
+exact watermark overlays. It records source/export hashes in
+`assets/branding-manifest.json` and skips already branded exports. It refuses to
+overwrite an export changed since review. Unmarked originals are retained only in
+git-ignored `Business/brand-assets/artwork-originals/` as intentional private source
+assets. Never publish that directory. Existing repository history is unaffected.
+
+For future artwork: create and review the 3D source with imagegen, apply the branding
+command, verify the exported files and their references, then run the artwork tests.
+Visible branding can be removed or altered; it provides identification and a reuse
+deterrent, not an irrevocable technical or legal guarantee.

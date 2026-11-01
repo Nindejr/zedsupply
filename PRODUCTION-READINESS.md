@@ -1,5 +1,19 @@
 # Production readiness
 
+Latest implementation status: [integration readiness](INTEGRATION-READINESS.md).
+Migrations 017–019 and the disabled frontend integration add verified accounts,
+server quote/checkout, payment-attempt and refund controls, private shipment
+evidence, support escalation, and indexed catalogue reads. Native department pages
+are generated in `shop/`. Provider, business and hosted acceptance remain pending.
+
+Current assessment: [marketplace review, 1 November 2026](MARKETPLACE-REVIEW.md).
+The implementation history below includes earlier snapshots. Server checkout and
+payment foundations now exist in migrations 014–015 and Edge Functions, but the
+website still uses browser-only accounts and WhatsApp checkout (`settings.api`
+is empty). Migration 016 adds durable notification claims; apply it before
+deploying the updated sender. CI and browser/artwork checks are now configured.
+Hosted state and deployment have not been verified by this review.
+
 Reviewed 29 October 2026. Leaves out the business and legal steps (PACRA registration, TPIN and VAT registration, street address, hosting and domain), and lists only the technical work.
 
 ## Where things stand
@@ -43,7 +57,7 @@ So there are two possible launches:
 | Form service | `FORMSPREE_ENDPOINT_HERE` in `help.html` and `js/main.js` | Optional now that forms fall back to WhatsApp |
 | Advertising and analytics IDs | `js/ad-tags.js` | Placeholders are skipped safely; fill in or leave |
 | Real products, photos and sellers | `js/catalogue.js` | 600 × 600 photos of the real items; then set `allowDemo: false` |
-| Regenerate demo image L041 | `assets/products/demo/L041.webp` | Wrong letters in the generated puzzle; demo only |
+| Demo image L041 | `assets/products/demo/L041-shapes.webp` | Corrected to a six-shape puzzle, with matching sample listing details |
 | Release routine | every page | Bump `?v=` and run the tests: `node --test tests/*.test.cjs` |
 
 ## Self-service marketplace (needs a server)
