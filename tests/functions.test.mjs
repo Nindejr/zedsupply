@@ -19,6 +19,15 @@ function fakeDeps(env = {}, rows = () => [{ r: { ok: true } }]) {
 const post = (body, headers = {}) => new Request('https://x.supabase.co/functions/v1/f', {
   method: 'POST', headers: { origin: ORIGIN, 'content-type': 'application/json', ...headers }, body: typeof body === 'string' ? body : JSON.stringify(body) });
 
+test('place-order rejects oversized carts instead of silently dropping lines', async () => {
+  const d = fakeDeps();
+  const res = await placeOrder(post({ contact_name: 'Guest', recipient_phone: '+260970000001',
+    items: Array.from({ length: 51 }, () => ({ product_id: 'L001', quantity: 1 })) }), d);
+  assert.equal(res.status, 400);
+  assert.match((await res.json()).error, /50/);
+  assert.equal(d.calls.length, 0);
+});
+
 test('place-order takes the buyer from the sign-in, never from the body', async () => {
   const d = fakeDeps();
   const res = await placeOrder(post({ ref: 'ZS-ABCD1234', user_id: 1, items: [{ product_id: 'L001', quantity: 2, price: 1 }] }, { authorization: 'Bearer good-token' }), d);

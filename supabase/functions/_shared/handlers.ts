@@ -58,9 +58,10 @@ export async function placeOrder(req: Request, deps: Deps): Promise<Response> {
   if (req.method !== 'POST') return reply(405, { error: 'Use POST' }, h);
   const body = await readJson(req);
   if (!body || !Array.isArray(body.items)) return reply(400, { error: 'Send the order as JSON with an items list' }, h);
+  if (body.items.length > 50) return reply(400, { error: 'Keep each order to 50 items or fewer' }, h);
   const order: Json = {};
   for (const k of ORDER_FIELDS) if (body[k] !== undefined && body[k] !== null && body[k] !== '') order[k] = body[k];
-  order.items = (body.items as Json[]).slice(0, 50).map(it => {
+  order.items = (body.items as Json[]).map(it => {
     const line: Json = {};
     for (const k of ITEM_FIELDS) if (it && it[k] !== undefined && it[k] !== null) line[k] = it[k];
     return line;
