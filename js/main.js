@@ -48,6 +48,15 @@
 
   function start() {
   var root = document.documentElement;
+  /* Extensions (js/marketplace.js) register hooks and pages in window.ZSExt before this runs.
+     A hook returns HTML to insert, or does its work and returns nothing. A failing extension is
+     logged and skipped, so the core store keeps working without it. */
+  var EXT = window.ZSExt || { hooks: {}, views: {} };
+  function ext(name) {
+    var f = EXT.hooks[name];
+    if (!f) return '';
+    try { var r = f.apply(null, Array.prototype.slice.call(arguments, 1)); return r == null ? '' : r; } catch (e) { if (window.console) console.error(e); return ''; }
+  }
   root.classList.remove('no-js');
   root.classList.add('js');
 
@@ -470,7 +479,13 @@
     q.priceZMW = v.priceZMW; q.wasZMW = 0;
     return priceOf(q);
   }
-  function lineQuote(p, opt) { var v = variantOf(p, opt), pr = basePriceOf(p, v); return { pr: pr, q: ZP.quote(p, pr.now, opt), v: v }; }
+  function lineQuote(p, opt, qty) {
+    var v = variantOf(p, opt), pr = basePriceOf(p, v), q = ZP.quote(p, pr.now, opt);
+    // Bulk prices are set against the product's own price, so a variation with its own price doesn't get them
+    var tier = !q.commit && !(v && v.priceZMW) ? ZP.tierPrice(p, qty) : 0;
+    if (tier && tier < q.unit) { q.unit = tier; q.each = Math.round((tier + q.addTotal) * 100) / 100; q.bulk = true; }
+    return { pr: pr, q: q, v: v };
+  }
   function toggleLike(id) {
     var w = wish(), i = w.indexOf(id);
     if (i === -1) w.push(id); else w.splice(i, 1);
@@ -1754,6 +1769,7 @@
       }).join('') + '</div></fieldset>' +
       '<div class="field"><label for="rev-head">Headline</label><input id="rev-head" required maxlength="120" placeholder="Sum it up in a few words" value="' + esc(mine && mine.title ? mine.title : '') + '"></div>' +
       '<div class="field"><label for="rev-text">Your review</label><textarea id="rev-text" required maxlength="600" placeholder="What did you like or dislike? How was delivery?">' + esc(mine ? mine.text : '') + '</textarea></div>' +
+      ext('reviewFormExtra', mine) +
       '<p class="hint">Prototype: your review is saved on this device only.</p><p class="form-status" role="status" tabindex="-1"></p>' +
       '<button class="btn btn--primary" type="submit">' + (mine ? 'Update review' : 'Post review') + '</button></form>';
   }
@@ -1767,7 +1783,7 @@
     return list.length ? list.map(function (v) {
       var stars = Math.min(5, Math.max(0, Number(v.rating) || 0));
       return '<div class="review"><span class="stars__icons" aria-hidden="true">' + starString(stars) + '</span><span class="visually-hidden">' + stars + ' out of 5</span> <strong>' + esc(v.name) + '</strong> <small>' + niceDate(v.date) + '</small>' +
-        (v.verified ? ' <span class="verified-buy">' + icon(I.check) + 'Verified purchase</span>' : '') + (v.mine ? ' <span class="tag-mine">Your review</span>' : '') + (v.title ? '<h3 class="review__title">' + esc(v.title) + '</h3>' : '') + '<p>' + esc(v.text) + '</p></div>';
+        (v.verified ? ' <span class="verified-buy">' + icon(I.check) + 'Verified purchase</span>' : '') + (v.mine ? ' <span class="tag-mine">Your review</span>' : '') + (v.title ? '<h3 class="review__title">' + esc(v.title) + '</h3>' : '') + '<p>' + esc(v.text) + '</p>' + ext('reviewPhotosHTML', v) + '</div>';
     }).join('') : '<p class="pmeta">No reviews match these filters.</p>';
   }
   function pickMonths() { return [thisMonth, lastMonth].filter(function (k) { return topPicks(k).length; }); }
@@ -2094,10 +2110,14 @@
         var t = searchText(p);
         return words.every(function (w) { return t.indexOf(w) !== -1; });
       });
+      // Nothing matched exactly: try close spellings ("solr" finds "solar"), as the server search does
+      var fuzzy = !list.length && words.length ? ext('searchFuzzy', words, products.filter(function (p) { return !dp || p.category === dp; }), searchText) : '';
+      if (fuzzy && fuzzy.length) list = fuzzy;
       var stores = D.sellers.filter(function (s) { return matches(s.name); }), brands = D.brands.filter(function (b) { return matches(b.name); });
       var extra = (stores.length || brands.length) ? '<ul class="chips" aria-label="Matching stores and brands">' +
         stores.map(function (s) { return '<li><a class="chip" href="#/store/' + s.id + '">🏪 Store: ' + esc(s.name) + '</a></li>'; }).join('') +
         brands.map(function (b) { return '<li><a class="chip" href="#/brand/' + b.id + '">🏷️ Brand: ' + esc(b.name) + '</a></li>'; }).join('') + '</ul>' : '';
+      extra = (fuzzy && fuzzy.length ? '<p class="notice" role="status">No exact matches, so here are close spellings.</p>' : '') + ext('searchTools', term, dp) + extra;
       var box = $('#q'); if (box) box.value = term;
       listing({ title: term ? 'Results for “' + esc(term) + '”' : 'All products', sub: dp ? 'In ' + esc(dept(dp).name) : '', crumbs: [['Search']], list: list, extra: extra, docTitle: term ? 'Search: ' + term : 'All products' });
     },
@@ -2166,7 +2186,7 @@
           '<div class="pdp__media"><div class="pflags">' + (pr.off ? '<span class="flag-sale">-' + pr.off + '%</span>' : '') + (p.sample ? '<span class="tag-sample">Sample</span>' : '') + '</div>' + likeBtn(p) + '<div class="pmedia">' + media(p) + '</div>' + thumbsHTML(p) + '</div>' +
           '<div>' +
             '<h1>' + esc(p.title) + '</h1>' +
-            '<p class="pmeta">' + (b ? 'Brand: <a href="#/brand/' + b.id + '">' + esc(b.name) + '</a> · ' : '') + (s ? 'Sold by <a href="#/store/' + s.id + '">' + esc(s.name) + '</a>' + verifiedHTML(s) : '') + '</p>' +
+            '<p class="pmeta">' + (b ? 'Brand: <a href="#/brand/' + b.id + '">' + esc(b.name) + '</a> · ' : '') + (s ? 'Sold by <a href="#/store/' + s.id + '">' + esc(s.name) + '</a>' + verifiedHTML(s) : '') + '</p>' + ext('productSeller', p, s) +
             (r ? starsHTML(p) + '<p><a href="#reviews" data-jump="reviews">' + r.count + (r.count === 1 ? ' review' : ' reviews') + '</a></p>' : '<p class="pmeta">No reviews yet</p>') +
             '<div data-price-main>' + priceHTML(pr) + '</div>' +
             (range ? '<p class="pmeta pcommit">Or name your own price from ' + kwacha(range.min) + ' in the buy box.</p>' : '') +
@@ -2191,7 +2211,7 @@
             '<a class="btn btn--secondary btn--block" id="buy-now" href="#" target="_blank" rel="noopener noreferrer">Buy now on WhatsApp</a>' +
             '<p class="pmeta">The final price and delivery are confirmed on WhatsApp before you pay.</p>' +
             '<button class="btn btn--secondary btn--block btn--sm" type="button" id="pdp-compare" aria-pressed="' + inCompare + '">' + (inCompare ? 'In your compare list' : 'Add to compare') + '</button>' +
-            alsoSoldHTML(p) +
+            alsoSoldHTML(p) + ext('productBuybox', p) +
             (payMethods().length ? '<div class="buybox__pay"><p class="pmeta">' + payHeading() + '</p>' + payChipsHTML() + '</div>' : '') +
           '</aside>' +
         '</div>' +
@@ -2204,6 +2224,7 @@
         '</div><div>' + (revs.length > 1 ? '<div class="field reviews__sort"><label for="rev-sort">Sort reviews</label><select id="rev-sort"><option value="new">Most recent</option><option value="high">Highest rated</option><option value="low">Lowest rated</option><option value="verified">Verified purchases first</option></select></div>' : '') +
           (revs.length ? '<div class="review-filters"><div class="field"><label for="rev-star">Star rating</label><select id="rev-star"><option value="">All ratings</option>' + [5,4,3,2,1].map(function (n) { return '<option value="' + n + '">' + n + (n === 1 ? ' star' : ' stars') + '</option>'; }).join('') + '</select></div><div class="field"><label for="rev-find">Search reviews</label><input id="rev-find" type="search" maxlength="80" placeholder="e.g. battery or delivery"></div>' +
             (revs.some(function (v) { return v.verified; }) ? '<label class="inline-check"><input id="rev-verified" type="checkbox"> Verified purchases only</label>' : '') + '</div><p id="rev-count" role="status" class="pmeta">' + revs.length + (revs.length === 1 ? ' review' : ' reviews') + '</p><div id="rev-list" class="rev-scroll" tabindex="0" role="region" aria-label="Reviews, ' + revs.length + ' in total">' + reviewList(revs, 'new') + '</div>' : '') + '</div></section>' +
+        ext('productSections', p) +
         (related.length ? '<section class="section" aria-labelledby="rel-title"><h2 id="rel-title">More in ' + esc(d.name) + '</h2><ul class="row">' + cards(related) + '</ul></section>' : '');
       show(html, p.title);
       // Everything the buyer picks (options, add-ons, their own price) updates the prices,
@@ -2220,13 +2241,13 @@
         return o;
       };
       var update = function () {
-        var o = pick(), n = Math.max(1, parseInt(qty.value, 10) || 1), lq = lineQuote(p, o), v = lq.v, q = lq.q;
+        var o = pick(), n = Math.max(1, parseInt(qty.value, 10) || 1), lq = lineQuote(p, o, n), v = lq.v, q = lq.q;
         if (cRange) {
           $('#pm-commit').disabled = !q.range;
           $('label[for="pm-commit"]').textContent = q.range ? 'Name your price' : 'Offers unavailable for this selection';
           if (!q.range && o.commit != null) {
             $('#pm-fixed').checked = true; commitBox.hidden = true; delete o.commit;
-            lq = lineQuote(p, o); q = lq.q;
+            lq = lineQuote(p, o, n); q = lq.q;
           } else if (q.commit) { o.commit = q.commit; cAmt.value = cRange.value = q.commit; }
         }
         var axes = ZP.options(p), missing = axes.filter(function (x) { return !o[x.key]; });
@@ -2294,6 +2315,7 @@
       qty.addEventListener('input', update);
       update();
       if (window.ZSProductZoom) productZoomCleanup = window.ZSProductZoom.mount($('.pdp__media .pmedia'));
+      ext('productReady', p, function () { return Math.max(1, parseInt(qty.value, 10) || 1); });
       add.addEventListener('click', function () {
         if (!cur.ok) return;
         var o = cur.opt, hasAny = Object.keys(o).length;
@@ -2337,7 +2359,8 @@
         if (!headline) { st.className = 'form-status is-error'; st.textContent = 'Add a short headline for your review.'; $('#rev-head').focus(); return; }
         var all = store.get('reviews', {});
         all[p.id] = (all[p.id] || []).filter(function (v) { return !v.mine; });
-        all[p.id].push({ name: u.name, rating: Number(picked.value), date: today, title: headline, text: $('#rev-text').value.trim(), mine: true, verified: false });
+        var photos = ext('reviewPhotos', rf);
+        all[p.id].push({ name: u.name, rating: Number(picked.value), date: today, title: headline, text: $('#rev-text').value.trim(), mine: true, verified: false, photos: photos || (mine && mine.photos) || [] });
         store.set('reviews', all);
         toast(mine ? 'Your review has been updated' : 'Thanks for your review');
         route();
@@ -2357,7 +2380,7 @@
       }
       var voucher = store.get('voucher', '');
       var sub = 0, save = 0, items = [];
-      lines.forEach(function (l) { var p = product(l.id), lq = lineQuote(p, l.opt), pr = lq.pr, qty = Math.min(99, Math.max(1, parseInt(l.qty, 10) || 1)); sub += lq.q.each * qty; if (pr.was && !lq.q.commit) save += (pr.was - pr.now) * qty; items.push({ p: p, pr: pr, qty: qty, each: lq.q.each, commit: lq.q.commit, key: lineKey(l), label: ZP.describe(p, l.opt), sku: lq.v ? lq.v.sku : "", opt: l.opt }); });
+      lines.forEach(function (l) { var p = product(l.id), qty = Math.min(99, Math.max(1, parseInt(l.qty, 10) || 1)), lq = lineQuote(p, l.opt, qty), pr = lq.pr; sub += lq.q.each * qty; if (pr.was && !lq.q.commit) save += (pr.was - pr.now) * qty; items.push({ p: p, pr: pr, qty: qty, each: lq.q.each, commit: lq.q.commit, bulk: lq.q.bulk, key: lineKey(l), label: ZP.describe(p, l.opt), sku: lq.v ? lq.v.sku : "", opt: l.opt }); });
       var v = voucher ? (D.vouchers || []).filter(function (x) { return x.code === voucher; })[0] : null;
       var vOff = v && sub >= v.minSpend ? Math.round(sub * v.percent / 100) : 0;
       var total = sub - vOff;
@@ -2382,6 +2405,7 @@
         return '<li class="line"><a class="pmedia" href="#/product/' + it.p.id + '" tabindex="-1" aria-hidden="true">' + media(it.p) + '</a><div>' +
           '<a class="line__title" href="#/product/' + it.p.id + '">' + esc(it.p.title) + '</a>' +
           (it.pr.promo && !it.commit ? '<p class="pmeta"><span class="badge">' + esc(it.pr.promo.title) + '</span></p>' : '') +
+          (it.bulk ? '<p class="pmeta"><span class="badge">Bulk price</span></p>' : '') +
           (it.label ? '<p class="pmeta line__opts">' + esc(it.label) + (it.commit ? ' <span class="badge">Pending seller</span>' : '') + '</p>' : '') +
           stockHTML(it.p, v) +
           '<p class="line__price">' + kwacha(it.each * it.qty) + (it.qty > 1 ? ' <small class="pmeta">(' + kwacha(it.each) + ' each)</small>' : '') + '</p>' +
@@ -2413,6 +2437,7 @@
             (book.length ? '<div class="field"><label for="co-address">Saved address</label><select id="co-address"><option value="">Choose a saved address…</option>' + book.map(function (a) { return '<option value="' + esc(a.id) + '">' + esc(a.label + ': ' + addressLine(a)) + '</option>'; }).join('') + '</select><p class="hint"><a href="#/addresses">Manage addresses</a></p></div>' : '') +
             '<div class="deliver-box" id="co-loc-box"><p class="deliver-box__label">Deliver to *</p><p data-loc-summary>' + locSummaryHTML() + '</p><button class="link-btn" type="button" data-open-location aria-haspopup="dialog">Set or change delivery location</button>' +
               (addressesOn() ? ' · <button class="link-btn" type="button" id="co-save-address">Save to my addresses</button>' : '') + '<p class="form-status is-error" id="co-loc-err" hidden></p></div>' +
+            ext('checkoutCollect') +
             '<div id="ship-wrap">' + shipChoiceHTML() + '</div>' +
             (days.length ? '<fieldset class="field co-when"><legend>Preferred delivery day and time</legend><div class="field-row">' +
               '<div class="field"><label for="co-day">Day</label><select id="co-day"><option value="">Any day</option>' + days.map(function (d) { return '<option value="' + d.iso + '">' + esc(d.label) + '</option>'; }).join('') + '</select></div>' +
@@ -2423,7 +2448,7 @@
               '<div class="check"><input type="checkbox" id="co-gift-noprice" checked><label for="co-gift-noprice">Leave prices out of the parcel</label></div></div>' : '') +
             '<div class="field"><label for="co-note">Notes for your order (optional)</label><input id="co-note" placeholder="e.g. Call when you reach the gate"></div>') +
           step(2, 'Payment',
-            payChoiceHTML() +
+            payChoiceHTML() + ext('checkoutPayment', total) +
             '<form class="voucher" id="voucher-form"><label for="voucher" class="visually-hidden">Voucher code</label><input id="voucher" placeholder="Voucher code" value="' + esc(voucher) + '" autocapitalize="characters"><button class="btn btn--secondary btn--sm" type="submit">Apply</button></form>' +
             (voucher && !v ? '<p class="form-status is-error">That voucher code isn\'t valid.</p>' : '') +
             (v && !vOff ? '<p class="form-status is-error">' + esc(v.code) + ' needs a minimum spend of ' + kwacha(v.minSpend) + '.</p>' : '')) +
@@ -2470,10 +2495,11 @@
         var g = gift();
         if (g.on) m += '\nGift: yes' + (g.noPrice ? ', leave prices out of the parcel' : '') + (g.message ? '\nGift message: ' + g.message : '');
         if (payChoice) { var pm = payByName(payChoice); m += '\nPayment: ' + payChoice + (pm && PAY_ASK[payKind(pm)] ? ' (' + PAY_ASK[payKind(pm)] + ')' : ''); }
-        return m;
+        return m + ext('checkoutMessage', total);
       };
       // data-wa-message lets refreshLoc() update the link when the delivery location changes
       var syncCo = function () { var m = buildMsg(); co.setAttribute('data-wa-message', m); co.href = waUrl(m); };
+      ext('checkoutReady', { sync: function () { syncCo(); }, total: total, payChoice: function () { return payChoice; }, ref: ref });
       ['co-name', 'co-note'].forEach(function (id) { $('#' + id).addEventListener('input', syncCo); });
       $('#co-name').addEventListener('input', function () { if (this.value.trim()) { $('#co-name-err').hidden = true; this.removeAttribute('aria-invalid'); } });
       ['co-day', 'co-slot', 'co-gift-noprice'].forEach(function (id) { var el = $('#' + id); if (el) el.addEventListener('change', syncCo); });
@@ -2622,6 +2648,7 @@
           tile('help.html#returns', 'Returns', 'How returns work') +
           (addressesOn() ? tile('#/addresses', 'Addresses', addresses().length + ' saved · choose at checkout') : '') +
           (complaintsOn() ? tile('#/complaints', 'Complaints', complaints().length + ' sent · make or follow up') : '') +
+          ext('accountTiles') +
           tile('#/seller', 'Seller Centre', 'Manage your store') +
           tile('help.html', 'Help centre', 'Answers and contact') +
           tile('#/promotions', 'Promotions', 'Deals from sellers') +
@@ -2635,7 +2662,9 @@
             '<p class="pmeta">Added to your WhatsApp orders so we can confirm delivery to your area and the delivery fee. ' + (loc && loc.remember ? 'Remembered on this device.' : 'Kept until you close this tab unless you choose to remember it.') + '</p>' +
             '<button class="btn btn--secondary btn--sm" type="button" data-open-location aria-haspopup="dialog">Set or change location</button></div>' +
           '<div class="card"><h2>Your activity</h2><p>' + myReviews + (myReviews === 1 ? ' review' : ' reviews') + ' written · ' + recent.length + ' products viewed recently.</p><p class="pmeta">Prototype: your account is stored on this device only.</p></div></div></div>' +
+        ext('accountSections') +
         (recent.length ? '<section class="section"><h2>Recently viewed</h2><ul class="row">' + cards(recent) + '</ul></section>' : ''), 'My Account');
+      ext('accountReady');
       $('#acct').addEventListener('submit', function (e) {
         e.preventDefault();
         store.set('user', { name: $('#ac-name').value.trim(), phone: $('#ac-phone').value.trim(), email: $('#ac-email').value.trim() });
@@ -2671,7 +2700,7 @@
         (o.sample ? '<p class="pmeta">This is a demo order to show how tracking will look.</p>' : '<p class="pmeta">We update your order once it\'s confirmed on WhatsApp. Prototype: live tracking arrives with full accounts.</p>') +
         // Until we confirm it, the order may not have been sent: WhatsApp opened, but Send wasn't pressed
         (!o.sample && !o.status && !o.cancel && o.message ? '<div class="notice" role="status"><p><strong>Didn\'t press Send?</strong> Your order reaches us only when the WhatsApp message is sent.</p><a class="btn btn--secondary btn--sm" href="' + waUrl(o.message) + '" data-wa-message="' + esc(o.message) + '" target="_blank" rel="noopener noreferrer">Open WhatsApp again</a></div>' : '') +
-        cancelHTML(o) +
+        cancelHTML(o) + ext('orderActions', o) +
         '<div class="btn-row">' + askBtn(msg) + (o.sample ? '' : '<button class="btn btn--secondary" type="button" id="buy-again">Buy again</button>') +
           (complaintsOn() && !o.sample ? '<a class="btn btn--secondary" href="#/complaint?order=' + encodeURIComponent(o.ref) + '">' + (o.status >= 4 ? 'Return or report a problem' : 'Report a problem') + '</a>' : '') + '</div></div>' +
         '<aside class="summary"><h2>Items</h2><ul class="lines">' + o.items.map(function (it) { var p = product(it.id); return '<li class="line line--plain"><div><a class="line__title" href="#/product/' + it.id + '">' + esc(p ? p.title : it.id) + '</a><p class="pmeta">' + (it.label ? esc(it.label) + ' · ' : '') + 'Quantity ' + (parseInt(it.qty, 10) || 0) + ' · ' + kwacha(it.price * it.qty) + '</p>' +
@@ -2926,6 +2955,7 @@
             (OPTS.complaints && OPTS.complaints.sellerDashboard ? '' : '<p class="notice">You\'ll be able to read and answer complaints here once seller accounts move to our secure server.</p>') +
             (mineC.length ? '<ul class="orders">' + mineC.map(function (c) { var t = COMPLAINT_TYPES.filter(function (x) { return x[0] === c.type; })[0]; return '<li class="order-row"><span><strong>' + esc(c.ref) + '</strong> · ' + esc(t ? t[1] : '') + '<br><span class="pmeta">' + niceDate(c.date) + (c.order ? ' · order ' + esc(c.order) : '') + ' · prototype, from this device</span></span><span class="status">' + esc(COMPLAINT_STATUS[c.status] || c.status) + '</span></li>'; }).join('') + '</ul>' : '') + '</section>';
         })() : '') +
+        ext('sellerSections', s, mine) +
         '<div class="duo duo--gap">' +
         '<section class="card" id="sc-promos" aria-labelledby="sc-p-title"><h2 id="sc-p-title">Your promotions</h2>' + (promos.length ? '<ul class="orders">' + promos.map(function (pr) {
           return '<li class="order-row"><span><strong>' + esc(pr.title) + '</strong><br><span class="pmeta">' + esc(season(pr.season).name) + ' · ' + (Number(pr.discount) || 0) + '% off · ' + niceDate(pr.starts) + ' to ' + niceDate(pr.ends) + (pr.image ? ' · with banner image' : '') + '</span></span><span><span class="status">' + promoStatus(pr) + '</span>' + (pr.demo ? ' <button class="link-btn" type="button" data-del-promo="' + esc(pr.id) + '">Delete<span class="visually-hidden"> ' + esc(pr.title) + '</span></button>' : '') + '</span></li>';
@@ -3498,8 +3528,18 @@
     }
     var parts = h.slice(2).split('?'), path = parts[0].split('/');
     var q = new URLSearchParams(parts[1] || '');
-    (views[path[0]] || views.notfound)(decodeURIComponent(path[1] || ''), q);
+    (views[path[0]] || EXT.views[path[0]] || views.notfound)(decodeURIComponent(path[1] || ''), q);
   }
+
+  // What extensions may use. Read-only views of the store, plus the shared page helpers.
+  window.ZS = {
+    D: D, S: S, ZP: ZP, store: store, today: today,
+    products: function () { return products; }, product: product, seller: seller, dept: dept, user: user, orders: orders,
+    cart: cart, addToCart: addToCart, complaints: complaints, listings: listingsApi, loc: function () { return loc; },
+    esc: esc, kwacha: kwacha, niceDate: niceDate, waUrl: waUrl, toast: toast, show: show, crumbs: crumbs, head: head, empty: empty,
+    cards: cards, ratingOf: ratingOf, priceOf: priceOf, coMode: function () { return coMode(); }, provinceOf: provinceOf,
+    route: route, $: $, $$: $$, newRef: newRef, payByName: payByName, cleanText: cleanText
+  };
 
   // Support index.html?q=term (from other pages and search engines)
   var params = new URLSearchParams(location.search);

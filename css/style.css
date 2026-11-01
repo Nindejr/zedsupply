@@ -719,6 +719,8 @@ a.contact-method:hover { border-color: var(--color-secondary); }
 .site-footer { position: relative; background: var(--color-footer); color: #C8D3E6; font-size: 0.93rem; }
 .site-footer a { color: #E4EAF5; text-decoration: none; }
 .site-footer a:hover { color: #FFFFFF; text-decoration: underline; }
+/* Links inside a sentence are underlined, so they stand out from the text without relying on colour */
+.site-footer p a { text-decoration: underline; text-underline-offset: 2px; }
 .site-footer h2 { font-size: 1.15rem; font-weight: 700; color: #FFFFFF; margin: 0 0 0.6rem; }
 
 /* 1. Four link columns */
@@ -1735,3 +1737,49 @@ main .section .pcard .pmedia, .pcard .pmedia { background: rgb(235 243 251 / .45
 .fulfil__main { font-weight: 700; color: var(--color-heading); }
 .badge--near { background: var(--zm-green); color: #FFFFFF; box-shadow: none; }
 .cart-group__fulfil { display: block; font-weight: 400; color: var(--color-muted); font-size: 0.85rem; }
+
+/* ---------- Marketplace features (js/marketplace.js) ---------- */
+/* Seller trust: glassy chips under "Sold by" */
+.trust { display: flex; flex-wrap: wrap; gap: 0.35rem 0.5rem; margin: 0.25rem 0 0.75rem; }
+.trust__item { display: inline-flex; align-items: center; gap: 0.25rem; padding: 0.15rem 0.6rem; border-radius: 999px; font-size: 0.85rem; color: var(--color-heading);
+  background: var(--glass-bg); border: 1px solid var(--glass-border); box-shadow: var(--glass-shadow); }
+.trust__item [aria-hidden] { color: var(--color-star); }
+/* Bulk prices, with the row for the chosen quantity in gold */
+.tiers { margin: 0.75rem 0; padding: 0.6rem 0.75rem; border-radius: var(--radius-sm); border: 1px solid var(--color-border); background: var(--color-surface); }
+.tiers__head { margin: 0 0 0.35rem; font-weight: 700; color: var(--color-heading); }
+.tiers ul { list-style: none; margin: 0; padding: 0; }
+.tiers li { display: flex; justify-content: space-between; gap: 1rem; padding: 0.25rem 0.4rem; border-radius: 6px; }
+.tiers li.is-on { background: var(--gold-gloss); color: var(--color-primary); }
+/* Buyer protection */
+.protect { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 0.5rem; margin: 0.75rem 0; padding: 0.6rem 0.75rem; border-radius: var(--radius-sm);
+  background: linear-gradient(135deg, rgb(76 194 26 / 0.1), rgb(27 204 191 / 0.08)); border: 1px solid rgb(25 138 0 / 0.35); font-size: 0.92rem; }
+.protect__icon { font-size: 1.1rem; line-height: 1.3; }
+.protect > span:not(.protect__icon) { flex: 1 1 14rem; }
+.mx-alerts { display: grid; gap: 0.35rem; margin: 0.5rem 0; justify-items: start; }
+.mx-share { margin: 0.25rem 0 0.5rem; }
+/* Questions and answers */
+.qa__list { margin: 0 0 1rem; }
+.qa__item { padding: 0.6rem 0; border-bottom: 1px solid var(--color-border); }
+.qa__item dt { font-weight: 700; color: var(--color-heading); }
+.qa__item dd { margin: 0.25rem 0 0; }
+.qa__row { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.qa__row input { flex: 1 1 14rem; min-width: 0; }
+/* Review photos */
+.review-photos { display: flex; flex-wrap: wrap; gap: 0.4rem; margin: 0.5rem 0; }
+.review-photos img { width: 96px; height: 96px; object-fit: cover; border-radius: var(--radius-sm); border: 1px solid var(--color-border); }
+#rev-photos-preview img { width: 72px; height: 72px; }
+@media (prefers-color-scheme: dark) {
+  .trust__item { background: rgb(255 255 255 / 0.08); border-color: rgb(255 255 255 / 0.22); box-shadow: none; }
+  .protect { background: linear-gradient(135deg, rgb(91 212 42 / 0.12), rgb(27 204 191 / 0.1)); border-color: rgb(91 212 42 / 0.45); }
+}
+/* Seller Centre figures and the staff tabs */
+.mx-stats li > span { display: block; padding: 0.75rem 1rem; }
+.mx-stats strong { display: block; font-size: 1.3rem; color: var(--color-heading); }
+.mx-tabs { margin: 0 0 1rem; }
+.mx-tabs .chip[aria-current] { background: var(--gold-gloss); color: var(--color-primary); border-color: var(--gold); }
+.mx-save-search { margin: 0 0 1rem; }
+/* Install button and language menu in the footer */
+button.app-btn { font: inherit; cursor: pointer; }
+button.app-btn[hidden] { display: none; }
+.lang-slot { margin-top: 0.75rem; }
+.lang-slot select { min-height: 40px; border-radius: 8px; }

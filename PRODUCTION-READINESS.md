@@ -181,3 +181,28 @@ Migration 014 prepares database functions; the storefront still uses local brows
 | NoSQL catalogue | PostgreSQL with JSONB already handles flexible product details, and one database keeps orders and stock consistent. | Catalogue reads outgrow PostgreSQL with caching |
 | Redis cache, read replicas, auto-scaling | The static site is already on a CDN; Supabase handles the database. These cost money and add parts. | Database CPU stays high or queries slow down under real traffic (paid plans add replicas) |
 | Elasticsearch or Algolia | PostgreSQL trigram search covers typos at this size, for free. | Tens of thousands of products, or search needs synonyms and ranking beyond tags |
+
+## Marketplace features (1 November 2026)
+
+Built after comparing with how Jumia, Takealot, Amazon and Jiji earn buyers' trust. Features that need an outside account are ready, but stay off until it exists.
+
+| Feature | Status |
+| --- | --- |
+| Buyer protection: payment held until delivery is confirmed, then paid to the seller | Database and server functions done (migration 015, `daily-jobs`). Website shows it in demo mode. Switch on with `settings.buyerProtection` once payments go through a provider. |
+| Mobile money prompt ("Pay now") | `start-payment` and `payment-webhook` done and tested. Needs a payment aggregator account covering MTN, Airtel and Zamtel, and its field mapping. |
+| Seller trust signals | On product pages: rating, orders delivered, reply time, selling since. Live figures come from `seller_trust()`. |
+| Cash on delivery limits | Database and checkout. Defaults: up to K1,500, after a first delivered order. |
+| WhatsApp order and alert messages | Outbox and `send-notifications` done. Needs the WhatsApp Business Platform, approved templates and a budget per conversation. |
+| Shareable product links | Share button (phone share sheet, or copy and WhatsApp). Link previews in WhatsApp and Facebook still need a page per product (see search-engine visibility). |
+| Installable app, offline browsing | Manifest, icons and service worker done. |
+| Back-in-stock and price-drop alerts, saved searches | Website (on this device) and database done. Messages once WhatsApp is on. |
+| Lay-by | Database, checkout and help text done. Off: `settings.layby` and `shop_settings.layby_enabled`. |
+| Bulk prices | Product model, product page, cart and server pricing done. |
+| Pickup points | Database, checkout and help text done. Add partner shops to `settings.pickupPoints` and the `pickup_points` table. |
+| Review photos, questions and answers | Website and database done, with a public `review-photos` bucket. |
+| Frequently bought together | From sample links and orders on the website; from real orders with `bought_together()`. |
+| Seller tools: spreadsheet upload, sales, low stock, questions, listing health | Seller Centre done. Performance score and payouts: `seller_performance()` and `seller_sales()`. |
+| Staff back office | `#/staff` in demo mode. On the server, `staff_*` functions check staff rights and log every decision. |
+| Bemba and Nyanja | The language menu and translation template are done. No translations are included: they need a native speaker, so the menu stays hidden until one is added. |
+| Accessibility | axe-core (WCAG 2.1 A and AA) found no issues on 9 key pages in light and dark mode, after underlining footer links in sentences. |
+

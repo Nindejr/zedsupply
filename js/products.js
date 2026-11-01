@@ -57,6 +57,12 @@
 
   function num(v) { var n = Number(v); return isFinite(n) ? n : NaN; }
   function money(v) { return Math.round((num(v) + Number.EPSILON) * 100) / 100; }
+  // The bulk price for buying qty of p (the lowest tier reached), or 0 when none applies
+  function tierPrice(p, qty) {
+    var best = 0;
+    (p.priceTiers || []).forEach(function (t) { if (num(qty) >= num(t.min) && num(t.price) > 0 && (!best || num(t.price) < best)) best = num(t.price); });
+    return best;
+  }
   function validMoney(v) { var n = num(v); return n >= 0 && n <= 9999999999.99 && Math.abs(n * 100 - Math.round(n * 100)) < 0.0001; }
   function validMeasure(v) { var n = num(v); return n > 0 && n <= 9999999.999 && Math.abs(n * 1000 - Math.round(n * 1000)) < 0.000001; }
   function text(v, max) { return String(v == null ? '' : v).replace(/\s+/g, ' ').trim().slice(0, max || 200); }
@@ -274,6 +280,15 @@
     if (!(price > 0) || !validMoney(price)) add('priceZMW', 'Enter a price above K0 with at most two decimal places.');
     if (d.wasZMW && (!(num(d.wasZMW) > price) || !validMoney(d.wasZMW))) add('wasZMW', 'The "was" price must be higher than the price and use at most two decimal places.');
     if (STOCK.indexOf(d.stock) === -1) add('stock', 'Choose a stock status.');
+    // Bulk prices: up to 4, from 2 items, each lower than the normal price, and lower again for bigger quantities
+    var tiers = d.priceTiers || [];
+    if (!Array.isArray(tiers) || tiers.length > 4) add('priceTiers', 'Add up to 4 bulk prices.');
+    else tiers.forEach(function (t, i) {
+      var min = num(t && t.min), tp = num(t && t.price), prev = tiers[i - 1];
+      if (!(Number.isInteger(min) && min >= 2 && min <= 99)) add('priceTiers', 'Each bulk price needs a quantity from 2 to 99.');
+      else if (!(tp > 0) || !validMoney(tp) || !(tp < price)) add('priceTiers', 'Each bulk price must be lower than the normal price, with at most two decimal places.');
+      else if (prev && !(min > num(prev.min) && tp < num(prev.price))) add('priceTiers', 'List bulk prices from the smallest quantity up, each cheaper than the one before.');
+    });
 
     var a = d.attributes || {};
     if (a.condition && !CONDITIONS.some(function (c) { return c[0] === a.condition; })) add('condition', 'Choose a supported item condition.');
@@ -367,6 +382,7 @@
       tags: text(d.tags, 200), description: String(d.description || '').trim().slice(0, 2000), reviews: d.reviews || []
     };
     if (d.wasZMW) p.wasZMW = money(d.wasZMW);
+    if ((d.priceTiers || []).length) p.priceTiers = d.priceTiers.map(function (t) { return { min: num(t.min), price: money(t.price) }; });
     if (d.added) p.added = d.added;
     if (d.match) p.match = d.match;
     var a = d.attributes || {}, attrs = {};
@@ -465,6 +481,6 @@
     valueInStock: valueInStock, defaultSelection: defaultSelection, totalStock: totalStock, stockState: stockState,
     matrix: matrix, combinationCount: combinationCount, skuFor: skuFor, inBox: inBox, commitRange: commitRange, quote: quote, describe: describe,
     ratingSummary: ratingSummary, attrText: attrText, colours: colours, ages: ages, measures: measures, measureMatches: measureMatches, matchingVariants: matchingVariants, sizeToken: sizeToken, conditionLabel: conditionLabel,
-    validate: validate, clean: clean, catalogueEntry: catalogueEntry, listings: listings
+    validate: validate, clean: clean, catalogueEntry: catalogueEntry, listings: listings, tierPrice: tierPrice
   };
 })();

@@ -19,7 +19,7 @@
        WARNING: anything new from another website (a chat widget, an ad or social pixel, a CDN library, a YouTube video, a payment
        button) is silently blocked until its domain is added here, on all four pages. Editing an inline script in this head changes
        its hash: update the matching sha256 or it stops running (see Business/PCI-DSS.md). -->
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self' file:; script-src 'self' file: https://*.googletagmanager.com https://*.clarity.ms https://connect.facebook.net https://snap.licdn.com https://www.googleadservices.com https://googleads.g.doubleclick.net https://www.google.com 'sha256-yPEuvoV9qB8vQW+Krm8zEqMBI82A1FsRwzy4FyMTeio=' 'sha256-z1r42vw/gINn2mkMLvECiqMoVeq/uaQeIZgLq5quhpk=' 'sha256-HuzeagOWxw72t91+fcLW0a2epg2jV2lvbgvXlvSrhbg=' 'sha256-bMUqGRvrd7Oa5B3isZfKHogU7mYoQRtwns8KYhU30vw=' 'sha256-LObU1tdmcx/heQRtk57MQWwTslHx0RgWSMB828agqtk=' 'sha256-JXvATGpaUOztFQ6cJs+CQjDwUHLmwQQOh5eHJqip73E='; style-src 'self' file: 'unsafe-inline'; img-src 'self' file: data: blob: https://*.google-analytics.com https://*.googletagmanager.com https://*.clarity.ms https://c.bing.com https://www.facebook.com https://*.linkedin.com https://www.googleadservices.com https://googleads.g.doubleclick.net https://www.google.com https://www.google.co.zm https://pagead2.googlesyndication.com; frame-src https://www.google.com https://td.doubleclick.net https://www.googletagmanager.com; connect-src https://formspree.io https://*.google-analytics.com https://*.analytics.google.com https://*.googletagmanager.com https://*.clarity.ms https://c.bing.com https://www.facebook.com https://connect.facebook.net https://*.linkedin.com https://www.google.com https://www.google.co.zm https://googleads.g.doubleclick.net https://www.googleadservices.com https://pagead2.googlesyndication.com; form-action 'self' https://formspree.io; base-uri 'self'; object-src 'none'; upgrade-insecure-requests">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self' file:; script-src 'self' file: https://*.googletagmanager.com https://*.clarity.ms https://connect.facebook.net https://snap.licdn.com https://www.googleadservices.com https://googleads.g.doubleclick.net https://www.google.com 'sha256-yPEuvoV9qB8vQW+Krm8zEqMBI82A1FsRwzy4FyMTeio=' 'sha256-z1r42vw/gINn2mkMLvECiqMoVeq/uaQeIZgLq5quhpk=' 'sha256-HuzeagOWxw72t91+fcLW0a2epg2jV2lvbgvXlvSrhbg=' 'sha256-bMUqGRvrd7Oa5B3isZfKHogU7mYoQRtwns8KYhU30vw=' 'sha256-LObU1tdmcx/heQRtk57MQWwTslHx0RgWSMB828agqtk=' 'sha256-JXvATGpaUOztFQ6cJs+CQjDwUHLmwQQOh5eHJqip73E='; style-src 'self' file: 'unsafe-inline'; img-src 'self' file: data: blob: https://*.google-analytics.com https://*.googletagmanager.com https://*.clarity.ms https://c.bing.com https://www.facebook.com https://*.linkedin.com https://www.googleadservices.com https://googleads.g.doubleclick.net https://www.google.com https://www.google.co.zm https://pagead2.googlesyndication.com; frame-src https://www.google.com https://td.doubleclick.net https://www.googletagmanager.com; connect-src https://formspree.io https://*.supabase.co https://*.google-analytics.com https://*.analytics.google.com https://*.googletagmanager.com https://*.clarity.ms https://c.bing.com https://www.facebook.com https://connect.facebook.net https://*.linkedin.com https://www.google.com https://www.google.co.zm https://googleads.g.doubleclick.net https://www.googleadservices.com https://pagead2.googlesyndication.com; form-action 'self' https://formspree.io; base-uri 'self'; object-src 'none'; upgrade-insecure-requests">
   <meta name="referrer" content="strict-origin-when-cross-origin">
   <!-- Google tag (gtag.js) for Google Analytics 4, with Consent Mode v2:
        everything is denied by default; js/main.js updates consent only if the visitor accepts. -->
@@ -27,7 +27,7 @@
   <script>window.dataLayer = window.dataLayer || []; function gtag(){dataLayer.push(arguments);} gtag('consent', 'default', { analytics_storage: 'denied', ad_storage: 'denied', ad_user_data: 'denied', ad_personalization: 'denied' }); try { if (localStorage.getItem('zs-consent') === 'granted') gtag('consent', 'update', { analytics_storage: 'granted', ad_storage: 'granted' }); } catch (e) {} gtag('js', new Date()); gtag('config', 'G-E2MC1NELGE');</script>
   <!-- Advertising tags: Meta Pixel, LinkedIn Insight Tag and Google Ads conversions. js/ad-tags.js loads them only
        after the visitor accepts cookies; Decline keeps them off. Set the IDs and conversion labels at the top of that file. -->
-  <script src="js/ad-tags.js?v=20261030.1" defer></script>
+  <script src="js/ad-tags.js?v=20261101" defer></script>
   <!-- Meta Pixel noscript fallback, switched off on purpose: it is a plain image that would track visitors who have
        JavaScript turned off before they could answer the cookie banner. To use it anyway, put your Pixel ID in the
        line below and delete the comment markers around it. -->
@@ -49,6 +49,7 @@
   <meta name="description" content="Get help with Zed Supply: how ordering on WhatsApp works, delivery, payments, returns, selling on Zed Supply, business supplies, and how to contact us.">
   <link rel="canonical" href="https://nindejr.github.io/zedsupply/help.html">
   <meta name="theme-color" content="#0A2A66">
+  <link rel="manifest" href="manifest.webmanifest">
 
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="Zed Supply">
@@ -67,11 +68,12 @@
   <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon.png?v=2">
   <link rel="icon" type="image/svg+xml" sizes="any" href="assets/favicon.svg?v=2">
   <link rel="apple-touch-icon" href="assets/apple-touch-icon.png?v=2">
-  <link rel="stylesheet" href="css/style.css?v=20261030.1">
-  <script src="js/catalogue.js?v=20261030.1" defer></script>
-  <script src="js/couriers.js?v=20261030.1" defer></script>
-  <script src="js/products.js?v=20261030.1" defer></script>
-  <script src="js/main.js?v=20261030.1" defer></script>
+  <link rel="stylesheet" href="css/style.css?v=20261101">
+  <script src="js/catalogue.js?v=20261101" defer></script>
+  <script src="js/couriers.js?v=20261101" defer></script>
+  <script src="js/products.js?v=20261101" defer></script>
+  <script src="js/marketplace.js?v=20261101" defer></script>
+  <script src="js/main.js?v=20261101" defer></script>
 
   <script type="application/ld+json">
   {
@@ -179,7 +181,7 @@
         <a class="hact" href="index.html#/cart" data-label="Cart" aria-label="Cart">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="20" r="1.5"/><circle cx="18" cy="20" r="1.5"/><path d="M2 3h3l2.6 11.2a2 2 0 0 0 2 1.6h7.9a2 2 0 0 0 2-1.5L22 7H6"/></svg>
           <span class="count" data-count="cart" data-zero>0</span>
-          <span class="hact__label" aria-hidden="true">Cart</span>
+          <span class="hact__label" aria-hidden="true" data-i18n="nav.cart">Cart</span>
         </a>
       </nav>
     </div>
@@ -190,8 +192,8 @@
       <ul>
         <li><button class="subnav__all" type="button" data-open-drawer aria-haspopup="dialog" aria-controls="drawer"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><path d="M3 6h18M3 12h18M3 18h18"/></svg>All categories</button></li>
         <li><button type="button" data-open-location aria-haspopup="dialog" aria-controls="location-dialog"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg><span data-location-label>Deliver to: set location</span></button></li>
-        <li><a href="index.html#/deals">Today's deals</a></li>
-        <li><a href="index.html#/promotions">Promotions</a></li>
+        <li><a data-i18n="nav.deals" href="index.html#/deals">Today's deals</a></li>
+        <li><a data-i18n="nav.promotions" href="index.html#/promotions">Promotions</a></li>
         <li><a href="index.html#/brands">Brand stores</a></li>
         <li><a href="index.html#/world">Shop the World <span class="pill">Soon</span></a></li>
         <li><a href="index.html#/sell">Sell on Zed Supply</a></li>
@@ -338,6 +340,7 @@
         </ol>
 
         <h2 id="delivery">Delivery</h2>
+        <p>Where pickup points are listed at checkout, you can collect from a partner shop near you instead of waiting at home. We tell you on WhatsApp when your parcel is ready, with the shop's address and opening hours.</p>
         <dl class="details">
           <div><dt>Where we deliver</dt><dd><span class="placeholder">[DELIVERY AREAS]</span></dd></div>
           <div><dt>How long it takes</dt><dd><span class="placeholder">[DELIVERY TIMES]</span></dd></div>
@@ -403,6 +406,15 @@
           <li>You make the payment yourself: you approve mobile money on your own phone, a bank transfer in your own bank app or at the bank, and a card payment on our payment provider's secure page. Then send us the confirmation.</li>
         </ol>
         <p>Always check that the name shown on your phone matches the name we gave you before you approve a payment.</p>
+        <p>When paying in the app opens, <strong>Pay now</strong> sends a mobile money prompt straight to your phone for the exact amount. You approve it with your own PIN, which we never see.</p>
+        <h3>Cash on delivery</h3>
+        <p>Where cash on delivery is offered, it's for orders up to the limit shown at checkout, once you've received an order from us before. This keeps it available while protecting sellers from parcels that are refused at the door.</p>
+        <h3 id="layby">Lay-by</h3>
+        <p>Where lay-by is offered at checkout, you pay a deposit now and the rest within the weeks shown, in as many payments as you like. There's no interest or fee. We keep the item for you and hand it over once it's fully paid.</p>
+        <ul>
+          <li>If it isn't fully paid by the date, the order is cancelled and the item goes back on sale. We refund what you paid, less any cost we told you about before you agreed.</li>
+          <li>You can cancel a lay-by at any time before collection on the same terms.</li>
+        </ul>
         <div class="notice notice--secure">
           <p><strong>Keeping your payment details safe</strong></p>
           <ul>
@@ -451,6 +463,7 @@
         <p>Some items come with a manufacturer's warranty, shown in their specifications. We'll help you claim on it. A warranty is extra to this policy, not instead of it.</p>
 
         <h3>Buyer protection</h3>
+        <p>Once payments go through Zed Supply, we hold your payment until you confirm your order arrived in good order, or for a few days after delivery if you don't. Only then do we pay the seller. If you report a problem in that time, we keep holding it until the problem is settled.</p>
         <p>If a seller doesn't respond, or you and the seller can't agree, Zed Supply looks at the evidence from both sides and decides. If we decide a refund is due, we make sure you get it.</p>
 
         <h2 id="cancellations">Cancelling an order</h2>
@@ -483,11 +496,15 @@
         <p>Sellers must answer complaints within <span data-policy="replyDays">2</span> working days. When complaints against a seller are upheld again and again, we warn them, remove listings, or pause or close their store. We take a listing down straight away while we look into a report of a counterfeit or unsafe product.</p>
 
         <h2 id="account">Your account</h2>
+        <h3>Alerts, saved searches and questions</h3>
+        <p>On a product, choose <strong>Alert me if the price drops</strong>, or <strong>Notify me when it's back</strong> if it's sold out. Save a search to see new matches later. You'll find them all under <a href="index.html#/alerts">Alerts</a>. Ask the seller a question at the bottom of any product page; their answer shows there for everyone.</p>
+        <p>Install Zed Supply on your phone from the button at the bottom of the page. It opens like an app and lets you keep browsing when your connection drops.</p>
         <p>In <a href="index.html#/account">My Account</a> you can see your orders, wishlist, reviews and recently viewed products, save <a href="index.html#/addresses">delivery addresses</a> to choose at checkout, and follow up <a href="index.html#/complaints">complaints</a>.</p>
         <p class="notice">The account area is a preview. For now, your details, cart, wishlist, orders and reviews are saved in your browser on this device only. Secure accounts that work across devices are coming soon.</p>
 
         <h2 id="selling">Selling on Zed Supply</h2>
         <p>Zed Supply aims to bring products, sellers and buyers together. Zambian suppliers and businesses can open a store to reach more customers.</p>
+        <p>In the Seller Centre you can add many products at once from a spreadsheet, set lower prices for bigger quantities, answer buyers' questions and see what's low on stock. Buyers see your rating, orders delivered and how quickly you usually reply, so fast, reliable service shows.</p>
         <ul>
           <li><a href="index.html#/sell">Apply to sell</a>. We verify your business and set up your seller account.</li>
           <li>From your <a href="index.html#/seller">Seller Centre</a> you can run seasonal promotions (for example Christmas, Black Friday, back to school or Independence Day) or your own promotions, with a discount and start and end dates.</li>
@@ -703,7 +720,9 @@
               <li><a class="app-btn is-soon" data-app="ios"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6" y="2" width="12" height="20" rx="2.5"/><path d="M11 18h2"/></svg><span class="app-btn__text"><small>Download on the</small>App Store</span><span class="app-btn__soon">Coming soon</span></a></li>
               <li><a class="app-btn is-soon" data-app="android"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3.5v17l13-8.5z"/></svg><span class="app-btn__text"><small>Get it on</small>Google Play</span><span class="app-btn__soon">Coming soon</span></a></li>
               <li><a class="app-btn is-soon" data-app="huawei"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 7h14l-1.2 12.2a2 2 0 0 1-2 1.8H8.2a2 2 0 0 1-2-1.8z"/><path d="M9 10V6a3 3 0 0 1 6 0v4"/></svg><span class="app-btn__text"><small>Explore it on</small>AppGallery</span><span class="app-btn__soon">Coming soon</span></a></li>
+              <li><button class="app-btn" type="button" data-install-app hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg><span class="app-btn__text"><small>Add to this phone</small>Install the app</span></button></li>
             </ul>
+            <div class="lang-slot" data-lang-slot hidden></div>
           </div>
         </div>
       </div>

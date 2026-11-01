@@ -61,6 +61,7 @@ Apply once, in order, using a migration runner or `psql -v ON_ERROR_STOP=1`:
 12. `supabase/migrations/20261029000012_review_security.sql` (verified account linking, privilege revocation on identity deletion, child-content moderation, immutable public photos and restricted table privileges)
 13. `supabase/migrations/20261029000013_api_grants.sql` (table rights for the API roles: new Supabase projects grant none by default)
 14. `supabase/migrations/20261030000014_checkout_integrity.sql` (server-side order placement with stock locking and repeat protection, guest orders, carts per account, posting limits, typo-tolerant search, missing indexes)
+15. `supabase/migrations/20261101000015_marketplace_features.sql` (payments and seller payouts held until delivery, pay on delivery limits, lay-by, bulk prices, pickup points, notification outbox, stock and price alerts, saved searches, review photos, questions and answers, seller trust and performance, bought together, staff actions with an audit log)
 
 Migration 012 creates the application account only once a phone or email is confirmed.
 Existing ordinary buyer records can then be linked; records with staff or store access
@@ -156,12 +157,18 @@ Suggested next-step routes (design only, not implemented):
 Run `node --test tests/*.test.cjs` for the JavaScript tests. For SQL, use an isolated, empty database:
 
 1. Run `db/tests/supabase_stub.sql`.
-2. Apply all fourteen migrations in order, without the seed.
+2. Apply all fifteen migrations in order, without the seed.
 3. Run the other `.sql` files in `db/tests/` with `psql -v ON_ERROR_STOP=1 -f <file>`.
 
-`checkout.sql` covers placing orders on the server: prices, promotions by province, deals, offers, add-ons, vouchers, VAT, stock, repeated references, guest orders, cancellations returning stock, carts, posting limits and search. Never run the stub on the Supabase project. `rls.sql` signs in the way the API does, as a visitor, two buyers, two sellers and staff, and checks what each can read and change. For concurrency, run `npm install --no-save pg` then `node db/tests/concurrency.mjs` against that database (never one holding real data): it interleaves live connections to check the rating cache, one open offer per buyer, single redemption of an accepted offer, the address limit, five buyers ordering the last item at once, and the same order sent twice at once. The SQL tests roll back their fixtures. `integrity.sql` and `product_details.sql` cover invalid data, purchase links, review aggregates, conditions, features and custom options. `aftersales_categories.sql` covers migrations 005–007: the new units, extra photos, offer ranges scaled to a variant's price, saved addresses, order snapshots, cancellations, returns, complaints and subcategories.
+`marketplace.sql` covers migration 015: bulk prices, pickup points, pay on delivery limits, lay-by deposits and expiry, payments recorded once from repeated webhooks, payouts held until delivery and while a complaint is open, notifications, alerts, saved searches, review photos, questions and answers, seller figures, bought together and the staff functions. `functions.mjs` runs the server function handlers against the database (`npm install --no-save pg`, then `node db/tests/functions.mjs`). `checkout.sql` covers placing orders on the server: prices, promotions by province, deals, offers, add-ons, vouchers, VAT, stock, repeated references, guest orders, cancellations returning stock, carts, posting limits and search. Never run the stub on the Supabase project. `rls.sql` signs in the way the API does, as a visitor, two buyers, two sellers and staff, and checks what each can read and change. For concurrency, run `npm install --no-save pg` then `node db/tests/concurrency.mjs` against that database (never one holding real data): it interleaves live connections to check the rating cache, one open offer per buyer, single redemption of an accepted offer, the address limit, five buyers ordering the last item at once, and the same order sent twice at once. The SQL tests roll back their fixtures. `integrity.sql` and `product_details.sql` cover invalid data, purchase links, review aggregates, conditions, features and custom options. `aftersales_categories.sql` covers migrations 005–007: the new units, extra photos, offer ranges scaled to a variant's price, saved addresses, order snapshots, cancellations, returns, complaints and subcategories.
 
-Latest check, for migration 014 (30 October 2026), on native PostgreSQL 18.6 rebuilt from empty:
+Latest check, for migration 015 (1 November 2026), on native PostgreSQL 18.6 rebuilt from empty:
+
+- The stub, all fifteen migrations and all seven SQL test files passed.
+- The concurrency tests, the three server function tests against the database, and all JavaScript tests passed, including the handler tests.
+- With the payout cancellation trigger removed, or pay on delivery opened to first-time buyers, `marketplace.sql` failed as expected.
+
+Earlier check, for migration 014 (30 October 2026), on native PostgreSQL 18.6 rebuilt from empty:
 
 - The stub, all fourteen migrations and all six SQL test files passed.
 - All six concurrency tests and all 27 JavaScript tests passed.

@@ -112,6 +112,36 @@ window.ZS_CATALOGUE = {
       complaints: { enabled: true, replyDays: 2, sellerDashboard: false },
       returns: { changeOfMindDays: 7, faultyDays: 7, refundDays: 14 }
     },
+
+    // ---- Marketplace features (js/marketplace.js) ----
+    // buyerProtection: Zed Supply holds the buyer's payment until they confirm delivery (or
+    //   holdDays after it arrives with no complaint open), then pays the seller. Turn on once
+    //   payments go through the payment provider. preview: true shows it in demo mode.
+    // payments.prompt: "Pay now" sends a mobile money prompt to the buyer's phone, through the
+    //   start-payment server function. Needs api.url and a payment provider account.
+    // layby: pay in instalments and collect when it's paid. depositPct: first payment (%);
+    //   weeks: time to finish paying. Unpaid lay-bys are cancelled and the stock goes back.
+    // pickupPoints: partner shops where buyers collect parcels:
+    //   { id: 'lsk-cairo', name, partner, town, province, address, hours }
+    // alerts: back-in-stock and price-drop alerts and saved searches. questions: buyers ask,
+    //   sellers answer on product pages. share: share buttons on product pages.
+    // staff: the back office at #/staff. It opens for staff once accounts are on the server;
+    //   preview: true shows it in demo mode.
+    // api: the Supabase project URL and publishable key. Both are public. Empty keeps the store
+    //   on WhatsApp ordering. Never put the secret key here.
+    // languages: [id, name] pairs for the language menu, which appears with two or more. Add a
+    //   language only after js/lang/<id>.js has been translated and checked by a native speaker.
+    buyerProtection: { enabled: false, holdDays: 3, preview: true },
+    payments: { prompt: false },
+    layby: { enabled: false, depositPct: 20, weeks: 8, preview: true },
+    pickupPoints: [],
+    alerts: true,
+    questions: true,
+    share: true,
+    staff: { preview: true },
+    api: { url: '', key: '' },
+    languages: [['en', 'English']],
+
     whatsapp: '260979050042',
 
     // ---- How customers can pay ----
@@ -140,7 +170,9 @@ window.ZS_CATALOGUE = {
         networks: ['Visa', 'Mastercard'], provider: '[PAYMENT PROVIDER]',
         note: 'Pay on our payment provider\'s secure page. We send you the link on WhatsApp.' },
       { id: 'cod', name: 'Cash on delivery', kind: 'cash', colour: '#198A00', enabled: false, preview: true,
-        note: 'Pay the rider in cash when your order arrives, where available. We confirm on WhatsApp.' }
+        note: 'Pay the rider in cash when your order arrives, where available. We confirm on WhatsApp.',
+        // Limits, as other marketplaces use: orders up to maxZMW, for buyers who have received an order before
+        maxZMW: 1500, afterFirstOrder: true }
     ],
 
     // ---- Mobile apps ----

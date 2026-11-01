@@ -19,7 +19,7 @@
        WARNING: anything new from another website (a chat widget, an ad or social pixel, a CDN library, a YouTube video, a payment
        button) is silently blocked until its domain is added here, on all four pages. Editing an inline script in this head changes
        its hash: update the matching sha256 or it stops running (see Business/PCI-DSS.md). -->
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self' file:; script-src 'self' file: https://*.googletagmanager.com https://*.clarity.ms https://connect.facebook.net https://snap.licdn.com https://www.googleadservices.com https://googleads.g.doubleclick.net https://www.google.com 'sha256-yPEuvoV9qB8vQW+Krm8zEqMBI82A1FsRwzy4FyMTeio=' 'sha256-z1r42vw/gINn2mkMLvECiqMoVeq/uaQeIZgLq5quhpk=' 'sha256-HuzeagOWxw72t91+fcLW0a2epg2jV2lvbgvXlvSrhbg=' 'sha256-bMUqGRvrd7Oa5B3isZfKHogU7mYoQRtwns8KYhU30vw=' 'sha256-LObU1tdmcx/heQRtk57MQWwTslHx0RgWSMB828agqtk=' 'sha256-JXvATGpaUOztFQ6cJs+CQjDwUHLmwQQOh5eHJqip73E='; style-src 'self' file: 'unsafe-inline'; img-src 'self' file: data: blob: https://*.google-analytics.com https://*.googletagmanager.com https://*.clarity.ms https://c.bing.com https://www.facebook.com https://*.linkedin.com https://www.googleadservices.com https://googleads.g.doubleclick.net https://www.google.com https://www.google.co.zm https://pagead2.googlesyndication.com; frame-src https://www.google.com https://td.doubleclick.net https://www.googletagmanager.com; connect-src https://formspree.io https://*.google-analytics.com https://*.analytics.google.com https://*.googletagmanager.com https://*.clarity.ms https://c.bing.com https://www.facebook.com https://connect.facebook.net https://*.linkedin.com https://www.google.com https://www.google.co.zm https://googleads.g.doubleclick.net https://www.googleadservices.com https://pagead2.googlesyndication.com; form-action 'self' https://formspree.io; base-uri 'self'; object-src 'none'; upgrade-insecure-requests">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self' file:; script-src 'self' file: https://*.googletagmanager.com https://*.clarity.ms https://connect.facebook.net https://snap.licdn.com https://www.googleadservices.com https://googleads.g.doubleclick.net https://www.google.com 'sha256-yPEuvoV9qB8vQW+Krm8zEqMBI82A1FsRwzy4FyMTeio=' 'sha256-z1r42vw/gINn2mkMLvECiqMoVeq/uaQeIZgLq5quhpk=' 'sha256-HuzeagOWxw72t91+fcLW0a2epg2jV2lvbgvXlvSrhbg=' 'sha256-bMUqGRvrd7Oa5B3isZfKHogU7mYoQRtwns8KYhU30vw=' 'sha256-LObU1tdmcx/heQRtk57MQWwTslHx0RgWSMB828agqtk=' 'sha256-JXvATGpaUOztFQ6cJs+CQjDwUHLmwQQOh5eHJqip73E='; style-src 'self' file: 'unsafe-inline'; img-src 'self' file: data: blob: https://*.google-analytics.com https://*.googletagmanager.com https://*.clarity.ms https://c.bing.com https://www.facebook.com https://*.linkedin.com https://www.googleadservices.com https://googleads.g.doubleclick.net https://www.google.com https://www.google.co.zm https://pagead2.googlesyndication.com; frame-src https://www.google.com https://td.doubleclick.net https://www.googletagmanager.com; connect-src https://formspree.io https://*.supabase.co https://*.google-analytics.com https://*.analytics.google.com https://*.googletagmanager.com https://*.clarity.ms https://c.bing.com https://www.facebook.com https://connect.facebook.net https://*.linkedin.com https://www.google.com https://www.google.co.zm https://googleads.g.doubleclick.net https://www.googleadservices.com https://pagead2.googlesyndication.com; form-action 'self' https://formspree.io; base-uri 'self'; object-src 'none'; upgrade-insecure-requests">
   <meta name="referrer" content="strict-origin-when-cross-origin">
   <!-- Google tag (gtag.js) for Google Analytics 4, with Consent Mode v2:
        everything is denied by default; js/main.js updates consent only if the visitor accepts. -->
@@ -27,7 +27,7 @@
   <script>window.dataLayer = window.dataLayer || []; function gtag(){dataLayer.push(arguments);} gtag('consent', 'default', { analytics_storage: 'denied', ad_storage: 'denied', ad_user_data: 'denied', ad_personalization: 'denied' }); try { if (localStorage.getItem('zs-consent') === 'granted') gtag('consent', 'update', { analytics_storage: 'granted', ad_storage: 'granted' }); } catch (e) {} gtag('js', new Date()); gtag('config', 'G-E2MC1NELGE');</script>
   <!-- Advertising tags: Meta Pixel, LinkedIn Insight Tag and Google Ads conversions. js/ad-tags.js loads them only
        after the visitor accepts cookies; Decline keeps them off. Set the IDs and conversion labels at the top of that file. -->
-  <script src="js/ad-tags.js?v=20261030.1" defer></script>
+  <script src="js/ad-tags.js?v=20261101" defer></script>
   <!-- Meta Pixel noscript fallback, switched off on purpose: it is a plain image that would track visitors who have
        JavaScript turned off before they could answer the cookie banner. To use it anyway, put your Pixel ID in the
        line below and delete the comment markers around it. -->
@@ -49,6 +49,7 @@
   <meta name="description" content="How Zed Supply collects, uses and protects your personal data under Zambia's Data Protection Act, 2021, and how to access, correct or delete your data.">
   <link rel="canonical" href="https://nindejr.github.io/zedsupply/privacy.html">
   <meta name="theme-color" content="#0A2A66">
+  <link rel="manifest" href="manifest.webmanifest">
 
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="Zed Supply">
@@ -67,11 +68,12 @@
   <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon.png?v=2">
   <link rel="icon" type="image/svg+xml" sizes="any" href="assets/favicon.svg?v=2">
   <link rel="apple-touch-icon" href="assets/apple-touch-icon.png?v=2">
-  <link rel="stylesheet" href="css/style.css?v=20261030.1">
-  <script src="js/catalogue.js?v=20261030.1" defer></script>
-  <script src="js/couriers.js?v=20261030.1" defer></script>
-  <script src="js/products.js?v=20261030.1" defer></script>
-  <script src="js/main.js?v=20261030.1" defer></script>
+  <link rel="stylesheet" href="css/style.css?v=20261101">
+  <script src="js/catalogue.js?v=20261101" defer></script>
+  <script src="js/couriers.js?v=20261101" defer></script>
+  <script src="js/products.js?v=20261101" defer></script>
+  <script src="js/marketplace.js?v=20261101" defer></script>
+  <script src="js/main.js?v=20261101" defer></script>
 
   <script type="application/ld+json">
   {
@@ -165,7 +167,7 @@
         <a class="hact" href="index.html#/cart" data-label="Cart" aria-label="Cart">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="20" r="1.5"/><circle cx="18" cy="20" r="1.5"/><path d="M2 3h3l2.6 11.2a2 2 0 0 0 2 1.6h7.9a2 2 0 0 0 2-1.5L22 7H6"/></svg>
           <span class="count" data-count="cart" data-zero>0</span>
-          <span class="hact__label" aria-hidden="true">Cart</span>
+          <span class="hact__label" aria-hidden="true" data-i18n="nav.cart">Cart</span>
         </a>
       </nav>
     </div>
@@ -176,8 +178,8 @@
       <ul>
         <li><button class="subnav__all" type="button" data-open-drawer aria-haspopup="dialog" aria-controls="drawer"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><path d="M3 6h18M3 12h18M3 18h18"/></svg>All categories</button></li>
         <li><button type="button" data-open-location aria-haspopup="dialog" aria-controls="location-dialog"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg><span data-location-label>Deliver to: set location</span></button></li>
-        <li><a href="index.html#/deals">Today's deals</a></li>
-        <li><a href="index.html#/promotions">Promotions</a></li>
+        <li><a data-i18n="nav.deals" href="index.html#/deals">Today's deals</a></li>
+        <li><a data-i18n="nav.promotions" href="index.html#/promotions">Promotions</a></li>
         <li><a href="index.html#/brands">Brand stores</a></li>
         <li><a href="index.html#/world">Shop the World <span class="pill">Soon</span></a></li>
         <li><a href="index.html#/sell">Sell on Zed Supply</a></li>
@@ -340,7 +342,7 @@
           <li><strong>Orders:</strong> if you go on to buy through us, the details needed to complete the order, such as delivery address and payment confirmation.</li>
         </ul>
         <h3>Information stored only on your device</h3>
-        <p>Your cart, wishlist, recently viewed products, the account details you enter in My Account, saved delivery addresses (including any recipient's name and phone number you add), order references and the delivery preferences and gift messages you add to them, complaints you send and their references, reviews you write, Seller Centre demo promotions and deals, the products you add to compare, your data saver setting and your cookie choice are saved in your browser's local storage on your device. This preview version of the site does not send them to us or to anyone else. You can delete them at any time by signing out, emptying your cart or clearing your browser's site data.</p>
+        <p>Your cart, wishlist, recently viewed products, the account details you enter in My Account, saved delivery addresses (including any recipient's name and phone number you add), order references and the delivery preferences and gift messages you add to them, complaints you send and their references, reviews you write and any photos you add to them (made smaller on your device first), price and stock alerts, saved searches, questions you ask about products, Seller Centre demo promotions and deals, the products you add to compare, your data saver setting and your cookie choice are saved in your browser's local storage on your device. This preview version of the site does not send them to us or to anyone else. You can delete them at any time by signing out, emptying your cart or clearing your browser's site data.</p>
         <p>Your delivery location is kept in your browser only until you close the tab, unless you tick "Remember on this device", in which case it stays on your device until you clear it. The location of each order you send is also kept with that order in your order history on your device. Use "Clear" in the delivery location panel to remove it.</p>
         <p>If you choose "Use my current location", your browser asks your permission, then gives this page your device's position once. The page works out the nearest town and province on your device, and keeps only those, with your choice of delivery or collection. Your exact position is not stored, and it is not sent to us or anyone else. You can refuse or withdraw permission in your browser at any time and type your town instead. We use your town and province to show which sellers are near you, delivery estimates, whether you can collect, and offers for your area.</p>
         <p>Please don't send us sensitive personal data (for example health information or ID numbers) unless we specifically need it for your order.</p>
@@ -356,6 +358,8 @@
           <li>To assess and verify seller applications and set up seller accounts. We do this at your request, before entering into a contract with you.</li>
           <li>To keep business, tax and accounting records. This is required by law.</li>
           <li>To send you updates or offers, only if you have given your consent. You can withdraw consent at any time.</li>
+          <li>Once accounts move to our server: to send you WhatsApp or SMS messages about your orders and payments (necessary to perform our contract with you), and the price and stock alerts you set yourself, which you can remove at any time under Alerts.</li>
+          <li>Once payments go through Zed Supply: to hold your payment until you confirm delivery, then pay the seller, and to refund you when a refund is due. This is necessary to perform our contract with you.</li>
           <li>To measure how well our adverts on Facebook, Instagram, LinkedIn and Google work, and to show our adverts to people who have visited our website, only if you accept cookies. You can withdraw consent at any time with Cookie settings.</li>
         </ul>
         <p>We only collect what we need for these purposes and we do not sell your personal data.</p>
@@ -538,7 +542,9 @@
               <li><a class="app-btn is-soon" data-app="ios"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6" y="2" width="12" height="20" rx="2.5"/><path d="M11 18h2"/></svg><span class="app-btn__text"><small>Download on the</small>App Store</span><span class="app-btn__soon">Coming soon</span></a></li>
               <li><a class="app-btn is-soon" data-app="android"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3.5v17l13-8.5z"/></svg><span class="app-btn__text"><small>Get it on</small>Google Play</span><span class="app-btn__soon">Coming soon</span></a></li>
               <li><a class="app-btn is-soon" data-app="huawei"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 7h14l-1.2 12.2a2 2 0 0 1-2 1.8H8.2a2 2 0 0 1-2-1.8z"/><path d="M9 10V6a3 3 0 0 1 6 0v4"/></svg><span class="app-btn__text"><small>Explore it on</small>AppGallery</span><span class="app-btn__soon">Coming soon</span></a></li>
+              <li><button class="app-btn" type="button" data-install-app hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg><span class="app-btn__text"><small>Add to this phone</small>Install the app</span></button></li>
             </ul>
+            <div class="lang-slot" data-lang-slot hidden></div>
           </div>
         </div>
       </div>
