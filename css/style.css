@@ -677,6 +677,10 @@ textarea { min-height: 120px; resize: vertical; }
 .page-hero h1 { color: #FFFFFF; margin-bottom: 0.3em; }
 .page-hero p { font-size: 1.1rem; margin: 0; }
 .page-hero .eyebrow { color: #8FD9FF; }
+.page-hero .crumbs { color: #DCE7F7; }
+.page-hero .crumbs a { color: #FFFFFF; }
+.empty .dept-dir__icon { width: 96px; height: 96px; margin: 0 auto 0.75rem; }
+.empty .dept-dir__icon img { width: 88px; height: 88px; }
 .prose { max-width: var(--measure); }
 .prose h2 { margin-top: 2.25rem; }
 .prose h3 { margin-top: 1.5rem; }

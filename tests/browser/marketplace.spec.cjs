@@ -5,20 +5,27 @@ test.beforeEach(async ({ page }) => {
   // No analytics, advertisements, maps or payment provider traffic during local checks.
   await page.route('**/*', route => {
     const url = new URL(route.request().url());
+    // 404.html points links at the GitHub Pages folder (/zedsupply/); serve that from the local root.
+    if (url.hostname === '127.0.0.1' && url.pathname.startsWith('/zedsupply/')) return route.continue({ url: url.href.replace('/zedsupply/', '/') });
     return url.hostname === '127.0.0.1' || url.protocol === 'data:' ? route.continue() : route.fulfill({ status: 200, body: '' });
   });
 });
 
-for (const route of ['', '#/departments', '#/search?q=solar', '#/product/L041', '#/cart', '#/account', '#/device', '#/seller', '#/staff', 'help.html', 'privacy.html']) {
+for (const route of ['', '#/departments', '#/search?q=solar', '#/product/L041', '#/cart', '#/account', '#/device', '#/seller', '#/staff', 'help.html', 'privacy.html', '404.html', 'shop/', 'shop/departments/solar/']) {
   test('usable layout, working artwork and accessible content: ' + (route || 'home'), async ({ page }) => {
     const errors = [];
     page.on('pageerror', e => errors.push(e.message));
-    const url = route.endsWith('.html') ? route + '?demo=1' : 'index.html?demo=1&theme=off' + route;
+    const standalone = route.endsWith('.html') || route.startsWith('shop/');
+    const url = standalone ? route + '?demo=1' : 'index.html?demo=1&theme=off' + route;
     await page.goto(url);
     await expect(page.locator('main')).toBeVisible();
     await expect(page.locator('html')).not.toHaveClass(/no-js/);
-    if (!route.endsWith('.html')) await page.waitForFunction(() => !!window.ZS);
-    await expect(page.locator('h1:visible').first()).not.toContainText("We couldn't find that");
+    // Every page carries the same header and full footer.
+    await expect(page.locator('.site-header .search')).toBeVisible();
+    await expect(page.locator('.site-footer .footer-cols')).toBeVisible();
+    await expect(page.locator('.site-footer .footer-legal')).toBeVisible();
+    if (!standalone) await page.waitForFunction(() => !!window.ZS);
+    if (route !== '404.html') await expect(page.locator('h1:visible').first()).not.toContainText("We couldn't find that");
     await page.evaluate(() => document.fonts.ready);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
     const broken = await page.locator('img:visible').evaluateAll(images => images.filter(img => img.complete && img.naturalWidth === 0 && img.getAttribute('src')).map(img => img.getAttribute('src')));
@@ -29,6 +36,21 @@ for (const route of ['', '#/departments', '#/search?q=solar', '#/product/L041', 
     expect(errors).toEqual([]);
   });
 }
+
+test('catalogue pages link back into the shop from any depth', async ({ page }) => {
+  await page.goto('/index.html?demo=0');
+  await page.locator('.footer-cols').getByRole('link', { name: 'Browse catalogue' }).click();
+  await expect(page).toHaveURL(/\/shop\/$/);
+  await page.getByRole('link', { name: /Solar, Power/ }).first().click();
+  await expect(page).toHaveURL(/\/shop\/departments\/solar\/$/);
+  await expect(page.locator('.page-hero h1')).toHaveText('Solar, Power & Energy');
+  expect(await page.locator('.skip-link').getAttribute('href')).toBe('shop/departments/solar/#main');
+  await page.locator('.site-footer').getByRole('link', { name: 'Privacy policy' }).first().click();
+  await expect(page).toHaveURL(/\/privacy\.html$/);
+  await page.goBack();
+  await page.locator('.site-logo').click();
+  await expect(page).toHaveURL(/\/index\.html$/);
+});
 
 test('offline browsing explains cached stock and prices', async ({ page, context }) => {
   await page.goto('/index.html?demo=1');
