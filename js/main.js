@@ -697,7 +697,24 @@
     $$('a[data-label="Wishlist"]').forEach(function (a) { a.setAttribute('aria-label', 'Wishlist, ' + w + (w === 1 ? ' item' : ' items')); });
     var u = user();
     $$('[data-greet]').forEach(function (el) { el.textContent = u ? 'Hello, ' + u.name.split(' ')[0] : 'Hello, sign in'; });
+    // A Sign out item under "Your account" in the menu, on every page, while someone is signed in
+    $$('#drawer a[href$="#/account"]').forEach(function (a) {
+      var list = a.parentNode.parentNode, item = list.querySelector('[data-sign-out-item]');
+      if (u && !item) {
+        item = document.createElement('li'); item.setAttribute('data-sign-out-item', '');
+        item.innerHTML = '<button class="drawer__action" type="button" data-sign-out>Sign out</button>';
+        list.appendChild(item);
+      }
+      if (item) item.hidden = !u;
+    });
   }
+  document.addEventListener('click', function (e) {
+    if (!e.target.closest('[data-sign-out]')) return;
+    closeDialog($('#drawer'));
+    var done = function () { updateCounts(); toast('Signed out'); if (onIndex) route(); };
+    if (secureMode()) window.ZSBackend.signOut().catch(function () { /* local tokens are cleared even when logout is unavailable */ }).then(done);
+    else { store.set('user', null); done(); }
+  });
 
   var suggest = $('#search-suggest');
   if (suggest) {
@@ -2665,6 +2682,7 @@
       var recent = store.get('recent', []).map(product).filter(Boolean);
       var tile = function (href, t, sub) { return '<li><a href="' + href + '"><strong>' + t + '</strong><span>' + sub + '</span></a></li>'; };
       show(crumbs([['My Account']]) + head('Hello, ' + esc(u.name.split(' ')[0])) +
+        '<div class="account-bar"><p>Signed in as <strong>' + esc(u.name) + '</strong> on this device.</p><button class="btn btn--secondary btn--sm" type="button" data-sign-out>Sign out</button></div>' +
         '<ul class="tiles">' +
           tile('#/orders', 'Orders', orders().length + ' orders · track and reorder') +
           tile('#/wishlist', 'Wishlist', wish().length + ' saved products') +
@@ -2683,7 +2701,7 @@
           '<div class="field"><label for="ac-name">Name</label><input id="ac-name" autocomplete="name" value="' + esc(u.name) + '" required></div>' +
           '<div class="field"><label for="ac-phone">Phone or WhatsApp</label><input id="ac-phone" type="tel" autocomplete="tel" value="' + esc(u.phone) + '"></div>' +
           '<div class="field"><label for="ac-email">Email</label><input id="ac-email" type="email" autocomplete="email" value="' + esc(u.email) + '"></div>' +
-          '<div class="btn-row"><button class="btn btn--primary" type="submit">Save</button><button class="btn btn--secondary" type="button" id="signout">Sign out</button></div></form>' +
+          '<div class="btn-row"><button class="btn btn--primary" type="submit">Save</button><button class="btn btn--secondary" type="button" data-sign-out>Sign out</button></div></form>' +
           '<div><div class="card"><h2>Delivery location</h2><p data-loc-summary>' + locSummaryHTML() + '</p>' +
             '<p class="pmeta">Added to your WhatsApp orders so we can confirm delivery to your area and the delivery fee. ' + (loc && loc.remember ? 'Remembered on this device.' : 'Kept until you close this tab unless you choose to remember it.') + '</p>' +
             '<button class="btn btn--secondary btn--sm" type="button" data-open-location aria-haspopup="dialog">Set or change location</button></div>' +
@@ -2696,7 +2714,6 @@
         store.set('user', { name: $('#ac-name').value.trim(), phone: $('#ac-phone').value.trim(), email: $('#ac-email').value.trim() });
         updateCounts(); toast('Details saved');
       });
-      $('#signout').addEventListener('click', function () { store.set('user', null); updateCounts(); toast('Signed out'); route(); });
     },
 
     orders: function () {

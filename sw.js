@@ -2,7 +2,7 @@
    data. Pages and scripts: network first, so updates arrive at once, with the saved copy when
    offline. Images: the saved copy first, refreshed in the background. Orders, payments and
    anything from another site are never cached. Change VERSION with each release. */
-var VERSION = 'zs-20261101-r3';
+var VERSION = 'zs-20261101-r4';
 var SHELL = ['./', 'index.html', 'help.html', 'privacy.html', '404.html', 'css/style.css', 'js/catalogue.js', 'js/couriers.js',
   'js/products.js', 'js/product-zoom.js', 'js/backend.js', 'js/marketplace.js', 'js/backend-ui.js', 'js/main.js', 'assets/favicon.svg', 'assets/icon-192.png'];
 

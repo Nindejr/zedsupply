@@ -52,6 +52,23 @@ test('catalogue pages link back into the shop from any depth', async ({ page }) 
   await expect(page).toHaveURL(/\/index\.html$/);
 });
 
+test('sign out is at the top of My Account and in the menu on every page', async ({ page }) => {
+  await page.goto('/index.html?demo=0#/account');
+  await expect(page.locator('[data-sign-out]')).toHaveCount(0);
+  await page.locator('#su-name').fill('Test Buyer'); await page.locator('#su-phone').fill('+260970000001');
+  await page.getByRole('button', { name: 'Continue' }).click();
+  await expect(page.locator('.account-bar')).toContainText('Signed in as Test Buyer');
+  await expect(page.locator('.account-bar').getByRole('button', { name: 'Sign out' })).toBeInViewport();
+  await page.goto('/help.html');
+  await expect(page.locator('[data-greet]').first()).toHaveText('Hello, Test');
+  await page.locator('.menu-btn').click();
+  await page.locator('#drawer').getByRole('button', { name: 'Sign out' }).click();
+  await expect(page.locator('#drawer')).not.toHaveAttribute('open', '');
+  await expect(page.locator('[data-greet]').first()).toHaveText('Hello, sign in');
+  await expect(page.locator('[data-sign-out-item]')).toBeHidden();
+  expect(await page.evaluate(() => localStorage.getItem('zs-user'))).toBe('null');
+});
+
 test('offline browsing explains cached stock and prices', async ({ page, context }) => {
   await page.goto('/index.html?demo=1');
   await context.setOffline(true);
