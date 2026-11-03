@@ -161,7 +161,8 @@ export const TEMPLATES: Record<string, (p: Json) => string[]> = {
   order_cancelled: p => [String(p.ref)],
   payment_received: p => [String(p.ref), 'K' + Number(p.amount).toFixed(2)],
   back_in_stock: p => [String(p.title)],
-  price_drop: p => [String(p.title), 'K' + Number(p.price).toFixed(2)]
+  price_drop: p => [String(p.title), 'K' + Number(p.price).toFixed(2)],
+  seller_application_update: p => [String(p.business), ({ info_needed: 'needs more information', approved: 'is approved', rejected: 'was not approved' } as Record<string, string>)[String(p.status)] || 'has been updated']
 };
 
 // POST /send-notifications (scheduled every few minutes): sends queued messages on WhatsApp.

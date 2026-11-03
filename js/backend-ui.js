@@ -11,9 +11,9 @@
     var p = B.profile();
     if (p) {
       show('<section class="card"><h2>Hello, ' + esc(p.name || p.email || 'shopper') + '</h2><p>Your contact is verified. Orders and support requests below are stored securely for this account.</p>' +
-        '<div class="btn-row"><a class="btn btn--primary" href="#/orders">Your orders</a><a class="btn btn--secondary" href="#/complaints">Support requests</a><a class="btn btn--secondary" href="#/team">Store team</a><a class="btn btn--secondary" href="#/fulfilment">Store fulfilment</a>' + (p.is_staff ? '<a class="btn btn--secondary" href="#/staff-support">Staff support queue</a>' : '') + '<a class="btn btn--secondary" href="#/device">Data on this device</a>' +
-        '<button class="btn btn--secondary" id="secure-signout" type="button">Sign out</button></div><p class="form-status" role="status"></p></section><div id="team-invites"></div>', 'My Account');
-      teamInvites();
+        '<div class="btn-row"><a class="btn btn--primary" href="#/orders">Your orders</a><a class="btn btn--secondary" href="#/complaints">Support requests</a><a class="btn btn--secondary" href="#/team">Store team</a><a class="btn btn--secondary" href="#/fulfilment">Store fulfilment</a>' + (p.is_staff ? '<a class="btn btn--secondary" href="#/staff-applications">Seller applications</a><a class="btn btn--secondary" href="#/staff-support">Staff support queue</a>' : '') + '<a class="btn btn--secondary" href="#/device">Data on this device</a>' +
+        '<button class="btn btn--secondary" id="secure-signout" type="button">Sign out</button></div><p class="form-status" role="status"></p></section><div id="team-invites"></div><div id="seller-application"></div>', 'My Account');
+      teamInvites(); applicationStatus();
       document.getElementById('secure-signout').onclick = async function () { this.disabled = true; try { await B.signOut(); } catch (e) { /* local tokens are cleared even when logout is unavailable */ } ready = {}; Z().refreshCounts(); Z().route(); };
       return;
     }
@@ -37,7 +37,7 @@
     form.onsubmit = async function (e) {
       e.preventDefault(); var button = form.querySelector('button[type="submit"]'), status = form.querySelector('[role="status"]');
       button.disabled = true; status.textContent = '';
-      try { await action(form); } catch (err) { status.textContent = err.message; status.classList.add('is-error'); }
+      try { await action(form, e.submitter ? e.submitter.value : ''); } catch (err) { status.textContent = err.message; status.classList.add('is-error'); }
       finally { button.disabled = false; }
     };
   }
@@ -228,6 +228,104 @@
       Z().toast('Invitation saved. Ask them to sign in with that email to accept.'); Z().route();
     });
   }
+  /* ---------- Seller applications ---------- */
+  // Applicants apply while signed in; staff review the queue (migration 022). Every staff decision is logged.
+  var APP_STATUS = { new: 'Received', review: 'Under review', info_needed: 'More information needed', approved: 'Approved', rejected: 'Not approved', withdrawn: 'Withdrawn' };
+  var APP_FIELDS = 'id,business,contact_name,phone,email,town,pacra,categories,about,status,staff_note,seller_id,created_at,updated_at,decided_at';
+  function isOpen(a) { return ['new', 'review', 'info_needed'].indexOf(a.status) !== -1; }
+  function myApplications() { return B.read('seller_applications?select=' + APP_FIELDS + '&user_id=eq.' + B.profile().id + '&order=created_at.desc&limit=5'); }
+  function applicationNote(a) {
+    return '<section class="card"><h2>Your seller application</h2><p><strong>' + esc(a.business) + '</strong> · <span class="status">' + esc(APP_STATUS[a.status] || a.status) + '</span></p>' +
+      '<p class="pmeta">Sent ' + when(a.created_at) + (a.updated_at !== a.created_at ? ' · updated ' + when(a.updated_at) : '') + '</p>' +
+      (a.staff_note ? '<p class="notice"><strong>Message from Zed Supply:</strong> ' + esc(a.staff_note) + '</p>' : '') +
+      (a.status === 'approved' && a.seller_id ? '<a class="btn btn--primary" href="#/team/' + encodeURIComponent(a.seller_id) + '">Open your store team</a>'
+        : a.status === 'info_needed' ? '<a class="btn btn--primary" href="#/sell">Update your application</a>'
+        : isOpen(a) ? '<p>We check every business before opening its store and will contact you on WhatsApp or email.</p><a class="btn btn--secondary" href="#/sell">View your application</a>' : '') + '</section>';
+  }
+  function applicationStatus() {
+    myApplications().then(function (rows) {
+      var box = document.getElementById('seller-application'), a = rows[0];
+      if (box && a && (isOpen(a) || a.status === 'approved' || a.status === 'rejected')) box.innerHTML = applicationNote(a);
+    }).catch(function () { /* the account page works without it */ });
+  }
+  async function sellApply(ticket) {
+    var title = 'Sell on Zed Supply';
+    if (!B.profile()) { show('<p>Sign in with your email to apply. You can follow your application and see our replies under My Account.</p><a class="btn btn--primary" href="#/account">Sign in to apply</a>', title); return; }
+    var rows = await myApplications();
+    if (ticket !== navigation) return;
+    var a = rows[0], p = B.profile(), editing = a && a.status === 'info_needed' ? a : null;
+    if (a && (isOpen(a) && !editing)) {
+      show(applicationNote(a) + '<p><button class="btn btn--secondary" type="button" id="app-withdraw">Withdraw application</button></p>', title);
+      document.getElementById('app-withdraw').onclick = function () {
+        if (window.confirm('Withdraw this application? You can apply again later.')) rpcButton(this, 'withdraw_seller_application', { application: a.id }, function () { Z().toast('Application withdrawn'); Z().route(); });
+      };
+      return;
+    }
+    var v = editing || {}, chosen = v.categories || [];
+    show((a && (editing || a.status === 'approved' || a.status === 'rejected') ? applicationNote(a) : '<ol class="steps"><li class="step"><h2>Apply</h2><p>Tell us about your business.</p></li><li class="step"><h2>Get verified</h2><p>We check your details and open your store.</p></li><li class="step"><h2>List and promote</h2><p>Add products and invite your team.</p></li></ol>') +
+      '<form class="form form--card" id="seller-apply"><h2>' + (editing ? 'Update your application' : 'Seller application') + '</h2><p class="hint">Fields marked * are required. We reply to ' + esc(p.email || 'your email') + ' and the phone number below.</p>' +
+      '<div class="field"><label for="ap-biz">Business name *</label><input id="ap-biz" required minlength="2" maxlength="120" autocomplete="organization" value="' + esc(v.business || '') + '"></div>' +
+      '<div class="field-row"><div class="field"><label for="ap-name">Contact person *</label><input id="ap-name" required minlength="2" maxlength="80" autocomplete="name" value="' + esc(v.contact_name || p.name || '') + '"></div>' +
+      '<div class="field"><label for="ap-phone">Phone or WhatsApp *</label><input id="ap-phone" type="tel" required maxlength="20" autocomplete="tel" placeholder="0977 123456" value="' + esc(v.phone || '') + '"></div></div>' +
+      '<div class="field-row"><div class="field"><label for="ap-town">Town or city *</label><input id="ap-town" required minlength="2" maxlength="60" autocomplete="address-level2" value="' + esc(v.town || '') + '"></div>' +
+      '<div class="field"><label for="ap-pacra">PACRA registration number (if registered)</label><input id="ap-pacra" maxlength="40" value="' + esc(v.pacra || '') + '"></div></div>' +
+      '<fieldset class="field"><legend>What do you sell?</legend><div class="checks">' + Z().D.departments.map(function (d) { return '<div class="check"><input type="checkbox" id="ap-d-' + esc(d.id) + '" value="' + esc(d.name) + '"' + (chosen.indexOf(d.name) !== -1 ? ' checked' : '') + '><label for="ap-d-' + esc(d.id) + '">' + esc(d.name) + '</label></div>'; }).join('') + '</div></fieldset>' +
+      '<div class="field"><label for="ap-about">Tell us about your products</label><textarea id="ap-about" maxlength="2000">' + esc(v.about || '') + '</textarea></div>' +
+      '<div class="check"><input id="ap-consent" type="checkbox" required><label for="ap-consent">I agree that Zed Supply may use these details to assess my application, as set out in the <a href="privacy.html">privacy policy</a>. *</label></div>' +
+      '<button class="btn btn--primary" type="submit">' + (editing ? 'Send updated application' : 'Send application') + '</button><p class="form-status" role="status"></p></form>', title);
+    bind('seller-apply', async function () {
+      await B.rpc('submit_seller_application', { business: document.getElementById('ap-biz').value.trim(), contact_name: document.getElementById('ap-name').value.trim(),
+        phone: document.getElementById('ap-phone').value.trim(), town: document.getElementById('ap-town').value.trim(), pacra: document.getElementById('ap-pacra').value.trim() || null,
+        categories: Array.prototype.map.call(document.querySelectorAll('#seller-apply .checks input:checked'), function (c) { return c.value; }),
+        about: document.getElementById('ap-about').value.trim() || null });
+      Z().toast('Application sent. We\'ll be in touch.'); Z().route();
+    });
+  }
+  function storeSlug(name) { return String(name || '').toLowerCase().normalize('NFKD').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40).replace(/-+$/, ''); }
+  var APP_VIEWS = [['open', 'Waiting', 'new,review,info_needed'], ['approved', 'Approved', 'approved'], ['rejected', 'Not approved', 'rejected'], ['withdrawn', 'Withdrawn', 'withdrawn']];
+  async function staffApplications(query, ticket) {
+    if (!requireUser()) return;
+    if (!B.profile().is_staff) throw new Error('Staff access is required.');
+    var view = APP_VIEWS.filter(function (x) { return x[0] === query.get('show'); })[0] || APP_VIEWS[0];
+    var rows = await B.read('seller_applications?select=' + APP_FIELDS + '&status=in.(' + view[2] + ')&order=created_at.' + (view[0] === 'open' ? 'asc' : 'desc') + '&limit=100');
+    if (ticket !== navigation) return;
+    show('<p>Check each business before opening its store: the contact details, and the PACRA number on the PACRA register where one is given. Approving opens the store, verified, with the applicant as its owner. Set VAT details on the store only after confirming them with ZRA.</p>' +
+      '<nav class="btn-row" aria-label="Applications">' + APP_VIEWS.map(function (x) { return '<a class="btn btn--' + (x === view ? 'primary' : 'secondary') + ' btn--sm" href="#/staff-applications?show=' + x[0] + '"' + (x === view ? ' aria-current="page"' : '') + '>' + x[1] + '</a>'; }).join('') + '</nav>' +
+      (rows.length ? rows.map(function (a) {
+        var k = esc(a.id);
+        return '<article class="card"><h2>' + esc(a.business) + ' <span class="status">' + esc(APP_STATUS[a.status] || a.status) + '</span></h2>' +
+          '<dl class="totals"><div><dt>Contact</dt><dd>' + esc(a.contact_name) + '</dd></div><div><dt>Phone</dt><dd><a href="tel:' + esc(a.phone) + '">' + esc(a.phone) + '</a></dd></div>' +
+          '<div><dt>Email</dt><dd>' + esc(a.email) + '</dd></div><div><dt>Town</dt><dd>' + esc(a.town) + '</dd></div><div><dt>PACRA</dt><dd>' + esc(a.pacra || 'Not given') + '</dd></div>' +
+          '<div><dt>Sent</dt><dd>' + when(a.created_at) + (a.updated_at !== a.created_at ? ', updated ' + when(a.updated_at) : '') + '</dd></div></dl>' +
+          (a.categories.length ? '<p><strong>Sells:</strong> ' + a.categories.map(esc).join(', ') + '</p>' : '') + (a.about ? '<p>' + esc(a.about) + '</p>' : '') +
+          (a.staff_note ? '<p class="notice"><strong>Last message to the applicant:</strong> ' + esc(a.staff_note) + '</p>' : '') +
+          (a.seller_id ? '<p><a href="#/team/' + encodeURIComponent(a.seller_id) + '">Store team for ' + esc(a.seller_id) + '</a></p>' : '') +
+          (isOpen(a) ? (a.status === 'new' ? '<p><button class="btn btn--secondary btn--sm" type="button" data-app-review="' + k + '">Mark under review</button></p>' : '') +
+            '<div class="duo duo--gap"><form class="form" data-app-approve="' + k + '"><h3 class="h3">Approve</h3>' +
+              '<label for="ap-id-' + k + '">Store ID (used in web addresses)</label><input id="ap-id-' + k + '" required pattern="[a-z0-9][a-z0-9-]{1,38}[a-z0-9]" maxlength="40" value="' + esc(storeSlug(a.business)) + '">' +
+              '<label for="ap-sn-' + k + '">Store name</label><input id="ap-sn-' + k + '" required maxlength="120" value="' + esc(a.business) + '">' +
+              '<label for="ap-am-' + k + '">Message to the applicant (optional)</label><textarea id="ap-am-' + k + '" maxlength="1000"></textarea>' +
+              '<button class="btn btn--primary" type="submit">Approve and open store</button><p class="form-status" role="status"></p></form>' +
+            '<form class="form" data-app-decide="' + k + '"><h3 class="h3">Reply</h3><label for="ap-msg-' + k + '">Message to the applicant</label><textarea id="ap-msg-' + k + '" required minlength="5" maxlength="1000"></textarea>' +
+              '<div class="btn-row"><button class="btn btn--secondary" type="submit" value="info_needed">Ask for more information</button><button class="btn btn--secondary" type="submit" value="rejected">Reject</button></div><p class="form-status" role="status"></p></form></div>' : '') + '</article>';
+      }).join('') : '<p>No applications here.</p>'), 'Seller applications');
+    document.querySelectorAll('[data-app-review]').forEach(function (b) { b.onclick = function () { rpcButton(b, 'staff_review_application', { application: b.dataset.appReview, decision: 'review', note: null }, function () { Z().route(); }); }; });
+    document.querySelectorAll('[data-app-approve]').forEach(function (form) {
+      var id = form.dataset.appApprove; form.id = 'approve-' + id;
+      bind(form.id, async function () {
+        var store = await B.rpc('staff_approve_application', { application: id, store_id: document.getElementById('ap-id-' + id).value.trim(), store_name: document.getElementById('ap-sn-' + id).value.trim(), note: document.getElementById('ap-am-' + id).value.trim() || null });
+        Z().toast('Store ' + esc(store) + ' is open. The applicant is its owner.'); Z().route();
+      });
+    });
+    document.querySelectorAll('[data-app-decide]').forEach(function (form) {
+      var id = form.dataset.appDecide; form.id = 'decide-' + id;
+      bind(form.id, async function (f, decision) {
+        if (decision === 'rejected' && !window.confirm('Reject this application? The applicant will see your message.')) return;
+        await B.rpc('staff_review_application', { application: id, decision: decision, note: document.getElementById('ap-msg-' + id).value.trim() });
+        Z().toast(decision === 'rejected' ? 'Application rejected' : 'Asked for more information'); Z().route();
+      });
+    });
+  }
   async function staffSupport(ticket) {
     if (!requireUser()) return;
     if (!B.profile().is_staff) throw new Error('Staff access is required.');
@@ -251,12 +349,12 @@
       }).catch(function (e) { if (ticket === navigation) show(errorHTML(e), 'Cart unavailable'); });
       return true;
     }
-    if (path[0] === 'seller') { show('<p>Your store team and shipments use secure server records. Listing, promotion and store-detail tools are awaiting their authenticated integration.</p><div class="btn-row"><a class="btn btn--primary" href="#/team">Store team</a><a class="btn btn--secondary" href="#/fulfilment">Store fulfilment</a><a class="btn btn--secondary" href="#/account">My Account</a></div>', 'Seller Centre'); return true; }
+    if (path[0] === 'seller') { show('<p>Your store team and shipments use secure server records. Listing, promotion and store-detail tools are awaiting their authenticated integration.</p><div class="btn-row"><a class="btn btn--primary" href="#/team">Store team</a><a class="btn btn--secondary" href="#/fulfilment">Store fulfilment</a><a class="btn btn--secondary" href="#/sell">Apply to sell</a><a class="btn btn--secondary" href="#/account">My Account</a></div>', 'Seller Centre'); return true; }
     if (['staff', 'addresses', 'alerts'].indexOf(path[0]) !== -1) { show('<p>This account uses secure server records. These management tools are awaiting their authenticated integration.</p><a class="btn btn--secondary" href="#/account">My Account</a>', 'Secure account tools'); return true; }
-    if (['search', 'dept', 'orders', 'order', 'complaints', 'product', 'fulfilment', 'staff-support', 'team'].indexOf(path[0]) === -1) return false;
+    if (['search', 'dept', 'orders', 'order', 'complaints', 'product', 'fulfilment', 'staff-support', 'team', 'sell', 'staff-applications'].indexOf(path[0]) === -1) return false;
     if (path[0] === 'product' && ready[path[1]]) return false;
     show('<p role="status">Loading secure marketplace data…</p>', 'Loading');
-    var action = path[0] === 'team' ? team(path[1] ? decodeURIComponent(path[1]) : '', ticket) : path[0] === 'fulfilment' ? fulfilment(ticket) : path[0] === 'staff-support' ? staffSupport(ticket) : path[0] === 'search' || path[0] === 'dept' ? catalogue(path, query, ticket) : path[0] === 'orders' || path[0] === 'order' ? orders(path[1], ticket) : path[0] === 'complaints' ? support(query, ticket) :
+    var action = path[0] === 'sell' ? sellApply(ticket) : path[0] === 'staff-applications' ? staffApplications(query, ticket) : path[0] === 'team' ? team(path[1] ? decodeURIComponent(path[1]) : '', ticket) : path[0] === 'fulfilment' ? fulfilment(ticket) : path[0] === 'staff-support' ? staffSupport(ticket) : path[0] === 'search' || path[0] === 'dept' ? catalogue(path, query, ticket) : path[0] === 'orders' || path[0] === 'order' ? orders(path[1], ticket) : path[0] === 'complaints' ? support(query, ticket) :
       B.rpc('catalogue_page', { product_id: path[1], page_size: 1 }).then(function (rows) { if (ticket !== navigation) return; if (!rows.length) throw new Error('This listing is not available.'); Z().ingest(rows); ready[path[1]] = true; Z().route(); });
     Promise.resolve(action).catch(function (error) { if (ticket === navigation) show(errorHTML(error) + '<a class="btn btn--secondary" href="#/account">My Account</a>', 'Request unavailable'); });
     return true;

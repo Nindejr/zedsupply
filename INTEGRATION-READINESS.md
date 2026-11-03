@@ -36,7 +36,7 @@ configuration completeness only, not hosted security or operational readiness.
 
 ## Staging setup
 
-1. Apply migrations **016 → 017 → 018 → 019 → 020 → 021** in order. Deploy handlers only after
+1. Apply migrations **016 → 017 → 018 → 019 → 020 → 021 → 022** in order. Deploy handlers only after
    their supporting migrations. Never edit or rerun a previously applied migration
    in a hosted project; these new migrations have only been applied to an isolated
    local test database during this task.
@@ -101,6 +101,31 @@ Migration 020 lets a store's owners build a team (021 pins a helper's search pat
 
 `db/tests/team.sql` covers invitations, each role's access, the last-owner rule, expiry, the size
 limit and the logs. The demo Seller Centre has a browser-only preview of the same screen.
+
+## Seller applications
+
+Migration 022 replaces the WhatsApp hand-off for seller applications once connected mode is on.
+Until then the live site still sends applications to WhatsApp.
+
+- **Applying.** Sell on Zed Supply (`#/sell`) asks the applicant to sign in with their email, then
+  stores the application: business, contact, phone (converted to +260…), town, optional PACRA
+  number, departments and a description. One open application per account, at most 3 a month.
+  The applicant follows it under My Account and can withdraw it while it is open.
+- **Staff queue.** My Account → Seller applications (`#/staff-applications`) lists waiting
+  applications oldest first, with Approved, Not approved and Withdrawn views. Staff can mark one
+  under review, ask for more information or reject (both need a message the applicant sees), or
+  approve. Asking for more information lets the applicant update and resubmit the same application.
+- **Approval** opens the store in one step: a `sellers` row (verified, using the store ID and name
+  staff confirm), with the applicant as its owner. **VAT is off** on new stores; set
+  `vat_registered` and the TPIN only after checking them with ZRA. Check the PACRA number on the
+  PACRA register before approving; the site does not check it.
+- **Records and messages.** Every staff decision is in `staff_actions`. Each decision also queues
+  the WhatsApp template `seller_application_update` (see `supabase/functions/README.md`): create it
+  in WhatsApp Manager and redeploy `send-notifications`, or those messages are skipped. The
+  outcome always shows on My Account.
+
+`db/tests/applications.sql` covers applying, privacy between applicants, the staff decisions,
+resubmission, approval opening the store with its owner, withdrawal and the limit.
 
 ## Native catalogue pages
 

@@ -83,6 +83,7 @@ WhatsApp only allows business-started messages from templates that Meta has appr
 | `payment_received` | order reference, amount |
 | `back_in_stock` | product title |
 | `price_drop` | product title, new price |
+| `seller_application_update` | business name, outcome ("needs more information", "is approved" or "was not approved"); ask them to check My Account |
 
 ## Costs
 
