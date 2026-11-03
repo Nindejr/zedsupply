@@ -254,13 +254,14 @@
     var rows = await myApplications();
     if (ticket !== navigation) return;
     var a = rows[0], p = B.profile(), editing = a && a.status === 'info_needed' ? a : null;
-    if (a && (isOpen(a) && !editing)) {
-      show(applicationNote(a) + '<p><button class="btn btn--secondary" type="button" id="app-withdraw">Withdraw application</button></p>', title);
+    // Any open application can be withdrawn, including one we've asked more information about
+    var withdraw = '<p><button class="btn btn--secondary" type="button" id="app-withdraw">Withdraw application</button></p>';
+    var bindWithdraw = function () {
       document.getElementById('app-withdraw').onclick = function () {
         if (window.confirm('Withdraw this application? You can apply again later.')) rpcButton(this, 'withdraw_seller_application', { application: a.id }, function () { Z().toast('Application withdrawn'); Z().route(); });
       };
-      return;
-    }
+    };
+    if (a && (isOpen(a) && !editing)) { show(applicationNote(a) + withdraw, title); bindWithdraw(); return; }
     var v = editing || {}, chosen = v.categories || [];
     show((a && (editing || a.status === 'approved' || a.status === 'rejected') ? applicationNote(a) : '<ol class="steps"><li class="step"><h2>Apply</h2><p>Tell us about your business.</p></li><li class="step"><h2>Get verified</h2><p>We check your details and open your store.</p></li><li class="step"><h2>List and promote</h2><p>Add products and invite your team.</p></li></ol>') +
       '<form class="form form--card" id="seller-apply"><h2>' + (editing ? 'Update your application' : 'Seller application') + '</h2><p class="hint">Fields marked * are required. We reply to ' + esc(p.email || 'your email') + ' and the phone number below.</p>' +
@@ -272,7 +273,8 @@
       '<fieldset class="field"><legend>What do you sell?</legend><div class="checks">' + Z().D.departments.map(function (d) { return '<div class="check"><input type="checkbox" id="ap-d-' + esc(d.id) + '" value="' + esc(d.name) + '"' + (chosen.indexOf(d.name) !== -1 ? ' checked' : '') + '><label for="ap-d-' + esc(d.id) + '">' + esc(d.name) + '</label></div>'; }).join('') + '</div></fieldset>' +
       '<div class="field"><label for="ap-about">Tell us about your products</label><textarea id="ap-about" maxlength="2000">' + esc(v.about || '') + '</textarea></div>' +
       '<div class="check"><input id="ap-consent" type="checkbox" required><label for="ap-consent">I agree that Zed Supply may use these details to assess my application, as set out in the <a href="privacy.html">privacy policy</a>. *</label></div>' +
-      '<button class="btn btn--primary" type="submit">' + (editing ? 'Send updated application' : 'Send application') + '</button><p class="form-status" role="status"></p></form>', title);
+      '<button class="btn btn--primary" type="submit">' + (editing ? 'Send updated application' : 'Send application') + '</button><p class="form-status" role="status"></p></form>' + (editing ? withdraw : ''), title);
+    if (editing) bindWithdraw();
     bind('seller-apply', async function () {
       await B.rpc('submit_seller_application', { business: document.getElementById('ap-biz').value.trim(), contact_name: document.getElementById('ap-name').value.trim(),
         phone: document.getElementById('ap-phone').value.trim(), town: document.getElementById('ap-town').value.trim(), pacra: document.getElementById('ap-pacra').value.trim() || null,
@@ -282,15 +284,29 @@
     });
   }
   function storeSlug(name) { return String(name || '').toLowerCase().normalize('NFKD').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40).replace(/-+$/, ''); }
-  var APP_VIEWS = [['open', 'Waiting', 'new,review,info_needed'], ['approved', 'Approved', 'approved'], ['rejected', 'Not approved', 'rejected'], ['withdrawn', 'Withdrawn', 'withdrawn']];
+  // Waiting applications are split so ones awaiting the applicant never crowd out new ones; oldest first
+  var APP_VIEWS = [['review', 'To review', 'new,review'], ['info', 'Awaiting applicant', 'info_needed'], ['approved', 'Approved', 'approved'], ['rejected', 'Not approved', 'rejected'], ['withdrawn', 'Withdrawn', 'withdrawn']];
+  var APP_PAGE = 25, APP_SEARCH = ['business', 'contact_name', 'email', 'phone', 'town', 'pacra'];
+  function appLink(view, q, page) { return '#/staff-applications?show=' + view + (q ? '&q=' + encodeURIComponent(q) : '') + (page ? '&page=' + page : ''); }
   async function staffApplications(query, ticket) {
     if (!requireUser()) return;
     if (!B.profile().is_staff) throw new Error('Staff access is required.');
-    var view = APP_VIEWS.filter(function (x) { return x[0] === query.get('show'); })[0] || APP_VIEWS[0];
-    var rows = await B.read('seller_applications?select=' + APP_FIELDS + '&status=in.(' + view[2] + ')&order=created_at.' + (view[0] === 'open' ? 'asc' : 'desc') + '&limit=100');
+    var view = APP_VIEWS.filter(function (x) { return x[0] === query.get('show'); })[0] || APP_VIEWS[0], waiting = view[0] === 'review' || view[0] === 'info';
+    // Letters, numbers and the characters in names, emails and phone numbers; anything else would change the filter
+    var q = (query.get('q') || '').replace(/[^\p{L}\p{N}@+.' -]/gu, ' ').replace(/\s+/g, ' ').trim().slice(0, 80);
+    var page = Math.max(0, Math.min(999, parseInt(query.get('page'), 10) || 0));
+    // Phones are stored as +260…, so "0977 123456" searches for the digits after the leading 0
+    var digits = q.replace(/\D/g, ''), phoneTerm = digits.length >= 4 ? digits.replace(/^0/, '') : q;
+    var rows = await B.read('seller_applications?select=' + APP_FIELDS + '&status=in.(' + view[2] + ')' +
+      (q ? '&or=' + encodeURIComponent('(' + APP_SEARCH.map(function (f) { return f + '.ilike."*' + (f === 'phone' ? phoneTerm : q) + '*"'; }).join(',') + ')') : '') +
+      '&order=created_at.' + (waiting ? 'asc' : 'desc') + ',id.asc&limit=' + (APP_PAGE + 1) + '&offset=' + page * APP_PAGE);
     if (ticket !== navigation) return;
+    var more = rows.length > APP_PAGE; rows = rows.slice(0, APP_PAGE);
     show('<p>Check each business before opening its store: the contact details, and the PACRA number on the PACRA register where one is given. Approving opens the store, verified, with the applicant as its owner. Set VAT details on the store only after confirming them with ZRA.</p>' +
-      '<nav class="btn-row" aria-label="Applications">' + APP_VIEWS.map(function (x) { return '<a class="btn btn--' + (x === view ? 'primary' : 'secondary') + ' btn--sm" href="#/staff-applications?show=' + x[0] + '"' + (x === view ? ' aria-current="page"' : '') + '>' + x[1] + '</a>'; }).join('') + '</nav>' +
+      '<nav class="btn-row" aria-label="Applications">' + APP_VIEWS.map(function (x) { return '<a class="btn btn--' + (x === view ? 'primary' : 'secondary') + ' btn--sm" href="' + appLink(x[0], q) + '"' + (x === view ? ' aria-current="page"' : '') + '>' + x[1] + '</a>'; }).join('') + '</nav>' +
+      '<form class="form" id="app-search" role="search"><label for="app-q">Search applications</label><div class="qa__row"><input id="app-q" type="search" maxlength="80" value="' + esc(q) + '" placeholder="Business, contact, email, phone, town or PACRA">' +
+        '<button class="btn btn--secondary btn--sm" type="submit">Search applications</button></div></form>' +
+      '<p role="status">' + (rows.length ? 'Showing ' + (page * APP_PAGE + 1) + '–' + (page * APP_PAGE + rows.length) + (waiting ? ', oldest first' : ', newest first') + (q ? ' for “' + esc(q) + '”' : '') + '.' : '') + '</p>' +
       (rows.length ? rows.map(function (a) {
         var k = esc(a.id);
         return '<article class="card"><h2>' + esc(a.business) + ' <span class="status">' + esc(APP_STATUS[a.status] || a.status) + '</span></h2>' +
@@ -308,7 +324,10 @@
               '<button class="btn btn--primary" type="submit">Approve and open store</button><p class="form-status" role="status"></p></form>' +
             '<form class="form" data-app-decide="' + k + '"><h3 class="h3">Reply</h3><label for="ap-msg-' + k + '">Message to the applicant</label><textarea id="ap-msg-' + k + '" required minlength="5" maxlength="1000"></textarea>' +
               '<div class="btn-row"><button class="btn btn--secondary" type="submit" value="info_needed">Ask for more information</button><button class="btn btn--secondary" type="submit" value="rejected">Reject</button></div><p class="form-status" role="status"></p></form></div>' : '') + '</article>';
-      }).join('') : '<p>No applications here.</p>'), 'Seller applications');
+      }).join('') : '<p>' + (q ? 'No applications match “' + esc(q) + '”.' : page ? 'No more applications.' : 'No applications here.') + '</p>') +
+      (page || more ? '<nav class="btn-row" aria-label="More applications">' + (page ? '<a class="btn btn--secondary" href="' + appLink(view[0], q, page - 1) + '">Previous page</a>' : '') +
+        (more ? '<a class="btn btn--secondary" href="' + appLink(view[0], q, page + 1) + '">Next page</a>' : '') + '</nav>' : ''), 'Seller applications');
+    document.getElementById('app-search').onsubmit = function (e) { e.preventDefault(); location.hash = appLink(view[0], document.getElementById('app-q').value.trim()); };
     document.querySelectorAll('[data-app-review]').forEach(function (b) { b.onclick = function () { rpcButton(b, 'staff_review_application', { application: b.dataset.appReview, decision: 'review', note: null }, function () { Z().route(); }); }; });
     document.querySelectorAll('[data-app-approve]').forEach(function (form) {
       var id = form.dataset.appApprove; form.id = 'approve-' + id;

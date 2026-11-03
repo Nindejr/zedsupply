@@ -110,9 +110,12 @@ Until then the live site still sends applications to WhatsApp.
 - **Applying.** Sell on Zed Supply (`#/sell`) asks the applicant to sign in with their email, then
   stores the application: business, contact, phone (converted to +260…), town, optional PACRA
   number, departments and a description. One open application per account, at most 3 a month.
-  The applicant follows it under My Account and can withdraw it while it is open.
-- **Staff queue.** My Account → Seller applications (`#/staff-applications`) lists waiting
-  applications oldest first, with Approved, Not approved and Withdrawn views. Staff can mark one
+  The applicant follows it under My Account and can withdraw it while it is open, including
+  while updating it after a request for more information.
+- **Staff queue.** My Account → Seller applications (`#/staff-applications`) has To review (new
+  and under review, oldest first), Awaiting applicant (more information requested), Approved, Not
+  approved and Withdrawn views, 25 per page with Next and Previous pages. Search matches business,
+  contact person, email, phone (typed as 0977… or +260977…), town and PACRA number. Staff can mark one
   under review, ask for more information or reject (both need a message the applicant sees), or
   approve. Asking for more information lets the applicant update and resubmit the same application.
 - **Approval** opens the store in one step: a `sellers` row (verified, using the store ID and name

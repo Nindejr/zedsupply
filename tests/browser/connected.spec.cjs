@@ -151,7 +151,7 @@ test('a signed-in seller applies from Sell on Zed Supply', async ({page}) => {
   expect(errors).toEqual([]);
 });
 test('an applicant sees a request for more information and updates the application', async ({page}) => {
-  await setup(page, { applications: [{ ...application, status: 'info_needed', staff_note: 'Please add your PACRA number.' }] });
+  const calls = await setup(page, { applications: [{ ...application, status: 'info_needed', staff_note: 'Please add your PACRA number.' }] });
   await signIn(page);
   const box = page.locator('#seller-application');
   await expect(box).toContainText('More information needed');
@@ -160,6 +160,34 @@ test('an applicant sees a request for more information and updates the applicati
   await expect(page.getByRole('heading',{name:'Update your application'})).toBeVisible();
   await expect(page.getByLabel('Business name *')).toHaveValue('Kafue Solar Traders');
   await expect(page.getByLabel('Solar, Power & Energy')).toBeChecked();
+  page.once('dialog', d => d.accept());
+  await page.getByRole('button',{name:'Withdraw application',exact:true}).click();
+  await expect.poll(() => calls.find(c => c.path === '/rest/v1/rpc/withdraw_seller_application')?.body).toEqual({application:'app-1'});
+});
+test('the staff queue pages through applications and searches them', async ({page}) => {
+  const many = Array.from({length: 26}, (_, i) => ({ ...application, id: 'app-' + i, business: 'Shop number ' + i }));
+  const calls = await setup(page, { staff: true, applications: many }); await signIn(page);
+  const reads = () => calls.filter(c => c.path === '/rest/v1/seller_applications' && !c.query.includes('user_id=eq.')).map(c => decodeURIComponent(c.query));
+  await page.goto('/index.html?demo=0#/staff-applications');
+  await expect(page.locator('main article')).toHaveCount(25);
+  expect(reads().at(-1)).toContain('status=in.(new,review)');
+  expect(reads().at(-1)).toContain('order=created_at.asc,id.asc&limit=26&offset=0');
+  await expect(page.locator('main')).toContainText('Showing 1–25, oldest first.');
+  await page.getByRole('link',{name:'Next page',exact:true}).click();
+  await expect.poll(() => reads().at(-1)).toContain('offset=25');
+  await expect(page.getByRole('link',{name:'Previous page',exact:true})).toBeVisible();
+  await page.getByRole('link',{name:'Awaiting applicant',exact:true}).click();
+  await expect.poll(() => reads().at(-1)).toContain('status=in.(info_needed)');
+  await page.getByRole('searchbox',{name:'Search applications'}).fill('0977 123456');
+  await page.getByRole('button',{name:'Search applications',exact:true}).click();
+  await expect.poll(() => reads().at(-1)).toContain('or=(business.ilike."*0977 123456*",contact_name.ilike."*0977 123456*",email.ilike."*0977 123456*",phone.ilike."*977123456*",town.ilike."*0977 123456*",pacra.ilike."*0977 123456*")');
+  expect(reads().at(-1)).toContain('offset=0');
+  await page.getByRole('searchbox',{name:'Search applications'}).fill('Kafue, (x)"');
+  await page.getByRole('button',{name:'Search applications',exact:true}).click();
+  await expect.poll(() => reads().at(-1)).toContain('business.ilike."*Kafue x*"');
+  await page.getByRole('searchbox',{name:'Search applications'}).fill('shop.co');
+  await page.getByRole('button',{name:'Search applications',exact:true}).click();
+  await expect.poll(() => reads().at(-1)).toContain('email.ilike."*shop.co*"');
 });
 test('staff review, ask about and approve seller applications', async ({page}) => {
   const errors = []; page.on('pageerror', e => errors.push(e.message));
