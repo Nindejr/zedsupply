@@ -36,7 +36,7 @@ configuration completeness only, not hosted security or operational readiness.
 
 ## Staging setup
 
-1. Apply migrations **016 → 017 → 018 → 019** in order. Deploy handlers only after
+1. Apply migrations **016 → 017 → 018 → 019 → 020 → 021** in order. Deploy handlers only after
    their supporting migrations. Never edit or rerun a previously applied migration
    in a hosted project; these new migrations have only been applied to an isolated
    local test database during this task.
@@ -77,6 +77,30 @@ The configured standard rate is consistent with ZRA's published VAT material;
 that does not verify **this business's** registration or which supplies are taxable.
 Check the actual ZRA record/certificate and appropriate tax treatment before
 enabling live VAT. [ZRA VAT guide](https://www.zra.org.zm/wp-content/uploads/2021/05/VAT-Guide-2021.pdf)
+
+## Store teams
+
+Migration 020 lets a store's owners build a team (021 pins a helper's search path). Both are applied to the hosted project.
+
+- **Roles.** Owner (everything, including the team and payouts), Manager (store details, listings,
+  prices, offers, promotions, deals, orders, shipments and complaints), Listings (products, prices,
+  stock, photos, offers and buyer questions), Dispatch (orders, packing, shipments and delivery
+  proof) and Finance (orders, sales and payouts, view only). Every store rule in the database now
+  checks the role, not just membership. Existing members keep owner rights; the unused `staff`
+  role becomes `manager`.
+- **Invitations.** An owner invites an email address with a role from Seller Centre → Store team
+  (`#/team`). The invitation shows on My Account only for the account that has **confirmed** that
+  email, and expires after 7 days. No email is sent yet: the owner tells the person to sign in.
+  Connect an invitation message to the notification sender before relying on that.
+- **Safeguards.** Only owners invite, change roles or remove people; anyone can leave. A store
+  always keeps at least one owner. Up to 20 people per store, counting open invitations, and 30
+  invitations a day. Every change is kept in `seller_team_events`, shown to owners as "Recent
+  changes". Zed Supply staff can manage any store's team; their changes are also in `staff_actions`.
+- **First owner.** Staff still add a new store's first owner, as before (a `seller_members` row,
+  which defaults to owner), or invite them with `seller_invite` while signed in as staff.
+
+`db/tests/team.sql` covers invitations, each role's access, the last-owner rule, expiry, the size
+limit and the logs. The demo Seller Centre has a browser-only preview of the same screen.
 
 ## Native catalogue pages
 

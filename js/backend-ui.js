@@ -11,8 +11,9 @@
     var p = B.profile();
     if (p) {
       show('<section class="card"><h2>Hello, ' + esc(p.name || p.email || 'shopper') + '</h2><p>Your contact is verified. Orders and support requests below are stored securely for this account.</p>' +
-        '<div class="btn-row"><a class="btn btn--primary" href="#/orders">Your orders</a><a class="btn btn--secondary" href="#/complaints">Support requests</a><a class="btn btn--secondary" href="#/fulfilment">Store fulfilment</a>' + (p.is_staff ? '<a class="btn btn--secondary" href="#/staff-support">Staff support queue</a>' : '') + '<a class="btn btn--secondary" href="#/device">Data on this device</a>' +
-        '<button class="btn btn--secondary" id="secure-signout" type="button">Sign out</button></div><p class="form-status" role="status"></p></section>', 'My Account');
+        '<div class="btn-row"><a class="btn btn--primary" href="#/orders">Your orders</a><a class="btn btn--secondary" href="#/complaints">Support requests</a><a class="btn btn--secondary" href="#/team">Store team</a><a class="btn btn--secondary" href="#/fulfilment">Store fulfilment</a>' + (p.is_staff ? '<a class="btn btn--secondary" href="#/staff-support">Staff support queue</a>' : '') + '<a class="btn btn--secondary" href="#/device">Data on this device</a>' +
+        '<button class="btn btn--secondary" id="secure-signout" type="button">Sign out</button></div><p class="form-status" role="status"></p></section><div id="team-invites"></div>', 'My Account');
+      teamInvites();
       document.getElementById('secure-signout').onclick = async function () { this.disabled = true; try { await B.signOut(); } catch (e) { /* local tokens are cleared even when logout is unavailable */ } ready = {}; Z().refreshCounts(); Z().route(); };
       return;
     }
@@ -150,6 +151,81 @@
       form.querySelector('[role="status"]').textContent = 'Shipment event saved.';
     });
   }
+  /* ---------- Store teams ---------- */
+  // Roles come from js/marketplace.js (ZSExt.teamRoles); the server checks them (migration 020).
+  function teamEvent(l) {
+    var who = esc(l.subject), by = esc(l.actor), role = esc(roleName(l.role));
+    return { invited: by + ' invited ' + who + ' as ' + role, invite_cancelled: by + ' cancelled the invitation for ' + who, joined: who + ' joined as ' + role,
+      declined: who + ' declined the invitation', role_changed: by + ' made ' + who + ' ' + role, removed: by + ' removed ' + who, left: who + ' left the team' }[l.action] || esc(l.action);
+  }
+  function roleName(id) { var r = (ext.teamRoles || []).filter(function (x) { return x[0] === id; })[0]; return r ? r[1] : id; }
+  function roleOptions(chosen) { return (ext.teamRoles || []).map(function (r) { return '<option value="' + r[0] + '"' + (r[0] === chosen ? ' selected' : '') + '>' + esc(r[1]) + '</option>'; }).join(''); }
+  function when(value) { return esc(new Date(value).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })); }
+  function rpcButton(button, name, body, done) {
+    button.disabled = true;
+    B.rpc(name, body).then(done).catch(function (e) { Z().toast(esc(e.message)); button.disabled = false; });
+  }
+  // Invitations for this account's confirmed email, shown on My Account
+  function teamInvites() {
+    B.rpc('my_seller_invites', {}).then(function (list) {
+      var box = document.getElementById('team-invites');
+      if (!box || !list.length) return;
+      box.innerHTML = '<section class="card"><h2>Store invitations</h2><ul class="orders">' + list.map(function (i) {
+        return '<li class="order-row"><span><strong>' + esc(i.store) + '</strong> invited you to join as <strong>' + esc(roleName(i.role)) + '</strong><br><span class="pmeta">Expires ' + when(i.expires_at) + '</span></span>' +
+          '<span class="btn-row"><button class="btn btn--primary btn--sm" type="button" data-invite-accept="' + esc(i.id) + '">Accept</button><button class="btn btn--secondary btn--sm" type="button" data-invite-decline="' + esc(i.id) + '">Decline</button></span></li>';
+      }).join('') + '</ul></section>';
+      box.querySelectorAll('[data-invite-accept]').forEach(function (b) { b.onclick = function () { rpcButton(b, 'seller_respond_invite', { invite: b.dataset.inviteAccept, accept: true }, function (sid) { Z().toast('You\'ve joined the team'); location.hash = '#/team/' + encodeURIComponent(sid); }); }; });
+      box.querySelectorAll('[data-invite-decline]').forEach(function (b) { b.onclick = function () { rpcButton(b, 'seller_respond_invite', { invite: b.dataset.inviteDecline, accept: false }, function () { Z().toast('Invitation declined'); Z().route(); }); }; });
+    }).catch(function () { /* the account page works without its invitations */ });
+  }
+  async function team(storeId, ticket) {
+    if (!requireUser()) return;
+    var me = B.profile(), mine = await B.read('seller_members?select=seller_id,role&user_id=eq.' + me.id);
+    if (ticket !== navigation) return;
+    var sid = storeId || (mine.length === 1 ? mine[0].seller_id : '');
+    if (!sid) {
+      if (!mine.length && !me.is_staff) throw new Error('This account isn\'t on a store team. Ask the store owner to invite your email address, then sign in with it to accept.');
+      show((mine.length ? '<ul class="orders">' + mine.map(function (m) { return '<li><a class="order-row" href="#/team/' + encodeURIComponent(m.seller_id) + '"><strong>' + esc(m.seller_id) + '</strong><span>' + esc(roleName(m.role)) + '</span></a></li>'; }).join('') + '</ul>' : '') +
+        (me.is_staff ? '<form class="form form--card" id="team-open"><h2>Open a store\'s team</h2><label for="team-store">Store ID</label><input id="team-store" required maxlength="60"><button class="btn btn--primary" type="submit">Open</button><p class="form-status" role="status"></p></form>' : ''), 'Store team');
+      if (me.is_staff) bind('team-open', async function () { location.hash = '#/team/' + encodeURIComponent(document.getElementById('team-store').value.trim()); });
+      return;
+    }
+    var t = await B.rpc('seller_team', { sid: sid });
+    if (ticket !== navigation) return;
+    var manage = t.my_role === 'owner' || (!t.my_role && me.is_staff);
+    show('<p>' + esc(t.store ? t.store.name : sid) + ' · ' + (t.my_role ? 'Your role: <strong>' + esc(roleName(t.my_role)) + '</strong>' : 'Viewing as Zed Supply staff') + '</p>' +
+      '<section class="card"><h2>People on this team</h2><ul class="orders">' + t.members.map(function (m) {
+        var label = esc(m.name) + (m.you ? ' (you)' : '');
+        return '<li class="order-row"><span><strong>' + label + '</strong><br><span class="pmeta">' + (m.email ? esc(m.email) + ' · ' : '') + esc(roleName(m.role)) + ' · since ' + when(m.added_at) + '</span></span><span class="btn-row">' +
+          (manage ? '<label class="visually-hidden" for="team-role-' + m.user_id + '">Role for ' + label + '</label><select id="team-role-' + m.user_id + '" data-team-role="' + m.user_id + '">' + roleOptions(m.role) + '</select>' : '') +
+          (m.you ? '<button class="btn btn--secondary btn--sm" type="button" data-team-remove="' + m.user_id + '">Leave team</button>'
+            : manage ? '<button class="btn btn--secondary btn--sm" type="button" data-team-remove="' + m.user_id + '">Remove<span class="visually-hidden"> ' + label + '</span></button>' : '') + '</span></li>';
+      }).join('') + '</ul><p class="hint">A store always keeps at least one owner. Make someone else an owner before you step down or leave.</p></section>' +
+      (manage ? '<div class="duo duo--gap"><form class="form form--card" id="team-invite"><h2>Invite someone</h2><p>They sign in at My Account with this email and accept within 7 days. A store can have up to 20 people, counting open invitations.</p>' +
+        '<label for="team-email">Email</label><input id="team-email" type="email" required maxlength="254" autocomplete="off">' +
+        '<label for="team-new-role">Role</label><select id="team-new-role">' + roleOptions('listings') + '</select>' +
+        '<button class="btn btn--primary" type="submit">Send invitation</button><p class="form-status" role="status"></p></form>' +
+        '<section class="card"><h2>Open invitations</h2>' + (t.invites.length ? '<ul class="orders">' + t.invites.map(function (i) {
+          return '<li class="order-row"><span><strong>' + esc(i.email) + '</strong><br><span class="pmeta">' + esc(roleName(i.role)) + ' · expires ' + when(i.expires_at) + '</span></span><button class="btn btn--secondary btn--sm" type="button" data-team-cancel="' + esc(i.id) + '">Cancel<span class="visually-hidden"> invitation for ' + esc(i.email) + '</span></button></li>';
+        }).join('') + '</ul>' : '<p>No open invitations.</p>') + '</section></div>' : '') +
+      (ext.teamRoleGuide ? ext.teamRoleGuide() : '') +
+      (manage && t.log.length ? '<section class="card"><h2>Recent changes</h2><ul>' + t.log.map(function (l) { return '<li>' + when(l.created_at) + ': ' + teamEvent(l) + '</li>'; }).join('') + '</ul></section>' : ''), 'Store team');
+    document.querySelectorAll('[data-team-role]').forEach(function (sel) { sel.onchange = function () {
+      sel.disabled = true;
+      B.rpc('seller_set_member_role', { sid: sid, member: Number(sel.dataset.teamRole), member_role: sel.value }).then(function () { Z().toast('Role updated'); Z().route(); })
+        .catch(function (e) { Z().toast(esc(e.message)); Z().route(); });
+    }; });
+    document.querySelectorAll('[data-team-remove]').forEach(function (b) { b.onclick = function () {
+      var self = t.members.some(function (m) { return m.you && String(m.user_id) === b.dataset.teamRemove; });
+      if (!window.confirm(self ? 'Leave this store\'s team? You lose access straight away.' : 'Remove this person from the team? They lose access straight away.')) return;
+      rpcButton(b, 'seller_remove_member', { sid: sid, member: Number(b.dataset.teamRemove) }, function () { Z().toast(self ? 'You left the team' : 'Removed from the team'); if (self) location.hash = '#/account'; else Z().route(); });
+    }; });
+    document.querySelectorAll('[data-team-cancel]').forEach(function (b) { b.onclick = function () { rpcButton(b, 'seller_cancel_invite', { invite: b.dataset.teamCancel }, function () { Z().toast('Invitation cancelled'); Z().route(); }); }; });
+    if (manage) bind('team-invite', async function () {
+      await B.rpc('seller_invite', { sid: sid, invitee_email: document.getElementById('team-email').value.trim(), member_role: document.getElementById('team-new-role').value });
+      Z().toast('Invitation saved. Ask them to sign in with that email to accept.'); Z().route();
+    });
+  }
   async function staffSupport(ticket) {
     if (!requireUser()) return;
     if (!B.profile().is_staff) throw new Error('Staff access is required.');
@@ -173,11 +249,12 @@
       }).catch(function (e) { if (ticket === navigation) show(errorHTML(e), 'Cart unavailable'); });
       return true;
     }
-    if (['seller', 'staff', 'addresses', 'alerts'].indexOf(path[0]) !== -1) { show('<p>This account uses secure server records. These management tools are awaiting their authenticated integration.</p><a class="btn btn--secondary" href="#/account">My Account</a>', 'Secure account tools'); return true; }
-    if (['search', 'dept', 'orders', 'order', 'complaints', 'product', 'fulfilment', 'staff-support'].indexOf(path[0]) === -1) return false;
+    if (path[0] === 'seller') { show('<p>Your store team and shipments use secure server records. Listing, promotion and store-detail tools are awaiting their authenticated integration.</p><div class="btn-row"><a class="btn btn--primary" href="#/team">Store team</a><a class="btn btn--secondary" href="#/fulfilment">Store fulfilment</a><a class="btn btn--secondary" href="#/account">My Account</a></div>', 'Seller Centre'); return true; }
+    if (['staff', 'addresses', 'alerts'].indexOf(path[0]) !== -1) { show('<p>This account uses secure server records. These management tools are awaiting their authenticated integration.</p><a class="btn btn--secondary" href="#/account">My Account</a>', 'Secure account tools'); return true; }
+    if (['search', 'dept', 'orders', 'order', 'complaints', 'product', 'fulfilment', 'staff-support', 'team'].indexOf(path[0]) === -1) return false;
     if (path[0] === 'product' && ready[path[1]]) return false;
     show('<p role="status">Loading secure marketplace data…</p>', 'Loading');
-    var action = path[0] === 'fulfilment' ? fulfilment(ticket) : path[0] === 'staff-support' ? staffSupport(ticket) : path[0] === 'search' || path[0] === 'dept' ? catalogue(path, query, ticket) : path[0] === 'orders' || path[0] === 'order' ? orders(path[1], ticket) : path[0] === 'complaints' ? support(query, ticket) :
+    var action = path[0] === 'team' ? team(path[1] ? decodeURIComponent(path[1]) : '', ticket) : path[0] === 'fulfilment' ? fulfilment(ticket) : path[0] === 'staff-support' ? staffSupport(ticket) : path[0] === 'search' || path[0] === 'dept' ? catalogue(path, query, ticket) : path[0] === 'orders' || path[0] === 'order' ? orders(path[1], ticket) : path[0] === 'complaints' ? support(query, ticket) :
       B.rpc('catalogue_page', { product_id: path[1], page_size: 1 }).then(function (rows) { if (ticket !== navigation) return; if (!rows.length) throw new Error('This listing is not available.'); Z().ingest(rows); ready[path[1]] = true; Z().route(); });
     Promise.resolve(action).catch(function (error) { if (ticket === navigation) show(errorHTML(error) + '<a class="btn btn--secondary" href="#/account">My Account</a>', 'Request unavailable'); });
     return true;

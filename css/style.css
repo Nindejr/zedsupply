@@ -261,6 +261,13 @@ button { font: inherit; }
 .drawer__action:hover { background: var(--color-bg-alt); }
 .account-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.5rem 1rem; margin-bottom: 1rem; padding: 0.75rem 1rem; border: 1px solid var(--color-border); border-radius: var(--radius); background: var(--color-surface); }
 .account-bar p { margin: 0; }
+/* Store team: role picker beside its Remove button, and the role guide */
+.order-row .btn-row { align-items: center; margin: 0; }
+.order-row .btn-row select { width: auto; min-width: 11rem; min-height: 2.5rem; }
+.mx-roles { margin: 0.75rem 0 0; }
+.mx-roles dt { margin-top: 0.75rem; font-weight: 700; color: var(--color-heading); }
+.mx-roles dd { margin: 0.125rem 0 0; }
+details.card > summary { cursor: pointer; font-weight: 700; color: var(--color-heading); }
 .drawer hr { border: 0; border-top: 1px solid var(--color-border); margin: 0.75rem 0; }
 .emoji { font-size: 1.25rem; width: 1.6rem; text-align: center; flex-shrink: 0; }
 

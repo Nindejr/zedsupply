@@ -102,3 +102,27 @@ test('device export and deletion preserve preferences and unrelated site data', 
     consent: localStorage.getItem('zs-consent'), saver: localStorage.getItem('zs-datasaver'), other: localStorage.getItem('other-app') }));
   expect(saved).toEqual({ user: null, addresses: null, consent: 'denied', saver: 'true', other: 'untouched' });
 });
+
+test('a seller builds a team with roles in the Seller Centre preview', async ({ page }) => {
+  await page.goto('/index.html?demo=1&theme=off#/seller');
+  await page.getByRole('button', { name: 'Enter Seller Centre' }).click();
+  const team = page.locator('#sc-team');
+  await expect(team.getByRole('heading', { name: 'Your team' })).toBeVisible();
+  await team.getByLabel('Email').fill('Packer@Example.test');
+  await team.getByLabel('Role', { exact: true }).selectOption('dispatch');
+  await team.getByRole('button', { name: 'Send invitation' }).click();
+  await expect(team).toContainText('packer@example.test · invited');
+  await team.getByRole('button', { name: 'Mark accepted for packer@example.test' }).click();
+  await team.getByLabel('Role for packer@example.test').selectOption('finance');
+  await page.reload();
+  await expect(page.locator('#sc-team').getByLabel('Role for packer@example.test')).toHaveValue('finance');
+  await page.locator('#sc-team').getByLabel('Email').fill('packer@example.test');
+  await page.locator('#sc-team').getByRole('button', { name: 'Send invitation' }).click();
+  await expect(page.locator('#sc-team .form-status')).toHaveText('That person is already on the team. Change their role instead.');
+  await page.locator('#sc-team details summary').click();
+  await expect(page.locator('#sc-team .mx-roles')).toContainText('Orders, packing, shipments and delivery proof.');
+  await page.evaluate(require('node:fs').readFileSync(axe, 'utf8'));
+  const results = await page.evaluate(async () => (await axe.run('#sc-team', { runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa'] } })).violations.map(v => v.id));
+  expect(results).toEqual([]);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
+});

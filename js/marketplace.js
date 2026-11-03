@@ -128,7 +128,7 @@
   // Explicit application keys: never clear another application's data or cookie preferences.
   var deviceKeys = ['user', 'cart', 'wish', 'saved', 'recent', 'compare', 'orders', 'reviews', 'addresses',
     'complaints', 'alerts', 'searches', 'questions', 'seller', 'seller-couriers', 'seller-locations',
-    'listings', 'promos', 'deals', 'voucher', 'moderation', 'staff-log', 'stock-data', 'stock-settings', 'location'];
+    'listings', 'promos', 'deals', 'team', 'voucher', 'moderation', 'staff-log', 'stock-data', 'stock-settings', 'location'];
   EXT.views.device = function () {
     var Zs = Z();
     Zs.show(Zs.crumbs([['My Account', '#/account'], ['Data on this device']]) + Zs.head('Data on this device') +
@@ -390,7 +390,88 @@
         '<p class="pmeta">Upload a spreadsheet saved as CSV with these columns: <code>title, category, sub, priceZMW, stock, description, tags</code>. ' +
         'category and sub use the ids from the department list; stock is in, low or request. Add photos afterwards from each product\'s Edit page, straight from your phone\'s camera.</p>' +
         '<div class="field"><label for="sc-csv">CSV file</label><input id="sc-csv" type="file" accept=".csv,text/csv" data-mx-csv="' + esc(s.id) + '"></div>' +
-        '<div id="sc-csv-out" role="status" aria-live="polite"></div></section>';
+        '<div id="sc-csv-out" role="status" aria-live="polite"></div></section>' + teamSection(s);
+  });
+
+  /* ---------- Seller Centre: store team ---------- */
+  // The roles the server checks (supabase/migrations/20261103000020_seller_team.sql)
+  var TEAM_ROLES = EXT.teamRoles = [
+    ['owner', 'Owner', 'Everything, including the team, payouts and store details.'],
+    ['manager', 'Manager', 'Store details, listings, prices, offers, promotions, deals, orders, shipments and complaints.'],
+    ['listings', 'Listings', 'Products, prices, stock, photos, offers and buyer questions.'],
+    ['dispatch', 'Dispatch', 'Orders, packing, shipments and delivery proof.'],
+    ['finance', 'Finance (view only)', 'Orders, sales and payouts.']
+  ], TEAM_LIMIT = 20;
+  function roleName(id) { var r = TEAM_ROLES.filter(function (x) { return x[0] === id; })[0]; return r ? r[1] : id; }
+  function roleOptions(chosen) { return TEAM_ROLES.map(function (r) { return '<option value="' + r[0] + '"' + (r[0] === chosen ? ' selected' : '') + '>' + esc(r[1]) + '</option>'; }).join(''); }
+  EXT.teamRoleGuide = function () {
+    return '<details class="card"><summary>What each role can do</summary><dl class="mx-roles">' + TEAM_ROLES.map(function (r) { return '<dt>' + esc(r[1]) + '</dt><dd>' + esc(r[2]) + '</dd>'; }).join('') + '</dl></details>';
+  };
+  // Prototype: kept in this browser per store. Invitations expire after 7 days.
+  function teamOf(id) {
+    var t = get('team', {})[id] || { members: [], invites: [] };
+    t.invites = t.invites.filter(function (i) { return i.expires >= Z().today; });
+    return t;
+  }
+  function saveTeam(id, t) { var all = get('team', {}); all[id] = t; set('team', all); }
+  function teamSection(s) {
+    var t = teamOf(s.id), u = Z().user();
+    return '<section class="card sc-products" id="sc-team" aria-labelledby="sc-tm-title"><h2 id="sc-tm-title">Your team</h2>' +
+      '<p class="pmeta">Invite the people who help run your store and give each a role, so they can do their job without seeing everything. A store can have up to ' + TEAM_LIMIT + ' people, counting open invitations, and always keeps at least one owner.</p>' +
+      '<p class="notice">Prototype: your team is saved in this browser only. With seller accounts, the person signs in with the invited email to accept, and the server checks every role.</p>' +
+      '<ul class="orders"><li class="order-row"><span><strong>' + (u && u.name ? esc(u.name) + '</strong> (you)' : 'You</strong>') + '<br><span class="pmeta">Owner</span></span></li>' +
+      t.members.map(function (m) {
+        return '<li class="order-row"><span><strong>' + esc(m.email) + '</strong><br><span class="pmeta">' + esc(roleName(m.role)) + '</span></span><span class="btn-row">' +
+          '<label class="visually-hidden" for="tm-role-' + esc(m.id) + '">Role for ' + esc(m.email) + '</label><select id="tm-role-' + esc(m.id) + '" data-mx-team-role="' + esc(s.id) + '|' + esc(m.id) + '">' + roleOptions(m.role) + '</select>' +
+          '<button class="btn btn--secondary btn--sm" type="button" data-mx-team-remove="' + esc(s.id) + '|' + esc(m.id) + '">Remove<span class="visually-hidden"> ' + esc(m.email) + '</span></button></span></li>';
+      }).join('') +
+      t.invites.map(function (i) {
+        return '<li class="order-row"><span><strong>' + esc(i.email) + '</strong> · invited<br><span class="pmeta">' + esc(roleName(i.role)) + ' · expires ' + Z().niceDate(i.expires) + '</span></span><span class="btn-row">' +
+          '<button class="btn btn--secondary btn--sm" type="button" data-mx-team-accept="' + esc(s.id) + '|' + esc(i.id) + '">Mark accepted<span class="visually-hidden"> for ' + esc(i.email) + '</span></button>' +
+          '<button class="btn btn--secondary btn--sm" type="button" data-mx-team-cancel="' + esc(s.id) + '|' + esc(i.id) + '">Cancel<span class="visually-hidden"> invitation for ' + esc(i.email) + '</span></button></span></li>';
+      }).join('') + '</ul>' +
+      '<form class="form" data-mx-team-invite="' + esc(s.id) + '"><h3 class="h3">Invite someone</h3><div class="field-row">' +
+        '<div class="field"><label for="tm-email">Email</label><input id="tm-email" type="email" required maxlength="254" autocomplete="off"></div>' +
+        '<div class="field"><label for="tm-new-role">Role</label><select id="tm-new-role">' + roleOptions('listings') + '</select></div></div>' +
+        '<p class="form-status" role="status" tabindex="-1"></p><button class="btn btn--primary" type="submit">Send invitation</button></form>' +
+      EXT.teamRoleGuide() + '</section>';
+  }
+  function teamTarget(el, attr) { var parts = el.getAttribute(attr).split('|'); return { store: parts[0], id: parts[1], team: teamOf(parts[0]) }; }
+  document.addEventListener('submit', function (e) {
+    var f = e.target;
+    if (!f.matches('[data-mx-team-invite]')) return;
+    e.preventDefault();
+    var id = f.getAttribute('data-mx-team-invite'), t = teamOf(id), st = f.querySelector('.form-status');
+    var email = f.querySelector('#tm-email').value.trim().toLowerCase(), role = f.querySelector('#tm-new-role').value;
+    var fail = function (m) { st.className = 'form-status is-error'; st.textContent = m; st.focus(); };
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return fail('Enter a valid email address.');
+    if (t.members.some(function (m) { return m.email === email; })) return fail('That person is already on the team. Change their role instead.');
+    var open = t.invites.filter(function (i) { return i.email === email; })[0];
+    if (!open && 1 + t.members.length + t.invites.length >= TEAM_LIMIT) return fail('A store can have up to ' + TEAM_LIMIT + ' people, counting open invitations.');
+    var expires = new Date(Date.now() + 7 * 864e5).toISOString().slice(0, 10);
+    if (open) { open.role = role; open.expires = expires; } else t.invites.push({ id: Z().newRef('T'), email: email, role: role, expires: expires });
+    saveTeam(id, t); Z().toast('Invitation saved for ' + esc(email) + '.'); Z().route();
+  });
+  document.addEventListener('click', function (e) {
+    var b = e.target.closest('[data-mx-team-accept], [data-mx-team-cancel], [data-mx-team-remove]');
+    if (!b) return;
+    var attr = ['data-mx-team-accept', 'data-mx-team-cancel', 'data-mx-team-remove'].filter(function (a) { return b.hasAttribute(a); })[0], x = teamTarget(b, attr);
+    if (attr === 'data-mx-team-remove') {
+      if (!window.confirm('Remove this person from the team? They lose access straight away.')) return;
+      x.team.members = x.team.members.filter(function (m) { return m.id !== x.id; });
+    } else {
+      var inv = x.team.invites.filter(function (i) { return i.id === x.id; })[0];
+      x.team.invites = x.team.invites.filter(function (i) { return i.id !== x.id; });
+      if (inv && attr === 'data-mx-team-accept') x.team.members.push({ id: inv.id, email: inv.email, role: inv.role });
+    }
+    saveTeam(x.store, x.team); Z().route();
+  });
+  document.addEventListener('change', function (e) {
+    var sel = e.target.closest('[data-mx-team-role]');
+    if (!sel) return;
+    var x = teamTarget(sel, 'data-mx-team-role');
+    x.team.members.forEach(function (m) { if (m.id === x.id) m.role = sel.value; });
+    saveTeam(x.store, x.team); Z().toast('Role updated');
   });
   // A small CSV reader: quoted fields, commas and line breaks inside quotes, "" for a quote
   function parseCSV(text) {
