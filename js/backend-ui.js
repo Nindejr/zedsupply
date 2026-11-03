@@ -192,8 +192,10 @@
     }
     var t = await B.rpc('seller_team', { sid: sid });
     if (ticket !== navigation) return;
-    var manage = t.my_role === 'owner' || (!t.my_role && me.is_staff);
-    show('<p>' + esc(t.store ? t.store.name : sid) + ' · ' + (t.my_role ? 'Your role: <strong>' + esc(roleName(t.my_role)) + '</strong>' : 'Viewing as Zed Supply staff') + '</p>' +
+    // Zed Supply staff manage any team, even one they're on in a smaller role; the server logs it as a staff action
+    var manage = t.my_role === 'owner' || me.is_staff, asStaff = me.is_staff && t.my_role !== 'owner';
+    show('<p>' + esc(t.store ? t.store.name : sid) + ' · ' + (t.my_role ? 'Your role: <strong>' + esc(roleName(t.my_role)) + '</strong>' : '') +
+      (asStaff ? (t.my_role ? ' · ' : '') + 'Managing as Zed Supply staff. Changes are recorded in the staff log.' : '') + '</p>' +
       '<section class="card"><h2>People on this team</h2><ul class="orders">' + t.members.map(function (m) {
         var label = esc(m.name) + (m.you ? ' (you)' : '');
         return '<li class="order-row"><span><strong>' + label + '</strong><br><span class="pmeta">' + (m.email ? esc(m.email) + ' · ' : '') + esc(roleName(m.role)) + ' · since ' + when(m.added_at) + '</span></span><span class="btn-row">' +

@@ -6,7 +6,7 @@ const source = fs.readFileSync('js/catalogue.js','utf8').replace("api: { enabled
 const product = { id:'LIVE1',title:'Approved studio lamp',department_id:'tech',subcategory_id:'phones',seller_id:'live-store',price_zmw:100,stock_qty:3,stock_status:'in',
   image:'assets/products/L002.webp',alt:'Studio lamp',options:[],variants:[],components:[],images:[],tiers:[],seller:{id:'live-store',name:'Live store',city:'Lusaka',verified:false} };
 
-async function setup(page) {
+async function setup(page, { staff = false, teamRole = 'owner' } = {}) {
   const calls = [];
   await page.addInitScript(() => {
     localStorage.setItem('zs-consent','denied');
@@ -39,6 +39,8 @@ async function setup(page) {
     else if (url.pathname.startsWith('/rest/v1/rpc/seller_')) data = null;
     else if (url.pathname === '/rest/v1/orders') data = [{id:41,ref:'ZS-LIVE0001',status:'placed',created_at:'2026-11-01T00:00:00Z',total_zmw:100,delivery_zmw:null,paid_zmw:0,payment_status:'unpaid',fulfilment:'delivery',order_items:[{id:81,product_id:'LIVE1',quantity:1,unit_price_zmw:100,order_item_addons:[]}]}];
     else data = [];
+    if (url.pathname === '/rest/v1/users') data[0].is_staff = staff;
+    if (url.pathname === '/rest/v1/rpc/seller_team') data.my_role = teamRole;
     return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify(data)});
   });
   return calls;
@@ -112,4 +114,14 @@ test('a store invitation is accepted from My Account and owners manage the team'
   await page.evaluate(fs.readFileSync(require.resolve('axe-core/axe.min.js'),'utf8'));
   expect(await page.evaluate(async () => (await axe.run(document, { runOnly: { type: 'tag', values: ['wcag2a','wcag2aa','wcag21aa','wcag22aa'] } })).violations.map(v => v.id))).toEqual([]);
   expect(errors).toEqual([]);
+});
+
+test('staff retain team management controls with a non-owner store role', async ({page}) => {
+  await setup(page, { staff: true, teamRole: 'dispatch' });
+  await signIn(page);
+  await page.goto('/index.html?demo=0#/team/live-store');
+  await expect(page.locator('main')).toContainText('Your role: Dispatch · Managing as Zed Supply staff');
+  await expect(page.getByLabel('Role for Packer')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Send invitation', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Cancel invitation for later@example.test' })).toBeVisible();
 });

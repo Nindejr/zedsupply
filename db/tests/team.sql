@@ -152,6 +152,13 @@ SELECT pg_temp.assert_true(public.seller_team('team-store')->>'my_role' IS NULL,
 SELECT public.seller_cancel_invite((SELECT (i->>'id')::uuid FROM jsonb_array_elements(public.seller_team('team-store')->'invites') i LIMIT 1));
 SELECT pg_temp.admin();
 SELECT pg_temp.assert_true((SELECT count(*) = 1 FROM staff_actions WHERE action = 'team_cancel_invite' AND target = 'team-store'),'staff team changes are in the staff log');
+-- Staff who are also on the team in a smaller role still manage it, as staff (the Store team page relies on this)
+INSERT INTO seller_members(seller_id,user_id,role) VALUES ('team-store',pg_temp.uid('team-staff@test.example'),'dispatch');
+SELECT pg_temp.actor('d6');
+SELECT pg_temp.assert_true(public.seller_team('team-store')->>'my_role' = 'dispatch' AND jsonb_array_length(public.seller_team('team-store')->'invites') > 0,'staff with a team role see invitations');
+SELECT public.seller_cancel_invite((SELECT (i->>'id')::uuid FROM jsonb_array_elements(public.seller_team('team-store')->'invites') i LIMIT 1));
+SELECT pg_temp.admin();
+SELECT pg_temp.assert_true((SELECT count(*) = 2 FROM staff_actions WHERE action = 'team_cancel_invite' AND target = 'team-store'),'their changes are logged as staff actions');
 SELECT pg_temp.assert_true((SELECT array_agg(DISTINCT action ORDER BY action) FROM seller_team_events WHERE seller_id = 'team-store')
   = ARRAY['declined','invite_cancelled','invited','joined','left','removed','role_changed'],'every kind of change is logged');
 SELECT pg_temp.assert_true((SELECT count(*) = 0 FROM seller_members WHERE role NOT IN ('owner','manager','listings','dispatch','finance')),'only known roles');
