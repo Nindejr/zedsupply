@@ -19,7 +19,7 @@
   function get(k, d) { return Z().store.get(k, d); }
   function set(k, v) { return Z().store.set(k, v); }
   function signedIn() { return !!Z().user(); }
-  function needSignIn(what) { Z().toast('Sign in to ' + what + '. <a href="#/account">Sign in</a>'); }
+  function needSignIn(what) { Z().toast('Sign in to ' + what + '. <a href="#/account">Sign in</a>', 'warn'); }
   function pageUrl(hash) { return location.href.split('#')[0].split('?')[0] + hash; }
 
   /* ---------- Seller trust signals ---------- */
@@ -90,7 +90,7 @@
     if (!signedIn()) return needSignIn(kind === 'price_drop' ? 'get price alerts' : 'get back-in-stock alerts');
     var p = Z().product(id); if (!p) return;
     var list = alerts().filter(function (a) { return !(a.kind === kind && a.product === id); });
-    if (list.length >= 50) return Z().toast('You can have up to 50 alerts. Remove some in <a href="#/alerts">your alerts</a>.');
+    if (list.length >= 50) return Z().toast('You can have up to 50 alerts. Remove some in <a href="#/alerts">your alerts</a>.', 'warn');
     list.push({ kind: kind, product: id, price: priceNow(p), date: Z().today });
     set('alerts', list);
     Z().toast((kind === 'price_drop' ? 'We\'ll tell you if the price drops below ' + kw(priceNow(p)) : 'We\'ll tell you when it\'s back') +
@@ -138,7 +138,7 @@
       '<p>This deletes saved details, shopping activity, orders, reviews, alerts and seller work from this browser. Download a copy first if you need it. Cookie choices, language and data saver preferences stay.</p>' +
       '<p>Messages you sent on WhatsApp and records held by Zed Supply are separate. <a href="privacy.html#rights">Contact us about those records</a>.</p>' +
       '<form data-mx-clear-device><div class="check"><input id="device-confirm" type="checkbox" required><label for="device-confirm">I understand that saved data on this device will be deleted.</label></div>' +
-      '<button class="btn btn--secondary" type="submit">Delete saved data on this device</button><p class="form-status" role="status"></p></form></section></div>', 'Data on this device');
+      '<button class="btn btn--secondary btn--danger" type="submit">Delete saved data on this device</button><p class="form-status" role="status"></p></form></section></div>', 'Data on this device');
   };
   EXT.views.alerts = function () {
     var Zs = Z();
@@ -154,13 +154,13 @@
         var p = Zs.product(a.product);
         return '<li class="order-row"><span><a href="#/product/' + esc(a.product) + '"><strong>' + esc(p ? p.title : a.product) + '</strong></a><br><span class="pmeta">' +
           (a.kind === 'price_drop' ? 'Price drops below ' + kw(a.price) : 'Back in stock') + ' · since ' + Zs.niceDate(a.date) + '</span></span>' +
-          '<button class="link-btn" type="button" data-mx-del-alert="' + esc(a.kind + '|' + a.product) + '">Remove<span class="visually-hidden"> alert</span></button></li>';
+          '<button class="link-btn link-btn--danger" type="button" data-mx-del-alert="' + esc(a.kind + '|' + a.product) + '">Remove<span class="visually-hidden"> alert</span></button></li>';
       }).join('') + '</ul>' : '<p>No alerts yet. Use "Alert me if the price drops" on a product.</p>') + '</section>' +
       '<section class="card"><h2>Saved searches</h2>' + (saved.length ? '<ul class="orders">' + saved.map(function (x, i) {
         var fresh = newMatches(x).length;
         return '<li class="order-row"><span><a href="#/search?q=' + encodeURIComponent(x.q) + (x.dept ? '&dept=' + encodeURIComponent(x.dept) : '') + '" data-mx-seen-search="' + i + '"><strong>' + esc(x.q) + '</strong></a>' +
           (x.dept ? ' <span class="pmeta">in ' + esc(Zs.dept(x.dept).name) + '</span>' : '') + '<br><span class="pmeta">' + (fresh ? fresh + ' new since you saved it' : 'Nothing new yet') + '</span></span>' +
-          '<button class="link-btn" type="button" data-mx-del-search="' + i + '">Remove<span class="visually-hidden"> saved search</span></button></li>';
+          '<button class="link-btn link-btn--danger" type="button" data-mx-del-search="' + i + '">Remove<span class="visually-hidden"> saved search</span></button></li>';
       }).join('') + '</ul>' : '<p>No saved searches. Search, then choose "Save this search".</p>') + '</section></div>', 'Alerts');
   };
 
@@ -327,7 +327,7 @@
       var cod = codMethod(), why = codBlock(ctx.total);
       if (cod && ctx.payChoice() === cod.name && why) {
         e.preventDefault(); e.stopImmediatePropagation();
-        Z().toast(esc(why) + ' Please choose another way to pay.');
+        Z().toast(esc(why) + ' Please choose another way to pay.', 'error');
         return;
       }
       // Keep the plan and pickup point with the order record main.js saves
@@ -423,12 +423,12 @@
       t.members.map(function (m) {
         return '<li class="order-row"><span><strong>' + esc(m.email) + '</strong><br><span class="pmeta">' + esc(roleName(m.role)) + '</span></span><span class="btn-row">' +
           '<label class="visually-hidden" for="tm-role-' + esc(m.id) + '">Role for ' + esc(m.email) + '</label><select id="tm-role-' + esc(m.id) + '" data-mx-team-role="' + esc(s.id) + '|' + esc(m.id) + '">' + roleOptions(m.role) + '</select>' +
-          '<button class="btn btn--secondary btn--sm" type="button" data-mx-team-remove="' + esc(s.id) + '|' + esc(m.id) + '">Remove<span class="visually-hidden"> ' + esc(m.email) + '</span></button></span></li>';
+          '<button class="btn btn--secondary btn--sm btn--danger" type="button" data-mx-team-remove="' + esc(s.id) + '|' + esc(m.id) + '">Remove<span class="visually-hidden"> ' + esc(m.email) + '</span></button></span></li>';
       }).join('') +
       t.invites.map(function (i) {
         return '<li class="order-row"><span><strong>' + esc(i.email) + '</strong> · invited<br><span class="pmeta">' + esc(roleName(i.role)) + ' · expires ' + Z().niceDate(i.expires) + '</span></span><span class="btn-row">' +
           '<button class="btn btn--secondary btn--sm" type="button" data-mx-team-accept="' + esc(s.id) + '|' + esc(i.id) + '">Mark accepted<span class="visually-hidden"> for ' + esc(i.email) + '</span></button>' +
-          '<button class="btn btn--secondary btn--sm" type="button" data-mx-team-cancel="' + esc(s.id) + '|' + esc(i.id) + '">Cancel<span class="visually-hidden"> invitation for ' + esc(i.email) + '</span></button></span></li>';
+          '<button class="btn btn--secondary btn--sm btn--danger" type="button" data-mx-team-cancel="' + esc(s.id) + '|' + esc(i.id) + '">Cancel<span class="visually-hidden"> invitation for ' + esc(i.email) + '</span></button></span></li>';
       }).join('') + '</ul>' +
       '<form class="form" data-mx-team-invite="' + esc(s.id) + '"><h3 class="h3">Invite someone</h3><div class="field-row">' +
         '<div class="field"><label for="tm-email">Email</label><input id="tm-email" type="email" required maxlength="254" autocomplete="off"></div>' +
@@ -450,7 +450,7 @@
     if (!open && 1 + t.members.length + t.invites.length >= TEAM_LIMIT) return fail('A store can have up to ' + TEAM_LIMIT + ' people, counting open invitations.');
     var expires = new Date(Date.now() + 7 * 864e5).toISOString().slice(0, 10);
     if (open) { open.role = role; open.expires = expires; } else t.invites.push({ id: Z().newRef('T'), email: email, role: role, expires: expires });
-    saveTeam(id, t); Z().toast('Invitation saved for ' + esc(email) + '.'); Z().route();
+    saveTeam(id, t); Z().toast('Invitation saved for ' + esc(email) + '.', 'success'); Z().route();
   });
   document.addEventListener('click', function (e) {
     var b = e.target.closest('[data-mx-team-accept], [data-mx-team-cancel], [data-mx-team-remove]');
@@ -518,16 +518,16 @@
     var body = '';
     if (tab === 'listings') body = queue.length ? '<ul class="orders">' + queue.map(function (p) {
       return '<li class="order-row"><span><a href="#/product/' + esc(p.id) + '"><strong>' + esc(p.title) + '</strong></a><br><span class="pmeta">' + esc(p.id) + ' · ' + esc((Zs.seller(p.seller) || {}).name || p.seller) + ' · ' + kw(p.priceZMW) + ' · ' + esc(Zs.dept(p.category).name) + '</span></span>' +
-        '<span class="btn-row"><button class="btn btn--primary btn--sm" type="button" data-mx-mod="approve|' + esc(p.id) + '">Approve</button><button class="btn btn--secondary btn--sm" type="button" data-mx-mod="reject|' + esc(p.id) + '">Reject</button></span></li>';
+        '<span class="btn-row"><button class="btn btn--primary btn--sm" type="button" data-mx-mod="approve|' + esc(p.id) + '">Approve</button><button class="btn btn--secondary btn--sm btn--danger" type="button" data-mx-mod="reject|' + esc(p.id) + '">Reject</button></span></li>';
     }).join('') + '</ul>' : '<p>Nothing waiting. New and changed listings from sellers appear here, including anything that may break the rules on what can\'t be sold.</p>';
     if (tab === 'complaints') body = cx.length ? '<ul class="orders">' + cx.map(function (c, i) {
-      return '<li class="order-row"><span><strong>' + esc(c.ref) + '</strong> <span class="status">' + esc(c.status || 'sent') + '</span><br><span class="pmeta">' + esc((c.details || '').slice(0, 140)) + '</span></span>' +
+      return '<li class="order-row"><span><strong>' + esc(c.ref) + '</strong> <span class="' + Z().statusClass(c.status || 'sent') + '">' + esc(c.status || 'sent') + '</span><br><span class="pmeta">' + esc((c.details || '').slice(0, 140)) + '</span></span>' +
         '<label class="visually-hidden" for="cx-' + i + '">Status for ' + esc(c.ref) + '</label><select id="cx-' + i + '" data-mx-cx="' + esc(c.ref) + '">' + ['sent', 'review', 'seller', 'resolved', 'closed'].map(function (st) {
           return '<option' + ((c.status || 'sent') === st ? ' selected' : '') + '>' + st + '</option>'; }).join('') + '</select></li>';
     }).join('') + '</ul>' : '<p>No complaints.</p>';
     if (tab === 'orders') body = ords.length ? '<ul class="orders">' + ords.map(function (o) {
       return '<li class="order-row"><span><a href="#/order/' + esc(o.ref) + '"><strong>' + esc(o.ref) + '</strong></a><br><span class="pmeta">' + Zs.niceDate(o.date) + ' · ' + kw(o.total || 0) + (o.cancel ? ' · cancellation ' + esc(o.cancel.status) : '') + '</span></span>' +
-        (o.status < 4 && !o.cancel ? '<button class="btn btn--secondary btn--sm" type="button" data-mx-step="' + esc(o.ref) + '">Move to: ' + ['Confirmed', 'Packed', 'Out for delivery', 'Delivered'][o.status] + '</button>' : '<span class="status">' + (o.cancel ? 'cancel ' + esc(o.cancel.status) : 'delivered') + '</span>') + '</li>';
+        (o.status < 4 && !o.cancel ? '<button class="btn btn--secondary btn--sm" type="button" data-mx-step="' + esc(o.ref) + '">Move to: ' + ['Confirmed', 'Packed', 'Out for delivery', 'Delivered'][o.status] + '</button>' : '<span class="' + Z().statusClass(o.cancel ? 'cancel ' + o.cancel.status : 'delivered') + '">' + (o.cancel ? 'cancel ' + esc(o.cancel.status) : 'delivered') + '</span>') + '</li>';
     }).join('') + '</ul>' : '<p>No orders on this device.</p>';
     if (tab === 'sellers') body = '<ul class="orders">' + Zs.D.sellers.map(function (s) {
       return '<li class="order-row"><span><strong>' + esc(s.name) + '</strong><br><span class="pmeta">' + esc(s.city || '') + (s.verified ? ' · verified' : ' · not verified') + '</span></span>' +
@@ -560,7 +560,7 @@
     }
     if ((el = e.target.closest('[data-mx-save-search]'))) {
       if (!signedIn()) return needSignIn('save searches');
-      var list = searches(); if (list.length >= 20) return Z().toast('You can save up to 20 searches.');
+      var list = searches(); if (list.length >= 20) return Z().toast('You can save up to 20 searches.', 'warn');
       var q = el.getAttribute('data-mx-save-search'), d = el.getAttribute('data-dept');
       list.push({ q: q, dept: d, ids: searchIds(q, d), date: Z().today }); set('searches', list);
       Z().toast('Search saved. <a href="#/alerts">Your saved searches</a>'); Z().route(); return;
@@ -609,7 +609,7 @@
         photosLoading = false;
         pendingPhotos = out.filter(Boolean);
         if (box) { box.removeAttribute('aria-busy'); box.innerHTML = pendingPhotos.map(function (src, i) { return '<img src="' + src + '" alt="Your photo ' + (i + 1) + '" width="72" height="72">'; }).join(''); }
-        if (out.length !== pendingPhotos.length) Z().toast('Some photos couldn\'t be added. Use JPEG, PNG or WebP.');
+        if (out.length !== pendingPhotos.length) Z().toast('Some photos couldn\'t be added. Use JPEG, PNG or WebP.', 'warn');
       });
     } else if (el.matches('[data-mx-csv]')) {
       var file = el.files && el.files[0], outBox = document.getElementById('sc-csv-out');
@@ -636,10 +636,10 @@
     } else if (f.matches('[data-mx-ask]')) {
       e.preventDefault();
       var q = Z().cleanText(f.querySelector('input').value, 300);
-      if (q.length < 10) { Z().toast('Write your question in a few more words.'); return; }
+      if (q.length < 10) { Z().toast('Write your question in a few more words.', 'warn'); return; }
       var all = get('questions', {}), id = f.getAttribute('data-mx-ask');
       all[id] = (all[id] || []).concat([{ q: q, a: '', date: Z().today, mine: true }]); set('questions', all);
-      Z().toast('Question sent to the seller.'); Z().route();
+      Z().toast('Question sent to the seller.', 'success'); Z().route();
     } else if (f.matches('[data-mx-answer]')) {
       e.preventDefault();
       var parts = f.getAttribute('data-mx-answer').split('|'), pid = parts[0], text = parts.slice(1).join('|');
@@ -648,7 +648,7 @@
       var mineQ = (store[pid] || []).filter(function (x) { return x.q === text; })[0];
       if (mineQ) mineQ.a = ans;
       else if (p) { (p.questions || []).forEach(function (x) { if (x.q === text) x.a = ans; }); store[pid] = (store[pid] || []).concat((p.questions || []).filter(function (x) { return x.q === text; })); p.questions = (p.questions || []).filter(function (x) { return x.q !== text; }); }
-      set('questions', store); Z().toast('Answer published.'); Z().route();
+      set('questions', store); Z().toast('Answer published.', 'success'); Z().route();
     }
   });
 

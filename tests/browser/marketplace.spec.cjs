@@ -126,3 +126,34 @@ test('a seller builds a team with roles in the Seller Centre preview', async ({ 
   expect(results).toEqual([]);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
 });
+
+test('icon buttons name themselves on hover and focus, and colours match their meaning', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto('/index.html?demo=1&theme=off');
+  const tip = page.locator('.tip');
+  await page.locator('a.hact[aria-label^="Wishlist"]').hover();
+  await expect(tip).toHaveText('Wishlist, 0 items');
+  await expect(tip).toHaveAttribute('aria-hidden', 'true');
+  await page.keyboard.press('Escape');
+  await expect(tip).toBeHidden();
+  await page.locator('.like').first().hover();
+  await expect(tip).toHaveText('Save to wishlist');
+  await page.locator('.ptitle').first().hover();
+  await expect(tip).toBeHidden();
+  // No hint ever shows code
+  expect(await page.evaluate(() => [...document.querySelectorAll('[title],[aria-label]')].map(e => (e.getAttribute('title') || '') + (e.getAttribute('aria-label') || '')).filter(t => /function|=>|\[object|undefined/.test(t)))).toEqual([]);
+  expect(await page.evaluate(() => ['Delivered', 'Out for delivery', 'Cancellation requested', 'Not approved', 'cancel approved', 'cancel declined', 'Withdrawn', 'live', 'ended'].map(ZS.statusClass)))
+    .toEqual(['status status--ok', 'status status--wait', 'status status--wait', 'status status--bad', 'status status--bad', 'status', 'status', 'status status--ok', 'status']);
+  await page.evaluate(() => window.ZS.toast('That variation does not have enough stock.', 'error'));
+  await expect(page.locator('#toast')).toHaveClass(/toast--error/);
+  await expect(page.locator('#toast')).toHaveAttribute('aria-live', 'assertive');
+  await page.evaluate(() => window.ZS.toast('Signed out'));
+  await expect(page.locator('#toast')).toHaveClass('toast is-on');
+  await expect(page.locator('#toast')).toHaveAttribute('aria-live', 'polite');
+  await page.locator('.ptitle').first().click();
+  await page.getByRole('button', { name: 'Add to cart', exact: true }).first().click();
+  await expect(page.locator('#toast')).toHaveClass(/toast--success/);
+  await page.goto('/index.html?demo=1&theme=off#/cart');
+  await expect(page.locator('[data-remove]').first()).toHaveClass(/link-btn--danger/);
+  expect(['rgb(164, 22, 26)', 'rgb(255, 154, 165)']).toContain(await page.locator('[data-remove]').first().evaluate(el => getComputedStyle(el).color));
+});

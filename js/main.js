@@ -470,12 +470,12 @@
   function lineKey(l) { return l.id + (l.opt ? '|' + JSON.stringify(l.opt) : ''); }
   function addToCart(id, qty, opt) {
     var p = product(id), v = p ? variantOf(p, opt) : null;
-    if (!p || !Number.isInteger(qty) || qty < 1 || qty > 99) { toast('Choose a whole quantity from 1 to 99.'); return false; }
+    if (!p || !Number.isInteger(qty) || qty < 1 || qty > 99) { toast('Choose a whole quantity from 1 to 99.', 'warn'); return false; }
     if (p._server && p._server.stock_qty !== null && !ZP.hasOptions(p) && qty + cart().filter(function (l) { return l.id === id; }).reduce(function (n, l) { return n + l.qty; }, 0) > p._server.stock_qty) { toast('This item does not have enough stock for that quantity.'); return false; }
     if (ZP.hasOptions(p)) {
       var already = cart().filter(function (l) { var cv = l.id === id ? variantOf(p, l.opt) : null; return cv && v && cv.sku === v.sku; })
         .reduce(function (sum, l) { return sum + l.qty; }, 0);
-      if (!v || qty + already > v.stock) { toast('That variation does not have enough stock for your cart.'); return false; }
+      if (!v || qty + already > v.stock) { toast('That variation does not have enough stock for your cart.', 'error'); return false; }
     }
     var c = cart(), line = null, key = lineKey({ id: id, opt: opt });
     for (var i = 0; i < c.length; i++) if (lineKey(c[i]) === key) line = c[i];
@@ -599,7 +599,7 @@
   function useGps(status, after) {
     if (status) { status.className = 'pmeta'; status.textContent = 'Finding your nearest town…'; }
     locateMe(function (r) {
-      if (r.error) { if (status) { status.className = 'form-status is-error'; status.textContent = r.error; } else toast(esc(r.error)); return; }
+      if (r.error) { if (status) { status.className = 'form-status is-error'; status.textContent = r.error; } else toast(esc(r.error), 'error'); return; }
       saveLoc({ town: r.town, area: loc && loc.town === r.town ? loc.area : '', landmark: loc && loc.town === r.town ? loc.landmark : '', province: r.province, mode: loc ? loc.mode : 'delivery', via: 'gps', remember: loc ? loc.remember : false });
       if (status) { status.className = 'form-status'; status.textContent = 'Found: ' + r.town + ', ' + provinceName(r.province) + ' Province. Add your area below so the rider can find you.'; }
       if (after) after(r);
@@ -890,13 +890,61 @@
 
   /* ---------- Toast ---------- */
   var toastEl = $('#toast'), toastTimer;
-  function toast(html) {
+  // tone: 'success' (green tick), 'warn' (amber) or 'error' (red); without one it is plain news
+  function toast(html, tone) {
     if (!toastEl) return;
+    toastEl.className = 'toast' + (tone ? ' toast--' + tone : '');
+    toastEl.setAttribute('aria-live', tone === 'error' ? 'assertive' : 'polite');
     toastEl.innerHTML = html;
     toastEl.classList.add('is-on');
     clearTimeout(toastTimer);
     toastTimer = setTimeout(function () { toastEl.classList.remove('is-on'); }, 3200);
   }
+
+  /* ---------- Hover hints for buttons that show only an icon ----------
+     Such a button already names itself to screen readers; mouse and keyboard users see the same
+     name in a small hint (hidden from screen readers, so it isn't read twice). The hint stays while
+     the pointer is over it, Escape closes it, and touch screens don't get one. */
+  var tipEl = document.createElement('div'), tipFor = null, tipTimer;
+  tipEl.className = 'tip'; tipEl.hidden = true; tipEl.setAttribute('aria-hidden', 'true');
+  document.body.appendChild(tipEl);
+  function tipText(el) {
+    if (el.hasAttribute('title') || el.closest('.pmedia, [data-no-tip]')) return '';
+    if ((el.innerText || '').replace(/\s+/g, ' ').trim().length > 1) return '';   // it has words already
+    if (el.matches('[data-like]')) return el.getAttribute('aria-pressed') === 'true' ? 'Remove from wishlist' : 'Save to wishlist';
+    var hidden = el.querySelector('.visually-hidden');
+    return (el.getAttribute('data-tip') || el.getAttribute('aria-label') || (hidden ? hidden.textContent : '')).replace(/\s+/g, ' ').trim();
+  }
+  function showTip(el) {
+    var text = tipText(el);
+    if (!text) { hideTip(); return; }
+    tipFor = el; tipEl.textContent = text; tipEl.hidden = false;
+    var r = el.getBoundingClientRect(), t = tipEl.getBoundingClientRect(), gap = 8;
+    var top = r.top - t.height - gap < 4 ? r.bottom + gap : r.top - t.height - gap;
+    tipEl.style.top = Math.round(top) + 'px';
+    tipEl.style.left = Math.round(Math.max(8, Math.min(window.innerWidth - t.width - 8, r.left + r.width / 2 - t.width / 2))) + 'px';
+  }
+  function hideTip() { clearTimeout(tipTimer); tipFor = null; tipEl.hidden = true; }
+  var TIP_TARGETS = 'a, button, summary, [role="button"]';
+  document.addEventListener('pointerover', function (e) {
+    if (e.pointerType === 'touch' || e.target === tipEl) { if (e.target === tipEl) clearTimeout(tipTimer); return; }
+    var el = e.target.closest(TIP_TARGETS);
+    if (!el || el === tipFor) return;
+    clearTimeout(tipTimer); tipTimer = setTimeout(function () { showTip(el); }, 350);
+  });
+  document.addEventListener('pointerout', function (e) {
+    var to = e.relatedTarget;
+    if (to && (to === tipEl || (tipFor && tipFor.contains(to)) || (e.target.closest(TIP_TARGETS) && e.target.closest(TIP_TARGETS).contains(to)))) return;
+    clearTimeout(tipTimer); tipTimer = setTimeout(hideTip, 120);
+  });
+  document.addEventListener('focusin', function (e) {
+    var el = e.target.closest && e.target.closest(TIP_TARGETS);
+    if (el && el.matches(':focus-visible')) { clearTimeout(tipTimer); showTip(el); } else hideTip();
+  });
+  document.addEventListener('focusout', hideTip);
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !tipEl.hidden) hideTip(); });
+  document.addEventListener('click', hideTip, true);
+  window.addEventListener('scroll', function () { if (!tipEl.hidden) hideTip(); }, { passive: true });
 
   // Save to localStorage and report whether it actually fitted (images can exceed the quota)
   function trySave(k, v) {
@@ -1005,6 +1053,24 @@
   var COMPLAINT_WANTS = [['refund', 'A refund'], ['replace', 'A replacement'], ['repair', 'A repair'], ['return', 'To return it'], ['fix', 'The seller to put it right'], ['inform', 'Just to let you know']];
   function complaintsOn() { return !!(OPTS.complaints && OPTS.complaints.enabled); }
   function complaints() { return store.get('complaints', []); }
+  // Status colours: green when done, amber while waiting on someone, red when stopped or refused.
+  // The words carry the meaning too, so colour is never the only signal.
+  function statusClass(text) {
+    var t = String(text || '').toLowerCase().trim();
+    var tone = /^(withdrawn|ended|closed|cancel declined)$/.test(t) ? ''
+      : /cancelled|cancel approved|not approved|rejected|failed|declined|refused/.test(t) ? 'bad'
+      : /^(delivered|approved|resolved|live|paid|collected|accepted|completed)$/.test(t) ? 'ok' : 'wait';
+    return 'status' + (tone ? ' status--' + tone : '');
+  }
+  // Status colours: green when done, amber while waiting on someone, red when stopped or refused.
+  // The words carry the meaning too, so colour is never the only signal.
+  function statusClass(text) {
+    var t = String(text || '').toLowerCase().trim();
+    var tone = /^(withdrawn|ended|closed|cancel declined)$/.test(t) ? ''
+      : /cancelled|cancel approved|not approved|rejected|failed|declined|refused/.test(t) ? 'bad'
+      : /^(delivered|approved|resolved|live|paid|collected|accepted|completed)$/.test(t) ? 'ok' : 'wait';
+    return 'status' + (tone ? ' status--' + tone : '');
+  }
   var COMPLAINT_STATUS = { sent: 'Sent on WhatsApp', review: 'Being looked into', seller: 'Waiting for the seller', resolved: 'Resolved', closed: 'Closed' };
 
   /* ---------- Courier options (js/couriers.js) ----------
@@ -1299,7 +1365,7 @@
       var id = add.getAttribute('data-add'), qtyEl = add.getAttribute('data-qty-from') ? $(add.getAttribute('data-qty-from')) : null;
       var p = product(id);
       if (!addToCart(id, qtyEl ? Math.max(1, parseInt(qtyEl.value, 10) || 1) : 1)) return;
-      toast('Added to cart: ' + esc(p ? p.title : '') + ' <a href="' + R + 'cart">View cart</a>');
+      toast('Added to cart: ' + esc(p ? p.title : '') + ' <a href="' + R + 'cart">View cart</a>', 'success');
       return;
     }
     var like = e.target.closest('[data-like]');
@@ -1347,7 +1413,7 @@
   var CARD_WARNING = 'For your security, please remove the card number. Zed Supply never asks for card details on this website, by email or on WhatsApp.';
   function cardWarning(form) {
     var st = form && $('.form-status', form);
-    if (st) { st.className = 'form-status is-error'; st.textContent = CARD_WARNING; st.focus(); } else toast(esc(CARD_WARNING));
+    if (st) { st.className = 'form-status is-error'; st.textContent = CARD_WARNING; st.focus(); } else toast(esc(CARD_WARNING), 'error');
   }
   function formHasCard(form) {
     return $$('input:not([type=hidden]):not([type=checkbox]):not([type=file]), textarea', form).some(function (f) { return hasCardNumber(f.value); });
@@ -1712,7 +1778,7 @@
       row('Seller', function (p) { var s = seller(p.seller); return s ? '<a href="' + R + 'store/' + esc(s.id) + '">' + esc(s.name) + '</a>' + verifiedHTML(s) : '–'; }) +
       row('Brand', function (p) { var b = brand(p.brand); return b ? '<a href="' + R + 'brand/' + esc(b.id) + '">' + esc(b.name) + '</a>' : '–'; }) +
       row('Availability', function (p) { return stockHTML(p); }) +
-      row('', function (p) { return (ZP.hasOptions(p) ? '<a class="btn btn--primary btn--sm" href="' + R + 'product/' + esc(p.id) + '">Choose options<span class="visually-hidden">: ' + esc(p.title) + '</span></a>' : '<button class="btn btn--primary btn--sm" type="button" data-add="' + esc(p.id) + '">Add to cart<span class="visually-hidden">: ' + esc(p.title) + '</span></button>') + (removable ? ' <button class="link-btn" type="button" data-compare-remove="' + esc(p.id) + '">Remove<span class="visually-hidden"> ' + esc(p.title) + '</span></button>' : ''); }) +
+      row('', function (p) { return (ZP.hasOptions(p) ? '<a class="btn btn--primary btn--sm" href="' + R + 'product/' + esc(p.id) + '">Choose options<span class="visually-hidden">: ' + esc(p.title) + '</span></a>' : '<button class="btn btn--primary btn--sm" type="button" data-add="' + esc(p.id) + '">Add to cart<span class="visually-hidden">: ' + esc(p.title) + '</span></button>') + (removable ? ' <button class="link-btn link-btn--danger" type="button" data-compare-remove="' + esc(p.id) + '">Remove<span class="visually-hidden"> ' + esc(p.title) + '</span></button>' : ''); }) +
       '</tbody></table></div>';
   }
   // Buy box: the same item from other sellers, cheapest first
@@ -2190,7 +2256,7 @@
       var fromList = !q.get('ids');
       show(crumbs([['Compare']]) + head('Compare products', fromList ? 'Your compare list: up to ' + COMPARE_MAX + ' products, side by side.' : 'The same or similar products from different sellers, side by side.') +
         (list.length > 1 ? compareTable(list, fromList) : empty('Add two or more products to compare. Open a product and choose "Add to compare".', '<a class="btn btn--primary" href="#/deals">Browse deals</a>')) +
-        (list.length && fromList ? '<p class="view-foot"><button class="link-btn" type="button" id="cmp-clear">Clear compare list</button></p>' : ''), 'Compare');
+        (list.length && fromList ? '<p class="view-foot"><button class="link-btn link-btn--danger" type="button" id="cmp-clear">Clear compare list</button></p>' : ''), 'Compare');
       view.onclick = function (e) {
         var rm = e.target.closest('[data-compare-remove]');
         if (rm) { toggleCompare(rm.getAttribute('data-compare-remove')); route(); }
@@ -2351,7 +2417,7 @@
         if (!cur.ok) return;
         var o = cur.opt, hasAny = Object.keys(o).length;
         if (!addToCart(p.id, cur.n, hasAny ? o : undefined)) return;
-        toast('Added to cart: ' + esc(p.title) + (hasAny ? ' (' + esc(ZP.describe(p, o)) + ')' : '') + ' <a href="#/cart">View cart</a>');
+        toast('Added to cart: ' + esc(p.title) + (hasAny ? ' (' + esc(ZP.describe(p, o)) + ')' : '') + ' <a href="#/cart">View cart</a>', 'success');
       });
       buy.addEventListener('click', function (e) { if (!cur.ok) e.preventDefault(); });
       view.onclick = function (e) {
@@ -2394,7 +2460,7 @@
         var photos = ext('reviewPhotos', rf);
         all[p.id].push({ name: u.name, rating: Number(picked.value), date: today, title: headline, text: $('#rev-text').value.trim(), mine: true, verified: false, photos: photos || (mine && mine.photos) || [] });
         if (!saveStored('reviews', all)) { st.className = 'form-status is-error'; st.textContent = 'Your review could not be saved on this device. Try fewer photos or allow browser storage, then submit again.'; return; }
-        toast(mine ? 'Your review has been updated' : 'Thanks for your review');
+        toast(mine ? 'Your review has been updated' : 'Thanks for your review', 'success');
         route();
       });
       if (q && q.get('review') && rf) setTimeout(function () { $('#reviews').scrollIntoView(); var first = $('input[name="rev-rating"]', rf); if (first) first.focus({ preventScroll: true }); }, 50);
@@ -2443,7 +2509,7 @@
           '<p class="line__price">' + kwacha(it.each * it.qty) + (it.qty > 1 ? ' <small class="pmeta">(' + kwacha(it.each) + ' each)</small>' : '') + '</p>' +
           '<div class="line__actions"><div class="qty"><button type="button" data-step="-1" data-target="#cq' + i + '" aria-label="Decrease quantity of ' + esc(it.p.title) + '">−</button>' +
           '<input id="cq' + i + '" type="number" min="1" max="99" value="' + it.qty + '" data-cart-qty="' + esc(it.key) + '" aria-label="Quantity of ' + esc(it.p.title) + '"><button type="button" data-step="1" data-target="#cq' + i + '" aria-label="Increase quantity of ' + esc(it.p.title) + '">+</button></div>' +
-          '<button class="link-btn" type="button" data-remove="' + esc(it.key) + '">Remove<span class="visually-hidden"> ' + esc(it.p.title) + '</span></button><button class="link-btn" type="button" data-save="' + esc(it.key) + '">Save for later<span class="visually-hidden">: ' + esc(it.p.title) + '</span></button></div>' +
+          '<button class="link-btn link-btn--danger" type="button" data-remove="' + esc(it.key) + '">Remove<span class="visually-hidden"> ' + esc(it.p.title) + '</span></button><button class="link-btn" type="button" data-save="' + esc(it.key) + '">Save for later<span class="visually-hidden">: ' + esc(it.p.title) + '</span></button></div>' +
         '</div></li>';
       };
       var step = function (n, title, body) { return '<section class="co-step" aria-labelledby="co-step-' + n + '"><h3 id="co-step-' + n + '"><span class="co-step__n" aria-hidden="true">' + n + '</span>' + title + '</h3>' + body + '</section>'; };
@@ -2496,7 +2562,7 @@
             '<div id="server-checkout-review" aria-live="polite"></div>' +
             '<p class="pmeta">Your order reaches us when you press Send in WhatsApp. We confirm the final price and delivery fee there, then send payment instructions. We never ask for your PIN.</p>' +
             '<p class="pmeta">By sending your order you agree to our <a href="privacy.html">privacy policy</a> and <a href="help.html#returns">returns and buyer protection</a>.</p>') +
-          '<button class="link-btn" type="button" id="clear-cart">Empty cart</button>' +
+          '<button class="link-btn link-btn--danger" type="button" id="clear-cart">Empty cart</button>' +
         '</aside></div>';
       show(html, 'Cart');
 
@@ -2576,10 +2642,10 @@
         if (!loc) { openLocation(); return; }
         var list = addresses(), max = (OPTS.addresses && OPTS.addresses.max) || 10;
         if (list.some(function (a) { return a.town === loc.town && a.area === loc.area && a.landmark === loc.landmark; })) { toast('That address is already saved. <a href="#/addresses">Manage addresses</a>'); return; }
-        if (list.length >= max) { toast('You have ' + max + ' saved addresses. Remove one first. <a href="#/addresses">Manage addresses</a>'); return; }
+        if (list.length >= max) { toast('You have ' + max + ' saved addresses. Remove one first. <a href="#/addresses">Manage addresses</a>', 'warn'); return; }
         list.push({ id: newRef('A'), label: list.length ? 'Address ' + (list.length + 1) : 'Home', recipient: $('#co-name').value.trim(), phone: '', town: loc.town, area: loc.area, landmark: loc.landmark, instructions: '', isDefault: !list.length });
         store.set('addresses', list);
-        toast('Address saved. <a href="#/addresses">Name or edit it</a>');
+        toast('Address saved. <a href="#/addresses">Name or edit it</a>', 'success');
       });
       $$('input[name="co-pay"]', view).forEach(function (r) { r.addEventListener('change', function () { payChoice = r.value; syncCo(); }); });
       // Delivery: changing "where is it going?" redraws the courier list for that distance
@@ -2611,8 +2677,8 @@
           reserved[key] = (reserved[key] || 0) + it.qty;
           return reserved[key] > current.stock;
         });
-        if (unavailable) { e.preventDefault(); toast('A variation is unavailable or its quantity exceeds stock. Update your cart before checkout.'); return; }
-        if (hasCardNumber($('#co-name').value + ' ' + $('#co-note').value + ' ' + gift().message)) { e.preventDefault(); toast(esc(CARD_WARNING)); $('#co-note').focus(); return; }
+        if (unavailable) { e.preventDefault(); toast('A variation is unavailable or its quantity exceeds stock. Update your cart before checkout.', 'error'); return; }
+        if (hasCardNumber($('#co-name').value + ' ' + $('#co-note').value + ' ' + gift().message)) { e.preventDefault(); toast(esc(CARD_WARNING), 'error'); $('#co-note').focus(); return; }
         // Like an address on Amazon: a name and a delivery location are needed before the order goes
         var nameEl = $('#co-name'), nameErr = $('#co-name-err'), locErr = $('#co-loc-err');
         // A location is needed to deliver; collecting needs only a name
@@ -2673,7 +2739,7 @@
         $('#signin').addEventListener('submit', function (e) {
           e.preventDefault();
           store.set('user', { name: $('#su-name').value.trim(), phone: $('#su-phone').value.trim(), email: $('#su-email').value.trim() });
-          updateCounts(); toast('Signed in'); route();
+          updateCounts(); toast('Signed in', 'success'); route();
         });
         return;
       }
@@ -2712,7 +2778,7 @@
       $('#acct').addEventListener('submit', function (e) {
         e.preventDefault();
         store.set('user', { name: $('#ac-name').value.trim(), phone: $('#ac-phone').value.trim(), email: $('#ac-email').value.trim() });
-        updateCounts(); toast('Details saved');
+        updateCounts(); toast('Details saved', 'success');
       });
     },
 
@@ -2727,7 +2793,7 @@
         (toRate.length ? '<section class="card rate-prompt" aria-labelledby="rate-title"><h2 id="rate-title">Rate your purchases</h2><p class="pmeta">Share your experience to help other buyers. Reviews are saved on this device.</p><ul class="rate-list">' +
           toRate.slice(0, 6).map(function (p) { return '<li><span>' + esc(p.title) + '</span><a class="btn btn--secondary btn--sm" href="#/product/' + encodeURIComponent(p.id) + '?review=1">Rate<span class="visually-hidden"> ' + esc(p.title) + '</span></a></li>'; }).join('') + '</ul></section>' : '') +
         (list.length ? '<ul class="orders">' + list.map(function (o) {
-          return '<li><a class="order-row" href="#/order/' + encodeURIComponent(o.ref) + '"><span><strong>' + esc(o.ref) + '</strong><br><span class="pmeta">' + niceDate(o.date) + ' · ' + o.items.length + (o.items.length === 1 ? ' product' : ' products') + '</span></span><span><span class="status">' + (o.cancel ? 'Cancellation requested' : STATUS[o.status]) + '</span><br><strong>' + kwacha(o.total) + '</strong></span></a></li>';
+          return '<li><a class="order-row" href="#/order/' + encodeURIComponent(o.ref) + '"><span><strong>' + esc(o.ref) + '</strong><br><span class="pmeta">' + niceDate(o.date) + ' · ' + o.items.length + (o.items.length === 1 ? ' product' : ' products') + '</span></span><span><span class="' + statusClass(o.cancel ? 'Cancellation requested' : o.status >= 4 ? 'delivered' : STATUS[o.status]) + '">' + (o.cancel ? 'Cancellation requested' : STATUS[o.status]) + '</span><br><strong>' + kwacha(o.total) + '</strong></span></a></li>';
         }).join('') + '</ul>' : empty('No orders yet. When you check out on WhatsApp, your order appears here.', '<a class="btn btn--primary" href="#/deals">Start shopping</a>')) +
         '<p class="view-foot"><a href="#/track">Track an order by number</a></p>', 'Orders');
     },
@@ -2806,7 +2872,7 @@
               (x.instructions ? '<br><span class="pmeta">' + esc(x.instructions) + '</span>' : '') + '</span>' +
               '<span class="btn-row"><button class="link-btn" type="button" data-use-address="' + esc(x.id) + '">Deliver here</button><a class="link-btn" href="#/addresses?edit=' + encodeURIComponent(x.id) + '">Edit<span class="visually-hidden"> ' + esc(x.label) + '</span></a>' +
               (x.isDefault ? '' : '<button class="link-btn" type="button" data-default-address="' + esc(x.id) + '">Make default</button>') +
-              '<button class="link-btn" type="button" data-del-address="' + esc(x.id) + '">Remove<span class="visually-hidden"> ' + esc(x.label) + '</span></button></span></li>';
+              '<button class="link-btn link-btn--danger" type="button" data-del-address="' + esc(x.id) + '">Remove<span class="visually-hidden"> ' + esc(x.label) + '</span></button></span></li>';
           }).join('') + '</ul>' : '<p>No saved addresses yet.</p>') + '</section>' +
         '<form class="form form--card" id="ad-form" novalidate><h2>' + (editing ? 'Edit ' + esc(editing.label) : 'Add an address') + '</h2>' +
           f('label', 'Name for this address *', '<input id="ad-label" list="ad-labels" maxlength="30" required value="' + esc(a.label) + '"><datalist id="ad-labels"><option value="Home"><option value="Work"><option value="Shop"><option value="Family"></datalist>', 'For example Home, Work or Mum\'s house.') +
@@ -2832,7 +2898,7 @@
         next.push(rec);
         if (!next.some(function (x) { return x.isDefault; })) next[0].isDefault = true;
         store.set('addresses', next);
-        toast(editing ? 'Address updated' : 'Address saved');
+        toast(editing ? 'Address updated' : 'Address saved', 'success');
         location.hash = '#/addresses';
         if (!editing) route();
       });
@@ -2907,7 +2973,7 @@
         (list.length ? '<ul class="orders">' + list.map(function (c) {
           var t = COMPLAINT_TYPES.filter(function (x) { return x[0] === c.type; })[0];
           return '<li class="order-row"><span><strong>' + esc(c.ref) + '</strong> · ' + esc(t ? t[1] : 'Complaint') + '<br><span class="pmeta">' + niceDate(c.date) + (c.order ? ' · order ' + esc(c.order) : '') + (c.sellerName ? ' · ' + esc(c.sellerName) : '') + '</span></span>' +
-            '<span><span class="status">' + esc(COMPLAINT_STATUS[c.status] || c.status) + '</span><br><a href="' + waUrl('Hi Zed Supply, I\'d like an update on my complaint ' + c.ref + '.') + '" target="_blank" rel="noopener noreferrer">Ask for an update<span class="visually-hidden"> on ' + esc(c.ref) + '</span></a></span></li>';
+            '<span><span class="' + statusClass(c.status) + '">' + esc(COMPLAINT_STATUS[c.status] || c.status) + '</span><br><a href="' + waUrl('Hi Zed Supply, I\'d like an update on my complaint ' + c.ref + '.') + '" target="_blank" rel="noopener noreferrer">Ask for an update<span class="visually-hidden"> on ' + esc(c.ref) + '</span></a></span></li>';
         }).join('') + '</ul>' : empty('No complaints. We hope it stays that way.', '<a class="btn btn--secondary" href="#/complaint">Make a complaint</a>')) +
         '<p class="pmeta">Prototype: the status here updates once complaints are handled through secure accounts. Until then, we keep you updated on WhatsApp.</p>', 'Complaints');
     },
@@ -2996,12 +3062,12 @@
           return '<section class="card sc-products" id="sc-complaints" aria-labelledby="sc-cp-title"><h2 id="sc-cp-title">Complaints about your store</h2>' +
             '<p class="pmeta">When a buyer complains, Zed Supply contacts you on WhatsApp with the reference. Reply within ' + days + ' working days with your side and how you\'ll put it right: a replacement, repair, refund or return, under the <a href="help.html#returns">returns policy</a>. Complaints that are upheld again and again can lead to your store being paused.</p>' +
             (OPTS.complaints && OPTS.complaints.sellerDashboard ? '' : '<p class="notice">You\'ll be able to read and answer complaints here once seller accounts move to our secure server.</p>') +
-            (mineC.length ? '<ul class="orders">' + mineC.map(function (c) { var t = COMPLAINT_TYPES.filter(function (x) { return x[0] === c.type; })[0]; return '<li class="order-row"><span><strong>' + esc(c.ref) + '</strong> · ' + esc(t ? t[1] : '') + '<br><span class="pmeta">' + niceDate(c.date) + (c.order ? ' · order ' + esc(c.order) : '') + ' · prototype, from this device</span></span><span class="status">' + esc(COMPLAINT_STATUS[c.status] || c.status) + '</span></li>'; }).join('') + '</ul>' : '') + '</section>';
+            (mineC.length ? '<ul class="orders">' + mineC.map(function (c) { var t = COMPLAINT_TYPES.filter(function (x) { return x[0] === c.type; })[0]; return '<li class="order-row"><span><strong>' + esc(c.ref) + '</strong> · ' + esc(t ? t[1] : '') + '<br><span class="pmeta">' + niceDate(c.date) + (c.order ? ' · order ' + esc(c.order) : '') + ' · prototype, from this device</span></span><span class="' + statusClass(c.status) + '">' + esc(COMPLAINT_STATUS[c.status] || c.status) + '</span></li>'; }).join('') + '</ul>' : '') + '</section>';
         })() : '') +
         ext('sellerSections', s, mine) +
         '<div class="duo duo--gap">' +
         '<section class="card" id="sc-promos" aria-labelledby="sc-p-title"><h2 id="sc-p-title">Your promotions</h2>' + (promos.length ? '<ul class="orders">' + promos.map(function (pr) {
-          return '<li class="order-row"><span><strong>' + esc(pr.title) + '</strong><br><span class="pmeta">' + esc(season(pr.season).name) + ' · ' + (Number(pr.discount) || 0) + '% off · ' + niceDate(pr.starts) + ' to ' + niceDate(pr.ends) + (pr.image ? ' · with banner image' : '') + '</span></span><span><span class="status">' + promoStatus(pr) + '</span>' + (pr.demo ? ' <button class="link-btn" type="button" data-del-promo="' + esc(pr.id) + '">Delete<span class="visually-hidden"> ' + esc(pr.title) + '</span></button>' : '') + '</span></li>';
+          return '<li class="order-row"><span><strong>' + esc(pr.title) + '</strong><br><span class="pmeta">' + esc(season(pr.season).name) + ' · ' + (Number(pr.discount) || 0) + '% off · ' + niceDate(pr.starts) + ' to ' + niceDate(pr.ends) + (pr.image ? ' · with banner image' : '') + '</span></span><span><span class="' + statusClass(promoStatus(pr)) + '">' + promoStatus(pr) + '</span>' + (pr.demo ? ' <button class="link-btn link-btn--danger" type="button" data-del-promo="' + esc(pr.id) + '">Delete<span class="visually-hidden"> ' + esc(pr.title) + '</span></button>' : '') + '</span></li>';
         }).join('') + '</ul>' : '<p>No promotions yet.</p>') + '</section>' +
         '<form class="form form--card" id="sc-new" aria-labelledby="sc-n-title"><h2 id="sc-n-title">Create a promotion</h2>' +
           '<p class="notice">Prototype: promotions you create appear across the store in this browser only.</p>' +
@@ -3021,7 +3087,7 @@
           (myDeals.length ? '<ul class="orders">' + myDeals.map(function (dl) {
             var dp = product(dl.product);
             return '<li class="order-row"><span><strong>' + esc(dp ? dp.title : dl.product) + '</strong><br><span class="pmeta">' + esc(DEAL_REASONS[dl.reason] || 'Deal') + ' · ' + kwacha(dl.price) + (dp ? ' (was ' + kwacha(dp.priceZMW) + ')' : '') + (dl.ends ? ' · until ' + niceDate(dl.ends) : ' · no end date') + '</span></span>' +
-              '<span><span class="status">' + (dl.ends && dl.ends < today ? 'ended' : 'live') + '</span> <button class="link-btn" type="button" data-del-deal="' + esc(dl.id) + '">Delete<span class="visually-hidden"> deal on ' + esc(dp ? dp.title : '') + '</span></button></span></li>';
+              '<span><span class="' + statusClass(dl.ends && dl.ends < today ? 'ended' : 'live') + '">' + (dl.ends && dl.ends < today ? 'ended' : 'live') + '</span> <button class="link-btn link-btn--danger" type="button" data-del-deal="' + esc(dl.id) + '">Delete<span class="visually-hidden"> deal on ' + esc(dp ? dp.title : '') + '</span></button></span></li>';
           }).join('') + '</ul>' : '<p>No deals yet.</p>') + '</section>' +
         '<form class="form form--card" id="sc-deal" aria-labelledby="sc-dn-title"><h2 id="sc-dn-title">Make a product a deal</h2>' +
           '<p class="notice">Prototype: deals you create appear across the store in this browser only.</p>' +
@@ -3067,7 +3133,7 @@
             store.set('promos', list);
             note = ' (without the image: this browser\'s storage is full)';
           }
-          toast('Promotion published' + note + ' <a href="#/promotions">View</a>');
+          toast('Promotion published' + note + ' <a href="#/promotions">View</a>', 'success');
           route();
         });
       });
@@ -3101,7 +3167,7 @@
             collection: { enabled: collect, address: cleanText($('#sl-caddr', locSeller).value, 120), hours: cleanText($('#sl-chours', locSeller).value, 60) },
             deliversTo: some ? provs : 'all' };
           store.set('seller-locations', all);
-          toast('Store location saved');
+          toast('Store location saved', 'success');
           route();
         });
       }
@@ -3115,7 +3181,7 @@
         var all = store.get('seller-couriers', {});
         all[s.id] = $$('input:checked', courierForm).map(function (c) { return c.value; });
         store.set('seller-couriers', all);
-        toast('Couriers saved');
+        toast('Couriers saved', 'success');
       });
       var dealForm = $('#sc-deal');
       if (dealForm && $('#dl-product')) dealForm.addEventListener('submit', function (e) {
@@ -3127,7 +3193,7 @@
         var list = store.get('deals', []).filter(function (x) { return !(x.seller === s.id && x.product === dp.id); });
         list.push({ id: newRef('D'), demo: true, seller: s.id, product: dp.id, price: price, reason: $('#dl-reason').value, starts: today, ends: $('#dl-ends').value || '' });
         store.set('deals', list);
-        toast('Deal published <a href="#/deals?cat=' + dp.category + '">View</a>');
+        toast('Deal published <a href="#/deals?cat=' + dp.category + '">View</a>', 'success');
         route();
       });
       view.onclick = function (e) {
@@ -3183,7 +3249,7 @@
         var list = dr.images || [];
         return list.length ? '<ul class="lf-photos">' + list.map(function (im, i) {
           return '<li><img src="' + esc(im.src) + '" alt="" width="72" height="72"><div class="field"><label for="lf-pa-' + i + '">Photo ' + (i + 2) + ' shows *</label><input id="lf-pa-' + i + '" data-photo-alt="' + i + '" maxlength="160" placeholder="e.g. Side view showing the USB-C port" value="' + esc(im.alt) + '"></div>' +
-            '<button class="link-btn" type="button" data-del-photo="' + i + '">Remove<span class="visually-hidden"> photo ' + (i + 2) + '</span></button></li>';
+            '<button class="link-btn link-btn--danger" type="button" data-del-photo="' + i + '">Remove<span class="visually-hidden"> photo ' + (i + 2) + '</span></button></li>';
         }).join('') + '</ul>' : '';
       };
       var attrsHTML = function () {
@@ -3201,14 +3267,14 @@
         if (has('specs')) out += '<fieldset class="field" id="lf-f-specs"><legend>Specifications</legend><p class="hint">Leave a value empty to skip it. Only list what you have checked on the item.</p><div class="lf-rows">' + specRows.map(function (r, i) {
           return '<div class="lf-row"><label class="visually-hidden" for="lf-sk-' + i + '">Specification name</label><input id="lf-sk-' + i + '" data-spec-key placeholder="Name" maxlength="60" value="' + esc(r[0]) + '">' +
             '<label class="visually-hidden" for="lf-sv-' + i + '">' + esc(r[0] || 'Specification') + ' value</label><input id="lf-sv-' + i + '" data-spec-val placeholder="Value" maxlength="200" value="' + esc(r[1]) + '">' +
-            '<button class="link-btn" type="button" data-del-spec="' + i + '">Remove<span class="visually-hidden"> ' + esc(r[0] || 'specification') + '</span></button></div>';
+            '<button class="link-btn link-btn--danger" type="button" data-del-spec="' + i + '">Remove<span class="visually-hidden"> ' + esc(r[0] || 'specification') + '</span></button></div>';
         }).join('') + '</div><button class="btn btn--secondary btn--sm" type="button" data-add-spec>Add a specification</button></fieldset>';
         if (has('inBox')) out += '<fieldset class="field" id="lf-f-inBox"><legend>In the box</legend><p class="hint">What the buyer gets. An optional add-on is ticked by the buyer and adds its price.</p><div class="lf-rows">' + dr.inBox.map(function (c, i) {
           var addon = c.addonZMW != null && c.addonZMW !== '';
           return '<div class="lf-row lf-row--box"><label class="visually-hidden" for="lf-bi-' + i + '">Item</label><input id="lf-bi-' + i + '" data-box-item placeholder="e.g. Charging cable" maxlength="80" value="' + esc(c.item || '') + '">' +
             '<label class="visually-hidden" for="lf-bk-' + i + '">Included or add-on</label><select id="lf-bk-' + i + '" data-box-kind><option value="included">Included</option><option value="addon"' + (addon ? ' selected' : '') + '>Optional add-on</option></select>' +
             '<label class="visually-hidden" for="lf-bp-' + i + '">Add-on price in Kwacha</label><input id="lf-bp-' + i + '" data-box-price type="number" min="0" step="0.01" inputmode="decimal" placeholder="K price"' + (addon ? ' value="' + esc(c.addonZMW) + '"' : ' hidden') + '>' +
-            '<button class="link-btn" type="button" data-del-box="' + i + '">Remove<span class="visually-hidden"> ' + esc(c.item || 'item') + '</span></button></div>';
+            '<button class="link-btn link-btn--danger" type="button" data-del-box="' + i + '">Remove<span class="visually-hidden"> ' + esc(c.item || 'item') + '</span></button></div>';
         }).join('') + '</div><button class="btn btn--secondary btn--sm" type="button" data-add-box>Add an item</button></fieldset>';
         return out || '<p class="pmeta">No extra details for this department.</p>';
       };
@@ -3217,7 +3283,7 @@
         if (has('colour')) out += '<fieldset class="field" id="lf-f-colour"><legend>Colours the buyer can choose</legend><p class="hint">Pick a swatch that matches the real item.</p><div class="lf-rows">' + cols.map(function (c, i) {
           return '<div class="lf-row lf-row--colour"><label class="visually-hidden" for="lf-cn-' + i + '">Colour name</label><input id="lf-cn-' + i + '" data-col-name placeholder="e.g. Midnight black" maxlength="40" value="' + esc(c.name) + '">' +
             '<label class="visually-hidden" for="lf-ch-' + i + '">Swatch for ' + esc(c.name || 'this colour') + '</label><input id="lf-ch-' + i + '" data-col-hex type="color" value="' + esc(/^#[0-9a-f]{6}$/i.test(c.hex || '') ? c.hex : '#808080') + '">' +
-            '<button class="link-btn" type="button" data-del-col="' + i + '">Remove<span class="visually-hidden"> ' + esc(c.name || 'colour') + '</span></button></div>';
+            '<button class="link-btn link-btn--danger" type="button" data-del-col="' + i + '">Remove<span class="visually-hidden"> ' + esc(c.name || 'colour') + '</span></button></div>';
         }).join('') + '</div><button class="btn btn--secondary btn--sm" type="button" data-add-col>Add a colour</button></fieldset>';
         if (has('size')) out += '<fieldset class="field" id="lf-f-sizes"><legend>Sizes the buyer can choose</legend><p class="hint">For example S, M, L, 42, or 500 ml and 1 l. Measured sizes are read with their unit.</p>' +
           (sizes.length ? '<ul class="lf-chips">' + sizes.map(function (sz, i) { return '<li><span>' + esc(ZP.sizeLabel(sz)) + '</span><button type="button" class="lf-chip-x" data-del-size="' + i + '" aria-label="Remove size ' + esc(ZP.sizeLabel(sz)) + '">×</button></li>'; }).join('') + '</ul>' : '') +
@@ -3279,7 +3345,7 @@
           '</section>' +
           '<p class="form-status" role="status" tabindex="-1"></p>' +
           '<div class="btn-row"><button class="btn btn--primary" type="submit">' + (editing ? 'Save changes' : 'Add product') + '</button><a class="btn btn--secondary" href="#/seller">Cancel</a>' +
-            (editing && listingsApi.get(editing.id) ? '<button class="link-btn" type="button" id="lf-delete">' + (byId(BASE_PRODUCTS, editing.id) ? 'Undo my changes' : 'Delete this product') + '</button>' : '') + '</div>' +
+            (editing && listingsApi.get(editing.id) ? '<button class="link-btn link-btn--danger" type="button" id="lf-delete">' + (byId(BASE_PRODUCTS, editing.id) ? 'Undo my changes' : 'Delete this product') + '</button>' : '') + '</div>' +
         '</form>';
       show(html, editing ? 'Edit product' : 'Add a product');
       var form = $('#lf');
@@ -3582,7 +3648,7 @@
     cart: cart, addToCart: addToCart, complaints: complaints, listings: listingsApi, loc: function () { return loc; },
     esc: esc, kwacha: kwacha, niceDate: niceDate, waUrl: waUrl, toast: toast, show: show, crumbs: crumbs, head: head, empty: empty,
     cards: cards, ratingOf: ratingOf, priceOf: priceOf, coMode: function () { return coMode(); }, provinceOf: provinceOf,
-    route: route, $: $, $$: $$, newRef: newRef, payByName: payByName, cleanText: cleanText, backendActive: secureMode,
+    route: route, $: $, $$: $$, newRef: newRef, statusClass: statusClass, statusClass: statusClass, payByName: payByName, cleanText: cleanText, backendActive: secureMode,
     ingest: function (rows) {
       rows.forEach(function (row) {
         var p = window.ZSBackend.mapProduct(row), index = BASE_PRODUCTS.findIndex(function (x) { return x.id === p.id; });

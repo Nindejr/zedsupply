@@ -569,7 +569,7 @@
       var t = document.createElement('textarea');
       t.value = text; t.setAttribute('readonly', ''); t.style.position = 'fixed'; t.style.opacity = '0';
       document.body.appendChild(t); t.select();
-      try { document.execCommand('copy'); done(); } catch (e) { H.toast('Copying was blocked. Select the text in your list and copy it yourself.'); }
+      try { document.execCommand('copy'); done(); } catch (e) { H.toast('Copying was blocked. Select the text in your list and copy it yourself.', 'warn'); }
       t.remove();
     };
     if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, fallback); else fallback();

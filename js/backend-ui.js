@@ -128,7 +128,7 @@
         (c.complaint_messages || []).map(function (m) { return '<p><strong>' + esc(m.author) + ':</strong> ' + esc(m.body) + '</p>'; }).join('') +
         (!/resolved|closed/.test(c.status) && !c.escalated_at ? '<button class="btn btn--secondary" type="button" data-escalate-case="' + c.id + '">Ask staff to review</button>' : '') + '</article>'; }).join('') + '</section>', 'Support requests');
     bind('server-case', async function () { await B.rpc('open_support_case', { order_ref: document.getElementById('case-order').value.trim() || null, problem: document.getElementById('case-type').value, outcome: document.getElementById('case-want').value, detail: document.getElementById('case-details').value.trim() }); Z().route(); });
-    document.querySelectorAll('[data-escalate-case]').forEach(function (button) { button.onclick = async function () { button.disabled = true; try { await B.rpc('escalate_support_case', { case_id: Number(button.dataset.escalateCase) }); Z().route(); } catch (e) { Z().toast(esc(e.message)); button.disabled = false; } }; });
+    document.querySelectorAll('[data-escalate-case]').forEach(function (button) { button.onclick = async function () { button.disabled = true; try { await B.rpc('escalate_support_case', { case_id: Number(button.dataset.escalateCase) }); Z().route(); } catch (e) { Z().toast(esc(e.message), 'error'); button.disabled = false; } }; });
   }
   async function fulfilment(ticket) {
     if (!requireUser()) return;
@@ -163,7 +163,7 @@
   function when(value) { return esc(new Date(value).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })); }
   function rpcButton(button, name, body, done) {
     button.disabled = true;
-    B.rpc(name, body).then(done).catch(function (e) { Z().toast(esc(e.message)); button.disabled = false; });
+    B.rpc(name, body).then(done).catch(function (e) { Z().toast(esc(e.message), 'error'); button.disabled = false; });
   }
   // Invitations for this account's confirmed email, shown on My Account
   function teamInvites() {
@@ -172,7 +172,7 @@
       if (!box || !list.length) return;
       box.innerHTML = '<section class="card"><h2>Store invitations</h2><ul class="orders">' + list.map(function (i) {
         return '<li class="order-row"><span><strong>' + esc(i.store) + '</strong> invited you to join as <strong>' + esc(roleName(i.role)) + '</strong><br><span class="pmeta">Expires ' + when(i.expires_at) + '</span></span>' +
-          '<span class="btn-row"><button class="btn btn--primary btn--sm" type="button" data-invite-accept="' + esc(i.id) + '">Accept</button><button class="btn btn--secondary btn--sm" type="button" data-invite-decline="' + esc(i.id) + '">Decline</button></span></li>';
+          '<span class="btn-row"><button class="btn btn--primary btn--sm" type="button" data-invite-accept="' + esc(i.id) + '">Accept</button><button class="btn btn--secondary btn--sm btn--danger" type="button" data-invite-decline="' + esc(i.id) + '">Decline</button></span></li>';
       }).join('') + '</ul></section>';
       box.querySelectorAll('[data-invite-accept]').forEach(function (b) { b.onclick = function () { rpcButton(b, 'seller_respond_invite', { invite: b.dataset.inviteAccept, accept: true }, function (sid) { Z().toast('You\'ve joined the team'); location.hash = '#/team/' + encodeURIComponent(sid); }); }; });
       box.querySelectorAll('[data-invite-decline]').forEach(function (b) { b.onclick = function () { rpcButton(b, 'seller_respond_invite', { invite: b.dataset.inviteDecline, accept: false }, function () { Z().toast('Invitation declined'); Z().route(); }); }; });
@@ -200,22 +200,22 @@
         var label = esc(m.name) + (m.you ? ' (you)' : '');
         return '<li class="order-row"><span><strong>' + label + '</strong><br><span class="pmeta">' + (m.email ? esc(m.email) + ' · ' : '') + esc(roleName(m.role)) + ' · since ' + when(m.added_at) + '</span></span><span class="btn-row">' +
           (manage ? '<label class="visually-hidden" for="team-role-' + m.user_id + '">Role for ' + label + '</label><select id="team-role-' + m.user_id + '" data-team-role="' + m.user_id + '">' + roleOptions(m.role) + '</select>' : '') +
-          (m.you ? '<button class="btn btn--secondary btn--sm" type="button" data-team-remove="' + m.user_id + '">Leave team</button>'
-            : manage ? '<button class="btn btn--secondary btn--sm" type="button" data-team-remove="' + m.user_id + '">Remove<span class="visually-hidden"> ' + label + '</span></button>' : '') + '</span></li>';
+          (m.you ? '<button class="btn btn--secondary btn--sm btn--danger" type="button" data-team-remove="' + m.user_id + '">Leave team</button>'
+            : manage ? '<button class="btn btn--secondary btn--sm btn--danger" type="button" data-team-remove="' + m.user_id + '">Remove<span class="visually-hidden"> ' + label + '</span></button>' : '') + '</span></li>';
       }).join('') + '</ul><p class="hint">A store always keeps at least one owner. Make someone else an owner before you step down or leave.</p></section>' +
       (manage ? '<div class="duo duo--gap"><form class="form form--card" id="team-invite"><h2>Invite someone</h2><p>They sign in at My Account with this email and accept within 7 days. A store can have up to 20 people, counting open invitations.</p>' +
         '<label for="team-email">Email</label><input id="team-email" type="email" required maxlength="254" autocomplete="off">' +
         '<label for="team-new-role">Role</label><select id="team-new-role">' + roleOptions('listings') + '</select>' +
         '<button class="btn btn--primary" type="submit">Send invitation</button><p class="form-status" role="status"></p></form>' +
         '<section class="card"><h2>Open invitations</h2>' + (t.invites.length ? '<ul class="orders">' + t.invites.map(function (i) {
-          return '<li class="order-row"><span><strong>' + esc(i.email) + '</strong><br><span class="pmeta">' + esc(roleName(i.role)) + ' · expires ' + when(i.expires_at) + '</span></span><button class="btn btn--secondary btn--sm" type="button" data-team-cancel="' + esc(i.id) + '">Cancel<span class="visually-hidden"> invitation for ' + esc(i.email) + '</span></button></li>';
+          return '<li class="order-row"><span><strong>' + esc(i.email) + '</strong><br><span class="pmeta">' + esc(roleName(i.role)) + ' · expires ' + when(i.expires_at) + '</span></span><button class="btn btn--secondary btn--sm btn--danger" type="button" data-team-cancel="' + esc(i.id) + '">Cancel<span class="visually-hidden"> invitation for ' + esc(i.email) + '</span></button></li>';
         }).join('') + '</ul>' : '<p>No open invitations.</p>') + '</section></div>' : '') +
       (ext.teamRoleGuide ? ext.teamRoleGuide() : '') +
       (manage && t.log.length ? '<section class="card"><h2>Recent changes</h2><ul>' + t.log.map(function (l) { return '<li>' + when(l.created_at) + ': ' + teamEvent(l) + '</li>'; }).join('') + '</ul></section>' : ''), 'Store team');
     document.querySelectorAll('[data-team-role]').forEach(function (sel) { sel.onchange = function () {
       sel.disabled = true;
       B.rpc('seller_set_member_role', { sid: sid, member: Number(sel.dataset.teamRole), member_role: sel.value }).then(function () { Z().toast('Role updated'); Z().route(); })
-        .catch(function (e) { Z().toast(esc(e.message)); Z().route(); });
+        .catch(function (e) { Z().toast(esc(e.message), 'error'); Z().route(); });
     }; });
     document.querySelectorAll('[data-team-remove]').forEach(function (b) { b.onclick = function () {
       var self = t.members.some(function (m) { return m.you && String(m.user_id) === b.dataset.teamRemove; });
@@ -225,7 +225,7 @@
     document.querySelectorAll('[data-team-cancel]').forEach(function (b) { b.onclick = function () { rpcButton(b, 'seller_cancel_invite', { invite: b.dataset.teamCancel }, function () { Z().toast('Invitation cancelled'); Z().route(); }); }; });
     if (manage) bind('team-invite', async function () {
       await B.rpc('seller_invite', { sid: sid, invitee_email: document.getElementById('team-email').value.trim(), member_role: document.getElementById('team-new-role').value });
-      Z().toast('Invitation saved. Ask them to sign in with that email to accept.'); Z().route();
+      Z().toast('Invitation saved. Ask them to sign in with that email to accept.', 'success'); Z().route();
     });
   }
   /* ---------- Seller applications ---------- */
@@ -235,7 +235,7 @@
   function isOpen(a) { return ['new', 'review', 'info_needed'].indexOf(a.status) !== -1; }
   function myApplications() { return B.read('seller_applications?select=' + APP_FIELDS + '&user_id=eq.' + B.profile().id + '&order=created_at.desc&limit=5'); }
   function applicationNote(a) {
-    return '<section class="card"><h2>Your seller application</h2><p><strong>' + esc(a.business) + '</strong> · <span class="status">' + esc(APP_STATUS[a.status] || a.status) + '</span></p>' +
+    return '<section class="card"><h2>Your seller application</h2><p><strong>' + esc(a.business) + '</strong> · <span class="' + Z().statusClass(APP_STATUS[a.status] || a.status) + '">' + esc(APP_STATUS[a.status] || a.status) + '</span></p>' +
       '<p class="pmeta">Sent ' + when(a.created_at) + (a.updated_at !== a.created_at ? ' · updated ' + when(a.updated_at) : '') + '</p>' +
       (a.staff_note ? '<p class="notice"><strong>Message from Zed Supply:</strong> ' + esc(a.staff_note) + '</p>' : '') +
       (a.status === 'approved' && a.seller_id ? '<a class="btn btn--primary" href="#/team/' + encodeURIComponent(a.seller_id) + '">Open your store team</a>'
@@ -255,7 +255,7 @@
     if (ticket !== navigation) return;
     var a = rows[0], p = B.profile(), editing = a && a.status === 'info_needed' ? a : null;
     // Any open application can be withdrawn, including one we've asked more information about
-    var withdraw = '<p><button class="btn btn--secondary" type="button" id="app-withdraw">Withdraw application</button></p>';
+    var withdraw = '<p><button class="btn btn--secondary btn--danger" type="button" id="app-withdraw">Withdraw application</button></p>';
     var bindWithdraw = function () {
       document.getElementById('app-withdraw').onclick = function () {
         if (window.confirm('Withdraw this application? You can apply again later.')) rpcButton(this, 'withdraw_seller_application', { application: a.id }, function () { Z().toast('Application withdrawn'); Z().route(); });
@@ -280,7 +280,7 @@
         phone: document.getElementById('ap-phone').value.trim(), town: document.getElementById('ap-town').value.trim(), pacra: document.getElementById('ap-pacra').value.trim() || null,
         categories: Array.prototype.map.call(document.querySelectorAll('#seller-apply .checks input:checked'), function (c) { return c.value; }),
         about: document.getElementById('ap-about').value.trim() || null });
-      Z().toast('Application sent. We\'ll be in touch.'); Z().route();
+      Z().toast('Application sent. We\'ll be in touch.', 'success'); Z().route();
     });
   }
   function storeSlug(name) { return String(name || '').toLowerCase().normalize('NFKD').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40).replace(/-+$/, ''); }
@@ -309,7 +309,7 @@
       '<p role="status">' + (rows.length ? 'Showing ' + (page * APP_PAGE + 1) + '–' + (page * APP_PAGE + rows.length) + (waiting ? ', oldest first' : ', newest first') + (q ? ' for “' + esc(q) + '”' : '') + '.' : '') + '</p>' +
       (rows.length ? rows.map(function (a) {
         var k = esc(a.id);
-        return '<article class="card"><h2>' + esc(a.business) + ' <span class="status">' + esc(APP_STATUS[a.status] || a.status) + '</span></h2>' +
+        return '<article class="card"><h2>' + esc(a.business) + ' <span class="' + Z().statusClass(APP_STATUS[a.status] || a.status) + '">' + esc(APP_STATUS[a.status] || a.status) + '</span></h2>' +
           '<dl class="totals"><div><dt>Contact</dt><dd>' + esc(a.contact_name) + '</dd></div><div><dt>Phone</dt><dd><a href="tel:' + esc(a.phone) + '">' + esc(a.phone) + '</a></dd></div>' +
           '<div><dt>Email</dt><dd>' + esc(a.email) + '</dd></div><div><dt>Town</dt><dd>' + esc(a.town) + '</dd></div><div><dt>PACRA</dt><dd>' + esc(a.pacra || 'Not given') + '</dd></div>' +
           '<div><dt>Sent</dt><dd>' + when(a.created_at) + (a.updated_at !== a.created_at ? ', updated ' + when(a.updated_at) : '') + '</dd></div></dl>' +
@@ -323,7 +323,7 @@
               '<label for="ap-am-' + k + '">Message to the applicant (optional)</label><textarea id="ap-am-' + k + '" maxlength="1000"></textarea>' +
               '<button class="btn btn--primary" type="submit">Approve and open store</button><p class="form-status" role="status"></p></form>' +
             '<form class="form" data-app-decide="' + k + '"><h3 class="h3">Reply</h3><label for="ap-msg-' + k + '">Message to the applicant</label><textarea id="ap-msg-' + k + '" required minlength="5" maxlength="1000"></textarea>' +
-              '<div class="btn-row"><button class="btn btn--secondary" type="submit" value="info_needed">Ask for more information</button><button class="btn btn--secondary" type="submit" value="rejected">Reject</button></div><p class="form-status" role="status"></p></form></div>' : '') + '</article>';
+              '<div class="btn-row"><button class="btn btn--secondary" type="submit" value="info_needed">Ask for more information</button><button class="btn btn--secondary btn--danger" type="submit" value="rejected">Reject</button></div><p class="form-status" role="status"></p></form></div>' : '') + '</article>';
       }).join('') : '<p>' + (q ? 'No applications match “' + esc(q) + '”.' : page ? 'No more applications.' : 'No applications here.') + '</p>') +
       (page || more ? '<nav class="btn-row" aria-label="More applications">' + (page ? '<a class="btn btn--secondary" href="' + appLink(view[0], q, page - 1) + '">Previous page</a>' : '') +
         (more ? '<a class="btn btn--secondary" href="' + appLink(view[0], q, page + 1) + '">Next page</a>' : '') + '</nav>' : ''), 'Seller applications');
@@ -333,7 +333,7 @@
       var id = form.dataset.appApprove; form.id = 'approve-' + id;
       bind(form.id, async function () {
         var store = await B.rpc('staff_approve_application', { application: id, store_id: document.getElementById('ap-id-' + id).value.trim(), store_name: document.getElementById('ap-sn-' + id).value.trim(), note: document.getElementById('ap-am-' + id).value.trim() || null });
-        Z().toast('Store ' + esc(store) + ' is open. The applicant is its owner.'); Z().route();
+        Z().toast('Store ' + esc(store) + ' is open. The applicant is its owner.', 'success'); Z().route();
       });
     });
     document.querySelectorAll('[data-app-decide]').forEach(function (form) {
@@ -351,7 +351,7 @@
     var cases = await B.read('complaints?select=id,ref,status,details,escalated_at,assigned_to&status=not.in.(resolved,closed)&order=created_at.asc&limit=100');
     if (ticket !== navigation) return;
     show('<p>Open support requests, oldest first. Assign a case before recording a review. Refund decisions require provider reconciliation; this queue does not send money.</p>' + cases.map(function (c) { return '<article class="card"><h2>' + esc(c.ref) + (c.escalated_at ? ' · Escalated' : '') + '</h2><p>' + esc(c.details) + '</p><p>Assigned staff ID: ' + esc(c.assigned_to || 'Unassigned') + '</p><button class="btn btn--secondary" type="button" data-take-case="' + c.id + '">Assign to me</button></article>'; }).join(''), 'Staff support queue');
-    document.querySelectorAll('[data-take-case]').forEach(function (button) { button.onclick = async function () { button.disabled = true; try { await B.rpc('assign_support_case', { case_id: Number(button.dataset.takeCase), staff_user: B.profile().id }); Z().route(); } catch (e) { Z().toast(esc(e.message)); button.disabled = false; } }; });
+    document.querySelectorAll('[data-take-case]').forEach(function (button) { button.onclick = async function () { button.disabled = true; try { await B.rpc('assign_support_case', { case_id: Number(button.dataset.takeCase), staff_user: B.profile().id }); Z().route(); } catch (e) { Z().toast(esc(e.message), 'error'); button.disabled = false; } }; });
   }
   ext.hooks.route = function (path, query) {
     if (!active()) return false;
