@@ -174,7 +174,7 @@
     return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"' + (extra || '') + '>' + path + '</svg>';
   }
   var I = {
-    heart: '<path d="M12 21s-7.5-4.6-9.5-9.3C1.2 8.6 3.3 5 6.8 5c2 0 3.4 1.1 4.2 2.4h2C13.8 6.1 15.2 5 17.2 5c3.5 0 5.6 3.6 4.3 6.7C19.5 16.4 12 21 12 21Z"/>',
+    comet: '<path class="comet__tail" d="m2 16 6-4m-4 9 5-5"/><path class="comet__star" d="m15 2 2 4.8 5.2.5-4 3.4 1.2 5.1-4.4-2.7-4.4 2.7 1.2-5.1-4-3.4 5.2-.5Z"/>',
     check: '<path d="M20 6 9 17l-5-5"/>',
     shield: '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/><path d="m9 12 2 2 4-4"/>'
   };
@@ -1353,8 +1353,13 @@
     if (p.stock === 'request') return '<p class="pstock pstock--low">Sourced on request</p>';
     return '<p class="pstock">In stock</p>';
   }
+  var cometSequence = 0;
   function likeBtn(p) {
-    return '<button class="like" type="button" data-like="' + esc(p.id) + '" aria-pressed="' + isLiked(p.id) + '" aria-label="Save ' + esc(p.title) + ' to wishlist">' + icon(I.heart) + '</button>';
+    // Each instance needs its own paint server, including repeated product cards.
+    var gold = 'wishlist-gold-' + (++cometSequence);
+    var artwork = '<defs><linearGradient id="' + gold + '" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#F6D778"/><stop offset=".45" stop-color="#DDA928"/><stop offset=".65" stop-color="#F2CE63"/><stop offset="1" stop-color="#A66C10"/></linearGradient></defs>' + I.comet +
+      '<path class="comet__fill" fill="url(#' + gold + ')" d="m15 2 2 4.8 5.2.5-4 3.4 1.2 5.1-4.4-2.7-4.4 2.7 1.2-5.1-4-3.4 5.2-.5Z"/>';
+    return '<button class="like" type="button" data-like="' + esc(p.id) + '" aria-pressed="' + isLiked(p.id) + '" aria-label="Save ' + esc(p.title) + ' to wishlist">' + icon(artwork, ' class="wishlist-comet"') + '</button>';
   }
   // rank: optional position in a trending or top-picks list
   function card(p, rank, displayedPrice) {
@@ -1424,9 +1429,10 @@
     var add = e.target.closest('[data-add]');
     if (add) {
       var id = add.getAttribute('data-add'), qtyEl = add.getAttribute('data-qty-from') ? $(add.getAttribute('data-qty-from')) : null;
-      var p = product(id);
-      if (!addToCart(id, qtyEl ? Math.max(1, parseInt(qtyEl.value, 10) || 1) : 1)) return;
-      toast('Added to cart: ' + esc(p ? p.title : '') + ' <a href="' + R + 'cart">View cart</a>', 'success');
+      var p = product(id), n = qtyEl ? Math.max(1, parseInt(qtyEl.value, 10) || 1) : ZP.orderRules(p).min;
+      if (!addToCart(id, n)) return;
+      // Quick-add on a trade listing adds its minimum, so say how many went in
+      toast('Added to cart: ' + (n > 1 ? esc(qtyLabel(p, n)) + ' × ' : '') + esc(p ? p.title : '') + ' <a href="' + R + 'cart">View cart</a>', 'success');
       return;
     }
     var like = e.target.closest('[data-like]');
@@ -2818,7 +2824,7 @@
     wishlist: function () {
       var list = wish().map(product).filter(Boolean);
       show(crumbs([['Wishlist']]) + head('Your wishlist', 'Products you\'ve liked, saved for later.') +
-        (list.length ? '<ul class="grid">' + cards(list) + '</ul>' : empty('Tap the heart on any product to save it here.', '<a class="btn btn--primary" href="#/deals">Browse deals</a>')), 'Wishlist');
+        (list.length ? '<ul class="grid">' + cards(list) + '</ul>' : empty('Tap the comet on any product to save it here.', '<a class="btn btn--primary" href="#/deals">Browse deals</a>')), 'Wishlist');
     },
 
     account: function () {

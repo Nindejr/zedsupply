@@ -127,6 +127,30 @@ test('a seller builds a team with roles in the Seller Centre preview', async ({ 
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
 });
 
+test('the Kinetic Comet saves products, stays gold after reload and removes them from the wishlist', async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem('zs-consent', 'denied'));
+  await page.goto('/index.html?demo=1&theme=off#/product/L041');
+  const comet = page.locator('[data-like="L041"]');
+  await expect(comet).toHaveAttribute('aria-pressed', 'false');
+  await expect(comet.locator('.comet__fill')).toBeHidden();
+  await expect(comet.locator('.comet__tail')).toHaveAttribute('d', 'm2 16 6-4m-4 9 5-5');
+  await comet.focus();
+  await page.keyboard.press('Space');
+  await expect(comet).toHaveAttribute('aria-pressed', 'true');
+  await expect(comet.locator('.comet__fill')).toBeVisible();
+  expect(await comet.evaluate(el => getComputedStyle(el).color)).toBe('rgb(138, 98, 20)');
+  await page.reload();
+  await expect(comet).toHaveAttribute('aria-pressed', 'true');
+  await expect(comet.locator('.comet__fill')).toBeVisible();
+  const paintId = await comet.locator('linearGradient').getAttribute('id');
+  await expect(comet.locator('.comet__fill')).toHaveAttribute('fill', 'url(#' + paintId + ')');
+  await page.goto('/index.html?demo=1&theme=off#/wishlist');
+  await expect(comet).toHaveAttribute('aria-pressed', 'true');
+  await comet.click();
+  await expect(page.locator('main')).toContainText('Tap the comet on any product');
+  await expect(page.locator('[data-count="wish"]').first()).toHaveText('0');
+});
+
 test('icon buttons name themselves on hover and focus, and colours match their meaning', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 900 });
   await page.goto('/index.html?demo=1&theme=off');
@@ -220,6 +244,14 @@ test('trade buyers order by the bag, sellers set minimums and heavy items get a 
   await page.getByRole('button', { name: 'Add product' }).click();
   await expect(page).toHaveURL(/#\/listing\/U[A-Z0-9]+\?saved=1/);
   const id = decodeURIComponent(page.url().match(/#\/listing\/([^?]+)/)[1]);
+
+  // Quick-add respects the minimum too, rather than trying to add a single bag.
+  await page.goto('/index.html?demo=1&theme=off#/search?q=Cement');
+  await page.locator('[data-add="' + id + '"]').click();
+  await expect(page.locator('#toast')).toContainText('20 bags × Cement, 50 kg bag');
+  await page.goto('/index.html?demo=1&theme=off#/cart');
+  await expect(page.locator('.line').filter({ hasText: 'Cement, 50 kg bag' }).locator('.line__price')).toContainText('20 bags');
+  await page.locator('[data-remove="' + id + '"]').click();
 
   // The buyer sees the rules; the quantity snaps to the minimum and multiples
   await page.goto('/index.html?demo=1&theme=off#/product/' + id);

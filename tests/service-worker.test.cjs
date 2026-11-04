@@ -10,7 +10,7 @@ function worker(overrides = {}) {
     URL, Response, location: { origin: 'https://example.com' },
     self: { registration: { scope: 'https://example.com/store/' },
       addEventListener: (name, fn) => { handlers[name] = fn; }, clients: { claim: async () => {} } },
-    caches: { keys: async () => ['other-app', 'zs-old', 'zs-20261104-r12'],
+    caches: { keys: async () => ['other-app', 'zs-old', 'zs-20261104-r13'],
       delete: async name => { deleted.push(name); }, open: async () => cache },
     fetch: async () => new Response('fresh'), ...overrides
   };

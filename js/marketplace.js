@@ -575,7 +575,7 @@
     if ((el = e.target.closest('[data-mx-del-search]'))) { var s = searches(); s.splice(Number(el.getAttribute('data-mx-del-search')), 1); set('searches', s); Z().route(); return; }
     if ((el = e.target.closest('[data-mx-seen-search]'))) { var s2 = searches(), x = s2[Number(el.getAttribute('data-mx-seen-search'))]; if (x) { x.ids = searchIds(x.q, x.dept); set('searches', s2); } return; }
     if ((el = e.target.closest('[data-mx-add-all]'))) {
-      var added = el.getAttribute('data-mx-add-all').split(',').filter(function (id) { var p = Z().product(id); return p && !(p.variants || []).length && Z().addToCart(id, 1); });
+      var added = el.getAttribute('data-mx-add-all').split(',').filter(function (id) { var p = Z().product(id); return p && !(p.variants || []).length && Z().addToCart(id, window.ZSProduct.orderRules(p).min); });
       Z().toast(added.length ? 'Added ' + added.length + ' to your cart. <a href="#/cart">View cart</a>' : 'Choose options on each product to add it.'); return;
     }
     if ((el = e.target.closest('[data-mx-received]'))) {
