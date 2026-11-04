@@ -12,8 +12,12 @@
     if (p) {
       show('<section class="card"><h2>Hello, ' + esc(p.name || p.email || 'shopper') + '</h2><p>Your contact is verified. Orders and support requests below are stored securely for this account.</p>' +
         '<div class="btn-row"><a class="btn btn--primary" href="#/orders">Your orders</a><a class="btn btn--secondary" href="#/complaints">Support requests</a><a class="btn btn--secondary" href="#/team">Store team</a><a class="btn btn--secondary" href="#/fulfilment">Store fulfilment</a>' + (p.is_staff ? '<a class="btn btn--secondary" href="#/staff-applications">Seller applications</a><a class="btn btn--secondary" href="#/staff-support">Staff support queue</a>' : '') + '<a class="btn btn--secondary" href="#/device">Data on this device</a>' +
-        '<button class="btn btn--secondary" id="secure-signout" type="button">Sign out</button></div><p class="form-status" role="status"></p></section><div id="team-invites"></div><div id="seller-application"></div>', 'My Account');
+        '<button class="btn btn--secondary" id="secure-signout" type="button">Sign out</button></div><p class="form-status" role="status"></p></section>' +
+        Z().businessFormHTML({ name: p.business_name || '', tpin: p.business_tpin || '', address: p.business_address || '' }) + '<div id="team-invites"></div><div id="seller-application"></div>', 'My Account');
       teamInvites(); applicationStatus();
+      Z().bindBusinessForm(function (b) {
+        return B.rpc('set_business_details', { business: b ? b.name : null, tpin: b ? b.tpin || null : null, address: b ? b.address || null : null }).then(function () { return B.identity(); });
+      });
       document.getElementById('secure-signout').onclick = async function () { this.disabled = true; try { await B.signOut(); } catch (e) { /* local tokens are cleared even when logout is unavailable */ } ready = {}; Z().refreshCounts(); Z().route(); };
       return;
     }
@@ -98,7 +102,7 @@
   }
   async function orders(ref, ticket) {
     if (!requireUser()) return;
-    var rows = await B.read('orders?select=id,ref,status,created_at,total_zmw,delivery_zmw,paid_zmw,payment_status,fulfilment,order_items(id,product_id,quantity,unit_price_zmw,order_item_addons(price_zmw))&user_id=eq.' + B.profile().id + (ref ? '&ref=eq.' + encodeURIComponent(ref) : '') + '&order=created_at.desc&limit=50');
+    var rows = await B.read('orders?select=id,ref,status,created_at,total_zmw,delivery_zmw,paid_zmw,payment_status,fulfilment,business_name,business_tpin,business_address,heavy_delivery,order_items(id,product_id,quantity,unit_price_zmw,order_item_addons(price_zmw))&user_id=eq.' + B.profile().id + (ref ? '&ref=eq.' + encodeURIComponent(ref) : '') + '&order=created_at.desc&limit=50');
     if (ticket !== navigation) return;
     if (!ref) { show('<ul class="orders">' + rows.map(function (o) { return '<li><a class="order-row" href="#/order/' + encodeURIComponent(o.ref) + '"><strong>' + esc(o.ref) + '</strong><span>' + esc(o.status) + ' · ' + Z().kwacha(Number(o.total_zmw) + Number(o.delivery_zmw || 0)) + '</span></a></li>'; }).join('') + '</ul>' + (!rows.length ? '<p>No server orders yet.</p>' : ''), 'Your orders'); return; }
     var o = rows[0]; if (!o) throw new Error('No order was found for your account.');
@@ -106,6 +110,8 @@
     var refunds = await B.read('refund_events?select=amount_zmw,payments!inner(order_id)&payments.order_id=eq.' + o.id + '&limit=100');
     if (ticket !== navigation) return;
     show('<section class="card"><h2>' + esc(o.ref) + '</h2><p>Order: ' + esc(o.status) + ' · Payment: ' + esc(o.payment_status) + '</p><dl class="totals"><div><dt>Items total</dt><dd>' + Z().kwacha(Number(o.total_zmw)) + '</dd></div><div><dt>Delivery</dt><dd>' + (o.delivery_zmw === null ? 'Awaiting confirmation; no final payment total yet' : Z().kwacha(Number(o.delivery_zmw))) + '</dd></div><div><dt>Paid</dt><dd>' + Z().kwacha(Number(o.paid_zmw)) + '</dd></div></dl>' +
+      (o.business_name ? '<div class="deliver-box"><p class="deliver-box__label">Billed to</p><p>' + esc(o.business_name) + (o.business_tpin ? '<br>TPIN ' + esc(o.business_tpin) : '') + (o.business_address ? '<br>' + esc(o.business_address) : '') + '</p></div>' : '') +
+      (o.heavy_delivery && o.fulfilment !== 'collection' ? '<p class="notice notice--freight">Truck delivery: the fee for heavy or bulky items is quoted before you pay.</p>' : '') +
       '<ul>' + o.order_items.map(function (i) { return '<li>' + esc(i.product_id) + ' × ' + i.quantity + ' · ' + Z().kwacha((Number(i.unit_price_zmw) + i.order_item_addons.reduce(function (sum, a) { return sum + Number(a.price_zmw); }, 0)) * i.quantity) + '</li>'; }).join('') + '</ul>' +
       '<p>Reconciled refunds: ' + Z().kwacha(refunds.reduce(function (sum, r) { return sum + Number(r.amount_zmw); }, 0)) + '</p>' +
       '<h2>Delivery updates</h2><ol>' + events.map(function (ev) { return '<li>' + esc(ev.status) + ' · ' + esc(ev.tracking_ref || '') + '<p>' + esc(ev.note || '') + '</p></li>'; }).join('') + '</ol>' + (!events.length ? '<p>No delivery updates have been recorded yet.</p>' : '') +

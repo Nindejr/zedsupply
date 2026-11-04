@@ -130,7 +130,7 @@ UPDATE sellers SET vat_registered = true WHERE id = 'cs';
 SELECT pg_temp.signed_in('00000000-0000-0000-0000-00000000c0b1');
 INSERT INTO cart_items (user_id, line_key, product_id, quantity) VALUES ((SELECT b1 FROM ids), 'CA', 'CA', 2);
 SELECT pg_temp.expect_rejection($q$INSERT INTO cart_items (user_id, line_key, product_id, quantity) VALUES ((SELECT b2 FROM ids), 'CA', 'CA', 1)$q$);
-SELECT pg_temp.expect_rejection($q$INSERT INTO cart_items (user_id, line_key, product_id, quantity) VALUES ((SELECT b1 FROM ids), 'CR', 'CR', 500)$q$);
+SELECT pg_temp.expect_rejection($q$INSERT INTO cart_items (user_id, line_key, product_id, quantity) VALUES ((SELECT b1 FROM ids), 'CR', 'CR', 10000)$q$);
 INSERT INTO cart_items (user_id, line_key, product_id, quantity) SELECT (SELECT b1 FROM ids), 'L' || g, 'CR', 1 FROM generate_series(1, 99) g;
 SELECT pg_temp.expect_rejection($q$INSERT INTO cart_items (user_id, line_key, product_id, quantity) VALUES ((SELECT b1 FROM ids), 'L100', 'CR', 1)$q$);
 SELECT pg_temp.admin();

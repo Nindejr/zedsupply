@@ -16,7 +16,8 @@ export interface Deps {
 
 const ORDER_FIELDS = ['ref', 'contact_name', 'recipient_phone', 'fulfilment', 'buyer_town', 'buyer_province_id',
   'collection_point', 'pickup_point_id', 'deliver_to', 'address_id', 'delivery_scope', 'courier_id', 'preferred_date',
-  'preferred_slot', 'is_gift', 'gift_message', 'hide_prices', 'payment_method', 'payment_plan', 'voucher_code', 'notes', 'expected_total_zmw'];
+  'preferred_slot', 'is_gift', 'gift_message', 'hide_prices', 'payment_method', 'payment_plan', 'voucher_code', 'notes', 'expected_total_zmw',
+  'business_name', 'business_tpin', 'business_address'];
 const ITEM_FIELDS = ['product_id', 'variant_id', 'quantity', 'addons', 'commitment_id'];
 const MAX_BODY = 32 * 1024;
 

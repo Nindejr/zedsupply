@@ -29,7 +29,7 @@
       await accessToken();
       var user = await request('/auth/v1/user', undefined, true);
       if (!user.email_confirmed_at && !user.phone_confirmed_at) { save(null); throw new Error('Confirm your email or phone before continuing.'); }
-      var rows = await request('/rest/v1/users?select=id,name,email,phone,is_staff&auth_id=eq.' + encodeURIComponent(user.id), undefined, true);
+      var rows = await request('/rest/v1/users?select=id,name,email,phone,is_staff,business_name,business_tpin,business_address&auth_id=eq.' + encodeURIComponent(user.id), undefined, true);
       if (!rows[0]) throw new Error('Your verified account is not linked yet. Please contact support.');
       profile = rows[0]; profile.auth_id = user.id; return profile;
     }
@@ -81,6 +81,8 @@
       inBox: (row.components || []).map(function (c) { return { item: c.name + (c.quantity > 1 ? ' × ' + c.quantity : ''), addonZMW: c.kind === 'addon' ? Number(c.addon_price_zmw) : null }; }),
       images: (row.images || []).map(function (i) { return { src: i.src, alt: i.alt }; }),
       priceTiers: (row.tiers || []).map(function (t) { return { min: t.min_qty, price: Number(t.price_zmw) }; }),
+      trade: row.trade === true, sellUnit: row.sell_unit || '', minQty: row.min_order_qty || 1, qtyStep: row.order_step || 1,
+      heavy: row.heavy_delivery === true, unitWeightKg: Number(row.unit_weight_kg) || 0,
       reviews: [], _server: row };
   }
   var factory = { create: create, mapProduct: mapProduct };

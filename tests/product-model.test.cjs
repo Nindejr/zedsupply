@@ -51,3 +51,44 @@ test('prototype update rejects an unknown product ID', () => {
   assert.equal(api.update('missing', draft(), ctx).ok, false);
   assert.equal(api.create(draft(), ctx).ok, true);
 });
+test('trade listings set units, minimum orders and multiples within the server limits', () => {
+  const trade = Object.assign(draft(), { trade: true, sellUnit: 'bag', minQty: 20, qtyStep: 10, heavy: true, unitWeightKg: 50,
+    priceTiers: [{ min: 100, price: 9.5 }, { min: 1000, price: 9 }] });
+  assert.equal(P.validate(trade, ctx).length, 0);
+  const p = P.clean(trade);
+  assert.equal(p.trade, true); assert.equal(p.minQty, 20); assert.equal(p.qtyStep, 10); assert.equal(p.heavy, true); assert.equal(p.unitWeightKg, 50);
+  const r = P.orderRules(p);
+  assert.deepEqual([r.min, r.step, r.max, r.heavy, r.weight], [20, 10, 9990, true, 50]);
+  assert.equal(P.qtyAllowed(p, 30), true);
+  assert.equal(P.qtyAllowed(p, 25), false);
+  assert.equal(P.qtyAllowed(p, 10), false);
+  assert.equal(P.qtyAllowed(p, 10000), false);
+  assert.equal(P.fitQty(p, 3), 20);
+  assert.equal(P.fitQty(p, 26), 30);
+  assert.equal(P.fitQty(p, 50000), 9990);
+  assert.equal(P.qtyText(p, 1), '1 bag');
+  assert.equal(P.qtyRuleText(p), 'Minimum order 20 bags · in multiples of 10');
+  // Ordinary listings keep 1 to 99, by the item
+  const plain = P.clean(draft());
+  assert.equal(P.orderRules(plain).max, 99);
+  assert.equal(P.qtyAllowed(plain, 100), false);
+  assert.equal(P.qtyText(plain, 2), '2 items');
+  assert.equal(P.qtyRuleText(plain), '');
+});
+test('trade settings are checked as the database checks them', () => {
+  const errs = d => P.validate(Object.assign(draft(), d), ctx).map(e => e.field);
+  assert(errs({ minQty: 5 }).includes('minQty'));
+  assert(errs({ trade: true, minQty: 15, qtyStep: 10 }).includes('minQty'));
+  assert(errs({ trade: true, minQty: 0 }).includes('minQty'));
+  assert(errs({ trade: true, qtyStep: 1.5 }).includes('qtyStep'));
+  assert(errs({ sellUnit: 'barrel' }).includes('sellUnit'));
+  assert(errs({ unitWeightKg: -1 }).includes('unitWeightKg'));
+  assert(errs({ trade: 'yes' }).includes('minQty'));
+  // Bulk prices: above 99 needs trade, and they start above the minimum order
+  assert(errs({ priceTiers: [{ min: 100, price: 9 }] }).includes('priceTiers'));
+  assert(!errs({ trade: true, priceTiers: [{ min: 100, price: 9 }] }).includes('priceTiers'));
+  assert(errs({ trade: true, minQty: 20, priceTiers: [{ min: 20, price: 9 }] }).includes('priceTiers'));
+  // Without trade, the trade-only fields are not saved
+  const p = P.clean(Object.assign(draft(), { trade: false, sellUnit: 'pack' }));
+  assert.equal(p.trade, undefined); assert.equal(p.minQty, undefined); assert.equal(p.sellUnit, 'pack');
+});

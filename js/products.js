@@ -52,8 +52,18 @@
   var MAX_COMBINATIONS = 256;
   var LOW_STOCK = 3;           // a variant with this many or fewer shows "Only n left"
   var MAX_PHOTOS = 6;          // extra photos after the main one, so up to 7 in all
+  // Trade buying: how a listing is sold (by the bag, tonne, sheet…) and how much one order can take.
+  // A trade listing can set a minimum order and sell in multiples, up to TRADE_QTY_MAX.
+  var SELL_UNITS = [['piece', 'piece', 'pieces'], ['pair', 'pair', 'pairs'], ['set', 'set', 'sets'], ['pack', 'pack', 'packs'],
+    ['box', 'box', 'boxes'], ['carton', 'carton', 'cartons'], ['crate', 'crate', 'crates'], ['tray', 'tray', 'trays'],
+    ['bag', 'bag', 'bags'], ['sack', 'sack', 'sacks'], ['bale', 'bale', 'bales'], ['bundle', 'bundle', 'bundles'],
+    ['roll', 'roll', 'rolls'], ['sheet', 'sheet', 'sheets'], ['length', 'length', 'lengths'], ['drum', 'drum', 'drums'],
+    ['kg', 'kg', 'kg'], ['tonne', 'tonne', 'tonnes'], ['litre', 'litre', 'litres'], ['metre', 'metre', 'metres'],
+    ['m2', 'm²', 'm²'], ['m3', 'm³', 'm³'], ['pallet', 'pallet', 'pallets'], ['load', 'truck load', 'truck loads']];
+  var QTY_MAX = 99, TRADE_QTY_MAX = 9999;
   // Fields the seller form owns; everything else on a product is left as it was
-  var EDITED = ['title', 'category', 'sub', 'brand', 'priceZMW', 'wasZMW', 'stock', 'image', 'alt', 'tags', 'description', 'attributes', 'options', 'variants', 'inBox', 'commit', 'images'];
+  var EDITED = ['title', 'category', 'sub', 'brand', 'priceZMW', 'wasZMW', 'stock', 'image', 'alt', 'tags', 'description', 'attributes', 'options', 'variants', 'inBox', 'commit', 'images',
+    'priceTiers', 'trade', 'sellUnit', 'minQty', 'qtyStep', 'heavy', 'unitWeightKg'];
 
   function num(v) { var n = Number(v); return isFinite(n) ? n : NaN; }
   function money(v) { return Math.round((num(v) + Number.EPSILON) * 100) / 100; }
@@ -62,6 +72,31 @@
     var best = 0;
     (p.priceTiers || []).forEach(function (t) { if (num(qty) >= num(t.min) && num(t.price) > 0 && (!best || num(t.price) < best)) best = num(t.price); });
     return best;
+  }
+  /* ---------- Units and order quantities ---------- */
+  function sellUnit(p) { var u = p && p.sellUnit; return SELL_UNITS.filter(function (x) { return x[0] === u; })[0] || null; }
+  // 'bag' or 'bags'; a listing without a unit is sold by the item
+  function unitName(p, n) { var u = sellUnit(p); return n === 1 ? (u ? u[1] : 'item') : (u ? u[2] : 'items'); }
+  function qtyText(p, n) { return Number(n).toLocaleString('en-US') + ' ' + unitName(p, n); }
+  // { trade, min, step, max, heavy, weight }: what one order line of p may hold
+  function orderRules(p) {
+    var trade = !!(p && p.trade === true);
+    var step = trade ? Math.max(1, parseInt(p.qtyStep, 10) || 1) : 1, min = trade ? Math.max(1, parseInt(p.minQty, 10) || 1) : 1;
+    var max = trade ? TRADE_QTY_MAX : QTY_MAX;
+    return { trade: trade, min: min, step: step, max: max - max % step, heavy: !!(p && p.heavy === true), weight: p && num(p.unitWeightKg) > 0 ? num(p.unitWeightKg) : 0 };
+  }
+  function qtyAllowed(p, n) { var r = orderRules(p); n = Number(n); return Number.isInteger(n) && n >= r.min && n <= r.max && n % r.step === 0; }
+  // The nearest quantity p can be ordered in
+  function fitQty(p, n) {
+    var r = orderRules(p); n = parseInt(n, 10) || r.min;
+    return Math.min(r.max, Math.max(r.min, Math.round(n / r.step) * r.step));
+  }
+  // "Minimum order 20 bags · in multiples of 10", or '' when any quantity goes
+  function qtyRuleText(p) {
+    var r = orderRules(p), bits = [];
+    if (r.min > 1) bits.push('Minimum order ' + qtyText(p, r.min));
+    if (r.step > 1) bits.push('in multiples of ' + r.step.toLocaleString('en-US'));
+    return bits.join(' · ');
   }
   function validMoney(v) { var n = num(v); return n >= 0 && n <= 9999999999.99 && Math.abs(n * 100 - Math.round(n * 100)) < 0.0001; }
   function validMeasure(v) { var n = num(v); return n > 0 && n <= 9999999.999 && Math.abs(n * 1000 - Math.round(n * 1000)) < 0.000001; }
@@ -280,12 +315,21 @@
     if (!(price > 0) || !validMoney(price)) add('priceZMW', 'Enter a price above K0 with at most two decimal places.');
     if (d.wasZMW && (!(num(d.wasZMW) > price) || !validMoney(d.wasZMW))) add('wasZMW', 'The "was" price must be higher than the price and use at most two decimal places.');
     if (STOCK.indexOf(d.stock) === -1) add('stock', 'Choose a stock status.');
-    // Bulk prices: up to 4, from 2 items, each lower than the normal price, and lower again for bigger quantities
-    var tiers = d.priceTiers || [];
+    // Trade quantities: a minimum order and multiples, both whole numbers, the minimum a multiple
+    if (d.trade != null && typeof d.trade !== 'boolean' || d.heavy != null && typeof d.heavy !== 'boolean') add('minQty', 'Trade and heavy-delivery settings must be true or false.');
+    if (d.sellUnit && !sellUnit(d)) add('sellUnit', 'Choose a selling unit from the list.');
+    var minQ = d.minQty == null || d.minQty === '' ? 1 : num(d.minQty), stepQ = d.qtyStep == null || d.qtyStep === '' ? 1 : num(d.qtyStep);
+    if (d.trade !== true && (minQ !== 1 || stepQ !== 1)) add('minQty', 'Turn on trade quantities to set a minimum order or multiples.');
+    else if (!(Number.isInteger(minQ) && minQ >= 1 && minQ <= TRADE_QTY_MAX)) add('minQty', 'Enter a minimum order from 1 to ' + TRADE_QTY_MAX.toLocaleString('en-US') + '.');
+    else if (!(Number.isInteger(stepQ) && stepQ >= 1 && stepQ <= TRADE_QTY_MAX)) add('qtyStep', 'Enter the multiples as a whole number from 1 to ' + TRADE_QTY_MAX.toLocaleString('en-US') + '.');
+    else if (minQ % stepQ) add('minQty', 'Make the minimum order a multiple of ' + stepQ + ', e.g. ' + (Math.ceil(minQ / stepQ) * stepQ) + '.');
+    if (d.unitWeightKg != null && d.unitWeightKg !== '' && !(validMeasure(d.unitWeightKg) && num(d.unitWeightKg) <= 100000)) add('unitWeightKg', 'Enter the weight of one unit in kg, up to 100,000 with at most three decimal places, or leave it empty.');
+    // Bulk prices: up to 4, from 2 items (and above a trade minimum), each lower than the normal price, and lower again for bigger quantities
+    var tiers = d.priceTiers || [], tierMax = d.trade === true ? TRADE_QTY_MAX : QTY_MAX, tierFrom = Math.max(2, (Number.isInteger(minQ) ? minQ : 1) + 1);
     if (!Array.isArray(tiers) || tiers.length > 4) add('priceTiers', 'Add up to 4 bulk prices.');
     else tiers.forEach(function (t, i) {
       var min = num(t && t.min), tp = num(t && t.price), prev = tiers[i - 1];
-      if (!(Number.isInteger(min) && min >= 2 && min <= 99)) add('priceTiers', 'Each bulk price needs a quantity from 2 to 99.');
+      if (!(Number.isInteger(min) && min >= tierFrom && min <= tierMax)) add('priceTiers', 'Each bulk price needs a quantity from ' + tierFrom + ' to ' + tierMax.toLocaleString('en-US') + (tierFrom > 2 ? ', above your minimum order.' : '.'));
       else if (!(tp > 0) || !validMoney(tp) || !(tp < price)) add('priceTiers', 'Each bulk price must be lower than the normal price, with at most two decimal places.');
       else if (prev && !(min > num(prev.min) && tp < num(prev.price))) add('priceTiers', 'List bulk prices from the smallest quantity up, each cheaper than the one before.');
     });
@@ -383,6 +427,14 @@
     };
     if (d.wasZMW) p.wasZMW = money(d.wasZMW);
     if ((d.priceTiers || []).length) p.priceTiers = d.priceTiers.map(function (t) { return { min: num(t.min), price: money(t.price) }; });
+    if (d.trade === true) {
+      p.trade = true;
+      if (num(d.minQty) > 1) p.minQty = num(d.minQty);
+      if (num(d.qtyStep) > 1) p.qtyStep = num(d.qtyStep);
+    }
+    if (sellUnit(d)) p.sellUnit = d.sellUnit;
+    if (d.heavy === true) p.heavy = true;
+    if (num(d.unitWeightKg) > 0) p.unitWeightKg = Math.round(num(d.unitWeightKg) * 1000) / 1000;
     if (d.added) p.added = d.added;
     if (d.match) p.match = d.match;
     var a = d.attributes || {}, attrs = {};
@@ -476,6 +528,8 @@
 
   window.ZSProduct = {
     UNITS: UNITS, DIMENSIONS: DIMENSIONS, AGES: AGES, FIELDS: FIELDS, CONDITIONS: CONDITIONS, MAX_COMBINATIONS: MAX_COMBINATIONS, LOW_STOCK: LOW_STOCK, MAX_PHOTOS: MAX_PHOTOS,
+    SELL_UNITS: SELL_UNITS, QTY_MAX: QTY_MAX, TRADE_QTY_MAX: TRADE_QTY_MAX,
+    sellUnit: sellUnit, unitName: unitName, qtyText: qtyText, orderRules: orderRules, qtyAllowed: qtyAllowed, fitQty: fitQty, qtyRuleText: qtyRuleText,
     sizeLabel: sizeLabel, parseSize: parseSize, sizeBase: sizeBase,
     options: options, hasOptions: hasOptions, variants: variants, findVariant: findVariant, comboKey: comboKey,
     valueInStock: valueInStock, defaultSelection: defaultSelection, totalStock: totalStock, stockState: stockState,

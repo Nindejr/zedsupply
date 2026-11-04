@@ -36,7 +36,7 @@ configuration completeness only, not hosted security or operational readiness.
 
 ## Staging setup
 
-1. Apply migrations **016 → 017 → 018 → 019 → 020 → 021 → 022** in order. Deploy handlers only after
+1. Apply migrations **016 → 017 → 018 → 019 → 020 → 021 → 022 → 023** in order. Deploy handlers only after
    their supporting migrations. Never edit or rerun a previously applied migration
    in a hosted project; these new migrations have only been applied to an isolated
    local test database during this task.
@@ -129,6 +129,35 @@ Until then the live site still sends applications to WhatsApp.
 
 `db/tests/applications.sql` covers applying, privacy between applicants, the staff decisions,
 resubmission, approval opening the store with its owner, withdrawal and the limit.
+
+## Trade buying
+
+Migration 023 adds the first phase of buying for farms, building sites, shops and companies. It
+works in demo mode now and on the server once connected mode is on. Migration 023 is not yet
+applied to the hosted project.
+
+- **Selling units.** A listing can be sold by the bag, tonne, sheet, m³ and other units
+  (`sell_unit`; the list matches `SELL_UNITS` in `js/products.js`). Prices, cart lines and
+  WhatsApp messages then say "K185 per bag" and "150 bags".
+- **Trade quantities.** A listing marked `trade` takes up to 9,999 per order line instead of 99,
+  with an optional minimum order (`min_order_qty`) and multiples (`order_step`). Bulk prices reach
+  9,999 for trade listings and start above the minimum. `place_order` enforces all of this, so a
+  changed browser can't get round it. Carts kept with the account hold up to 9,999.
+- **Heavy items.** `heavy_delivery` marks items that go by truck or are collected. Checkout lists
+  them with their total weight when sellers give `unit_weight_kg`, and the order is flagged
+  `heavy_delivery` so the seller and staff know the delivery fee needs a quote. Payment already
+  waits for the delivery fee, so no extra rule is needed.
+- **Business details.** Buyers save a business name, optional TPIN (10 digits) and billing
+  address in My Account (`set_business_details`), or enter them at checkout. They are copied onto
+  the order (`orders.business_*`) and shown on the order and its printable summary, labelled as an
+  order summary, not a tax invoice. The `place-order` function passes these three fields through;
+  redeploy it with the other edge functions.
+- **Sellers** set all of this under "Trade and bulk buying" when adding a product, or with the
+  optional `unit, minQty, multiples, heavy, weightKg` columns in the spreadsheet upload.
+
+`db/tests/trade.sql` covers the listing rules, bulk prices, ordering limits, the business details
+and the truck flag. Later phases (quote requests, company accounts with approvals, seasonal
+pre-orders) are not built.
 
 ## Native catalogue pages
 

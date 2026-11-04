@@ -475,6 +475,17 @@ window.ZS_CATALOGUE = {
        commit: buyer commit pricing, { min: 450, max: 520 }. Buyers name a price between min and
                max and the seller confirms it on WhatsApp; priceZMW stays the Buy now price.
                max must not be above priceZMW. Buyers can see min, so set one you would accept.
+       priceTiers: bulk prices, [{ min: 10, price: 150 }, { min: 100, price: 142 }]. Up to 4, from the
+               smallest quantity up, each lower than the one before and than priceZMW.
+       Trade buying (farms, building sites, shops and other businesses buying in quantity):
+       sellUnit: what the price is for, e.g. 'bag', 'tonne', 'sheet', 'm3'. See SELL_UNITS in
+               js/products.js. Omit to sell by the item. Put the size in the title ("Cement, 50 kg bag").
+       trade:  true lets one order take up to 9,999 instead of 99. With it:
+               minQty:  the minimum order, e.g. 20.   qtyStep: sold in multiples of, e.g. 10.
+               minQty must be a multiple of qtyStep, and bulk prices start above minQty.
+       heavy:  true for heavy or bulky items that go by truck or are collected. Buyers see that
+               the delivery fee is quoted for their order before they pay.
+       unitWeightKg: weight of one unit in kg, e.g. 50. Helps quote delivery for large orders.
      reviews: [{ name, rating: 1-5, date: 'YYYY-MM-DD', title, text, verified }]
                verified: true only for a confirmed order delivered to that customer.
                The average and star breakdown are worked out from these when the page loads.

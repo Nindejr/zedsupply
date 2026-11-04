@@ -174,3 +174,84 @@ test('icon buttons name themselves on hover and focus, and colours match their m
   await expect(page.locator('[data-remove]').first()).toHaveClass(/link-btn--danger/);
   expect(['rgb(164, 22, 26)', 'rgb(255, 154, 165)']).toContain(await page.locator('[data-remove]').first().evaluate(el => getComputedStyle(el).color));
 });
+
+test('trade buyers order by the bag, sellers set minimums and heavy items get a truck quote', async ({ page }) => {
+  const errors = [];
+  page.on('pageerror', e => errors.push(e.message));
+  // The cookie notice and the location tip are answered, so they don't cover the buy box on a phone
+  await page.addInitScript(() => { localStorage.setItem('zs-consent', 'denied'); localStorage.setItem('zs-loc-tip-seen', 'true'); });
+  // A wholesale buyer: 150 bags reach the 100+ bulk price
+  await page.goto('/index.html?demo=1&theme=off#/product/L053');
+  const box = page.locator('.buybox');
+  await expect(box.locator('.trade-terms')).toContainText('Order up to 9,999 bags at a time');
+  await expect(box.locator('.trade-terms')).toContainText('Price per bag');
+  await expect(box.locator('.tiers')).toContainText('100+ bags');
+  const qty = page.getByLabel('Quantity (bags)');
+  await expect(qty).toHaveAttribute('max', '9999');
+  await qty.fill('150');
+  await qty.dispatchEvent('input');
+  await expect(page.locator('#buy-now')).toHaveAttribute('data-wa-message', /Quantity: 150 bags/);
+  await expect(box.locator('.tiers li.is-on')).toContainText('100+ bags');
+  await page.locator('#pdp-add').click();
+  await page.goto('/index.html?demo=1&theme=off#/cart');
+  await expect(page.locator('.line__price')).toContainText('150 bags, K142 per bag');
+
+  // A seller lists cement: minimum 20, in tens, heavy, with a bulk price for 100+
+  await page.goto('/index.html?demo=1&theme=off#/seller');
+  await page.getByRole('button', { name: 'Enter Seller Centre' }).click();
+  await page.goto('/index.html?demo=1&theme=off#/listing/new');
+  await page.locator('#lf-title').fill('Cement, 50 kg bag');
+  await page.locator('#lf-category').selectOption('hardware');
+  await page.locator('#lf-priceZMW').fill('200');
+  await page.locator('#lf-sellUnit').selectOption('bag');
+  await page.locator('#lf-unitWeightKg').fill('50');
+  await page.getByRole('switch', { name: 'Sell in trade quantities' }).check();
+  await page.locator('#lf-minQty').fill('25');
+  await page.locator('#lf-qtyStep').fill('10');
+  await page.getByRole('switch', { name: 'Heavy or bulky: needs truck delivery' }).check();
+  await page.getByRole('button', { name: 'Add a bulk price' }).click();
+  await page.locator('#lf-tm-0').fill('100');
+  await page.locator('#lf-tp-0').fill('190');
+  await page.getByRole('button', { name: 'Add product' }).click();
+  await expect(page.locator('#lf-errors')).toContainText('Make the minimum order a multiple of 10');
+  await page.locator('#lf-minQty').fill('20');
+  await page.getByRole('button', { name: 'Add product' }).click();
+  await expect(page).toHaveURL(/#\/listing\/U[A-Z0-9]+\?saved=1/);
+  const id = decodeURIComponent(page.url().match(/#\/listing\/([^?]+)/)[1]);
+
+  // The buyer sees the rules; the quantity snaps to the minimum and multiples
+  await page.goto('/index.html?demo=1&theme=off#/product/' + id);
+  await expect(page.locator('.trade-terms')).toContainText('Minimum order 20 bags · in multiples of 10 · 50 kg per bag');
+  await expect(page.locator('.trade-terms__freight')).toBeVisible();
+  await expect(page.getByLabel('Quantity (bags)')).toHaveValue('20');
+  await page.getByLabel('Quantity (bags)').fill('25');
+  await page.getByLabel('Quantity (bags)').dispatchEvent('input');
+  await expect(page.locator('#pdp-add')).toBeDisabled();
+  await expect(page.locator('#pdp-add')).toHaveText('Choose a quantity from 20 to 9,990 bags, in multiples of 10');
+  // The "Product added" message from the Seller Centre can sit over the stepper on a phone
+  await expect(page.locator('#toast')).not.toHaveClass(/is-on/, { timeout: 10000 });
+  await page.getByRole('button', { name: 'Increase quantity' }).click();
+  await expect(page.getByLabel('Quantity (bags)')).toHaveValue('30');
+  await page.locator('#pdp-add').click();
+
+  // Checkout: truck delivery and business details reach the order and its summary
+  await page.goto('/index.html?demo=1&theme=off#/cart');
+  await expect(page.locator('#co-freight')).toContainText('Cement, 50 kg bag (30 bags), about 1.5 tonnes');
+  await page.getByLabel('I\'m buying for a business').check();
+  await page.getByLabel('Business name *').fill('Mwila Farms');
+  await page.getByLabel('TPIN (optional)').fill('12345');
+  await page.getByLabel('Your name *').fill('Chanda Mwila');
+  await page.evaluate(() => window.ZS.store.set('loc', { town: 'Lusaka', area: 'Kabulonga', province: 'lusaka', mode: 'delivery' }));
+  const send = page.locator('#checkout');
+  await send.evaluate(a => a.removeAttribute('target'));
+  await send.click();
+  await expect(page.locator('#co-biz-err')).toHaveText('Enter the TPIN as 10 digits, or leave it empty.');
+  await page.getByLabel('TPIN (optional)').fill('1234567890');
+  await expect(send).toHaveAttribute('data-wa-message', /Business: Mwila Farms, TPIN 1234567890/);
+  await expect(send).toHaveAttribute('data-wa-message', /Truck delivery needed: Cement, 50 kg bag \(30 bags\)/);
+  await page.evaluate(require('node:fs').readFileSync(axe, 'utf8'));
+  const results = await page.evaluate(async () => (await axe.run('main', { runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa'] } })).violations.map(v => v.id));
+  expect(results).toEqual([]);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
+  expect(errors).toEqual([]);
+});

@@ -46,7 +46,8 @@
     var tiers = p.priceTiers || [];
     if (!tiers.length) return '';
     return '<div class="tiers" data-tiers="' + esc(p.id) + '"><p class="tiers__head">Buy more, pay less</p><ul>' + tiers.map(function (t) {
-      return '<li data-tier-min="' + t.min + '"><span>' + t.min + '+ items</span><strong>' + kw(t.price) + ' each</strong></li>';
+      var ZP = Z().ZP, u = ZP.sellUnit(p);
+      return '<li data-tier-min="' + t.min + '"><span>' + t.min.toLocaleString('en-US') + '+ ' + esc(ZP.unitName(p, t.min)) + '</span><strong>' + kw(t.price) + ' ' + (u ? 'per ' + esc(u[1]) : 'each') + '</strong></li>';
     }).join('') + '</ul></div>';
   }
   function protectionHTML() {
@@ -388,7 +389,7 @@
         }).join('') + '</ul>' : '<p>No questions waiting.</p>') + '</section>' : '') +
       '<section class="card sc-products" id="sc-bulk" aria-labelledby="sc-b-title"><h2 id="sc-b-title">Add many products at once</h2>' +
         '<p class="pmeta">Upload a spreadsheet saved as CSV with these columns: <code>title, category, sub, priceZMW, stock, description, tags</code>. ' +
-        'category and sub use the ids from the department list; stock is in, low or request. Add photos afterwards from each product\'s Edit page, straight from your phone\'s camera.</p>' +
+        'category and sub use the ids from the department list; stock is in, low or request. For trade listings you can add <code>unit, minQty, multiples, heavy, weightKg</code>: unit is a selling unit such as bag, tonne or sheet; heavy is yes or no. Add photos afterwards from each product\'s Edit page, straight from your phone\'s camera.</p>' +
         '<div class="field"><label for="sc-csv">CSV file</label><input id="sc-csv" type="file" accept=".csv,text/csv" data-mx-csv="' + esc(s.id) + '"></div>' +
         '<div id="sc-csv-out" role="status" aria-live="polite"></div></section>' + teamSection(s);
   });
@@ -495,6 +496,12 @@
     rows.slice(1, 201).forEach(function (r, n) {
       var draft = { title: at(r, 'title'), category: at(r, 'category'), sub: at(r, 'sub'), seller: sellerId, brand: '', priceZMW: Number(at(r, 'priceZMW')),
         stock: at(r, 'stock') || 'in', description: at(r, 'description'), tags: at(r, 'tags'), image: '' };
+      // Optional trade columns: a minimum order or multiples make it a trade listing
+      var minQ = at(r, 'minQty'), stepQ = at(r, 'multiples'), unit = at(r, 'unit').toLowerCase(), heavy = at(r, 'heavy').toLowerCase();
+      if (unit) draft.sellUnit = (Zs.ZP.SELL_UNITS.filter(function (u) { return u[0] === unit || u[1] === unit || u[2] === unit; })[0] || [unit])[0];
+      if (minQ || stepQ) { draft.trade = true; draft.minQty = minQ ? Number(minQ) : 1; draft.qtyStep = stepQ ? Number(stepQ) : 1; }
+      if (/^(yes|y|true|1)$/.test(heavy)) draft.heavy = true;
+      if (at(r, 'weightKg')) draft.unitWeightKg = Number(at(r, 'weightKg'));
       var res = Zs.listings.create(draft, { departments: Zs.D.departments, brands: Zs.D.brands, products: Zs.products() });
       if (res.ok) out.added.push(res.product.title); else out.failed.push('Row ' + (n + 2) + ': ' + res.errors.map(function (e) { return e.message; }).join(' '));
     });
