@@ -255,6 +255,9 @@ window.ZS_CATALOGUE = {
        art3d:    true when assets/categories-3d/<id>.webp exists, or another artwork's name to
                  borrow it (e.g. 'fashion'); otherwise the line icon
                  assets/icons/<id>.svg is used. Add 3D artwork later and set this to true.
+       page:     the folder name of its published catalogue page, shop/departments/<page>/,
+                 when it should differ from the id. Industrial & Scientific uses 'enterprise',
+                 because the private Business/ folder rule in .gitignore also matches 'business'.
        subs:     [id, name] pairs. Products set `sub` to one of these ids. Ids never change once
                  products use them; rename the name freely. */
   departmentGroups: [
@@ -346,7 +349,7 @@ window.ZS_CATALOGUE = {
       ['lights', 'Lights & Lighting'], ['motorcycle', 'Motorcycle & Powersports'], ['oils', 'Oils & Fluids'], ['paint', 'Paint & Paint Supplies'],
       ['performance', 'Performance Parts'], ['parts', 'Replacement Parts'], ['tyres', 'Tyres & Wheels'], ['tools', 'Tools & Equipment'], ['heavy', 'Heavy Duty & Commercial Vehicles']] },
 
-    { id: 'business', name: 'Industrial & Scientific', short: 'Industrial', group: 'work-group', art3d: true, subs: [
+    { id: 'business', page: 'enterprise', name: 'Industrial & Scientific', short: 'Industrial', group: 'work-group', art3d: true, subs: [
       ['small-business', 'Small Business & Manufacturing Equipment'], ['food-service', 'Food Service Equipment & Supplies'], ['packaging', 'Packaging & Shipping Supplies'],
       ['retail', 'Retail Store Fixtures & Equipment'], ['safety', 'Safety Equipment & PPE'], ['janitorial', 'Janitorial & Sanitation'], ['power-tools', 'Industrial Power & Hand Tools'],
       ['electrical', 'Industrial Electrical'], ['plumbing', 'Hydraulics, Pneumatics & Plumbing'], ['fasteners', 'Fasteners'], ['hardware', 'Industrial Hardware'],

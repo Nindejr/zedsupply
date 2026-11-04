@@ -11,7 +11,7 @@ test.beforeEach(async ({ page }) => {
   });
 });
 
-for (const route of ['', '#/departments', '#/search?q=solar', '#/product/L041', '#/cart', '#/account', '#/device', '#/seller', '#/staff', 'help.html', 'privacy.html', '404.html', 'shop/', 'shop/departments/solar/']) {
+for (const route of ['', '#/departments', '#/search?q=solar', '#/product/L041', '#/cart', '#/account', '#/device', '#/seller', '#/staff', 'help.html', 'privacy.html', '404.html', 'shop/', 'shop/departments/solar/', 'shop/departments/enterprise/']) {
   test('usable layout, working artwork and accessible content: ' + (route || 'home'), async ({ page }) => {
     const errors = [];
     page.on('pageerror', e => errors.push(e.message));

@@ -65,6 +65,12 @@ function hero(eyebrow, title, intro, crumbs) {
     '<nav aria-label="Breadcrumb"><ol class="crumbs">' + crumbs.map((c, i) => '<li>' + (i === crumbs.length - 1 ? '<span aria-current="page">' + escape(c[0]) + '</span>' : '<a href="' + escape(c[1]) + '">' + escape(c[0]) + '</a>') + '</li>').join('') + '</ol></nav>' +
     '<span class="eyebrow">' + escape(eyebrow) + '</span><h1 id="page-title">' + escape(title) + '</h1><p>' + escape(intro) + '</p></div></section>';
 }
+// A department's published folder: its page name when it has one (see departments in js/catalogue.js)
+const pageOf = d => {
+  const name = d.page || d.id;
+  if (!/^[a-z0-9-]{1,40}$/.test(name)) throw new Error('Invalid department page name: ' + name);
+  return name;
+};
 const artwork = d => d.art3d
   ? '<img src="assets/categories-3d/' + escape(typeof d.art3d === 'string' ? d.art3d : d.id) + '.webp" alt="" width="112" height="112" loading="lazy" decoding="async">'
   : '<img src="assets/icons/' + escape(d.id) + '.svg" alt="" width="48" height="48" loading="lazy" decoding="async">';
@@ -92,7 +98,7 @@ async function main() {
       '<a class="btn btn--primary btn--sm" href="' + escape(route) + '">View details<span class="visually-hidden">: ' + escape(p.title) + '</span></a></div></article></li>';
   };
   for (const department of catalogue.departments) {
-    const relative = 'departments/' + department.id + '/index.html', route = 'shop/departments/' + department.id + '/';
+    const relative = 'departments/' + pageOf(department) + '/index.html', route = 'shop/departments/' + pageOf(department) + '/';
     const items = products.filter(p => (p.category || p.department_id) === department.id);
     const crumbs = [home, shop, [department.name, route]];
     write(relative, document(department.name, 'Browse ' + department.name + ' from Zed Supply in Zambia. Confirm current stock, delivery and final price before ordering.', route,
@@ -110,12 +116,12 @@ async function main() {
     const schema = { '@context':'https://schema.org', '@type':'Product', name:p.title, description:p.description || p.title, sku:p.id, url:url(route),
       offers:{ '@type':'Offer', priceCurrency:'ZMW', price:price.toFixed(2), url:url(route) } };
     if (image) schema.image = [image];
-    const crumbs = [home, shop].concat(d ? [[d.name, 'shop/departments/' + d.id + '/']] : []).concat([[p.title, route]]);
+    const crumbs = [home, shop].concat(d ? [[d.name, 'shop/departments/' + pageOf(d) + '/']] : []).concat([[p.title, route]]);
     write('products/' + p.id + '/index.html', document(p.title, p.description || p.title, route,
       hero(d ? d.name : 'Product', p.title, 'Check current options, stock and the final delivered price before ordering.', crumbs) +
       '<section class="section"><div class="container duo duo--gap"><div class="pmedia">' + (p.image ? '<img src="' + escape(p.image) + '" width="600" height="600" alt="' + escape(p.alt || p.title) + '">' : '') + '</div>' +
       '<section class="card"><p class="price"><span class="price__now"><span class="visually-hidden">Price </span>' + cash(price) + '</span></p><p>' + escape(p.description || '') + '</p>' +
-      '<div class="btn-row"><a class="btn btn--primary" href="index.html#/product/' + escape(p.id) + '">Choose options and order</a>' + (d ? '<a class="btn btn--secondary" href="shop/departments/' + escape(d.id) + '/">More in ' + escape(d.name) + '</a>' : '') + '</div></section></div></section>',
+      '<div class="btn-row"><a class="btn btn--primary" href="index.html#/product/' + escape(p.id) + '">Choose options and order</a>' + (d ? '<a class="btn btn--secondary" href="shop/departments/' + escape(pageOf(d)) + '/">More in ' + escape(d.name) + '</a>' : '') + '</div></section></div></section>',
       schema, false, crumbs));
     links.push(url(route));
   }
@@ -124,7 +130,7 @@ async function main() {
     hero('Catalogue', 'Shop departments', 'Browse every Zed Supply department. Prices in Zambian Kwacha; availability and delivery are confirmed at checkout.', [home, shop]) +
     '<section class="section"><div class="container"><ul class="dept-dir">' + catalogue.departments.map(d => {
       const n = count(d);
-      return '<li class="dept-dir__item"><a class="dept-dir__head" href="shop/departments/' + escape(d.id) + '/"><span class="dept-dir__icon" aria-hidden="true">' + artwork(d) + '</span><span><strong>' + escape(d.name) + '</strong><small>' + (n ? n + (n === 1 ? ' product' : ' products') : 'Coming soon') + '</small></span></a></li>';
+      return '<li class="dept-dir__item"><a class="dept-dir__head" href="shop/departments/' + escape(pageOf(d)) + '/"><span class="dept-dir__icon" aria-hidden="true">' + artwork(d) + '</span><span><strong>' + escape(d.name) + '</strong><small>' + (n ? n + (n === 1 ? ' product' : ' products') : 'Coming soon') + '</small></span></a></li>';
     }).join('') + '</ul></div></section>', null, !products.length, [home, shop]));
   for (const relative of previous.filter(name => !generated.includes(name))) {
     const file = path.resolve(output,relative);

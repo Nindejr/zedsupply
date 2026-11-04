@@ -10,7 +10,7 @@ test('crawlable pages escape product data, exclude samples and retire only owned
   const script = path.resolve('scripts/build-storefront.cjs');
   try {
     fs.mkdirSync(path.join(directory,'js'));
-    const data = {departments:[{id:'tech',name:'Technology'},{id:'pets',name:'Pets'}],products:[
+    const data = {departments:[{id:'tech',name:'Technology'},{id:'pets',name:'Pets'},{id:'business',page:'enterprise',name:'Industrial'}],products:[
       {id:'REAL1',category:'tech',title:'Lamp <script>alert(1)</script>',description:'Safe <description>',priceZMW:100},
       {id:'SAMPLE1',category:'tech',title:'Sample lamp',priceZMW:50,sample:true}]};
     const write = () => fs.writeFileSync(path.join(directory,'js/catalogue.js'),'window.ZS_CATALOGUE = ' + JSON.stringify(data));
@@ -26,6 +26,11 @@ test('crawlable pages escape product data, exclude samples and retire only owned
     assert(sitemap.includes('/departments/tech/') && !sitemap.includes('/departments/pets/'),'only departments with listings are in the sitemap');
     assert.match(fs.readFileSync(path.join(directory,'shop/departments/pets/index.html'),'utf8'),/noindex,follow/);
     assert.doesNotMatch(fs.readFileSync(path.join(directory,'shop/departments/tech/index.html'),'utf8'),/noindex/);
+    // A department with its own page name is published there, and the in-site link keeps its id
+    const industrial = fs.readFileSync(path.join(directory,'shop/departments/enterprise/index.html'),'utf8');
+    assert.match(industrial,/shop\/departments\/enterprise\//); assert.match(industrial,/index\.html#\/dept\/business/);
+    assert.equal(fs.existsSync(path.join(directory,'shop/departments/business')),false);
+    assert.match(fs.readFileSync(path.join(directory,'shop/index.html'),'utf8'),/href="shop\/departments\/enterprise\/"/);
     fs.writeFileSync(path.join(directory,'shop/unrelated.html'),'User-owned file');
     data.products = []; write(); build();
     assert.equal(fs.existsSync(path.join(directory,'shop/products/REAL1/index.html')),false);
