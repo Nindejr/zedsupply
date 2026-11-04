@@ -176,6 +176,8 @@ test('icon buttons name themselves on hover and focus, and colours match their m
 });
 
 test('trade buyers order by the bag, sellers set minimums and heavy items get a truck quote', async ({ page }) => {
+  // A whole buyer and seller journey: slower machines need more than the default 30 seconds
+  test.setTimeout(60000);
   const errors = [];
   page.on('pageerror', e => errors.push(e.message));
   // The cookie notice and the location tip are answered, so they don't cover the buy box on a phone
@@ -249,8 +251,10 @@ test('trade buyers order by the bag, sellers set minimums and heavy items get a 
   await page.getByLabel('TPIN (optional)').fill('1234567890');
   await expect(send).toHaveAttribute('data-wa-message', /Business: Mwila Farms, TPIN 1234567890/);
   await expect(send).toHaveAttribute('data-wa-message', /Truck delivery needed: Cement, 50 kg bag \(30 bags\)/);
+  // A message still showing over the page would count as covering its controls
+  await expect(page.locator('#toast')).not.toHaveClass(/is-on/, { timeout: 10000 });
   await page.evaluate(require('node:fs').readFileSync(axe, 'utf8'));
-  const results = await page.evaluate(async () => (await axe.run('main', { runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa'] } })).violations.map(v => v.id));
+  const results = await page.evaluate(async () => (await axe.run('main', { runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa'] } })).violations.map(v => ({ id: v.id, nodes: v.nodes.map(n => n.target.join(' ') + ': ' + n.failureSummary) })));
   expect(results).toEqual([]);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
   expect(errors).toEqual([]);

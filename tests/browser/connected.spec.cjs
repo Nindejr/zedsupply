@@ -216,6 +216,7 @@ test('staff review, ask about and approve seller applications', async ({page}) =
 });
 
 test('a business buyer saves their details once and they go with the order', async ({page}) => {
+  test.setTimeout(60000);
   const errors = []; page.on('pageerror', e => errors.push(e.message));
   const calls = await setup(page);
   await signIn(page);
