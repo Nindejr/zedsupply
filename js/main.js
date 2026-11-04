@@ -471,7 +471,7 @@
   function addToCart(id, qty, opt) {
     var p = product(id), v = p ? variantOf(p, opt) : null;
     if (!p || !Number.isInteger(qty) || qty < 1 || qty > 99) { toast('Choose a whole quantity from 1 to 99.', 'warn'); return false; }
-    if (p._server && p._server.stock_qty !== null && !ZP.hasOptions(p) && qty + cart().filter(function (l) { return l.id === id; }).reduce(function (n, l) { return n + l.qty; }, 0) > p._server.stock_qty) { toast('This item does not have enough stock for that quantity.'); return false; }
+    if (p._server && p._server.stock_qty !== null && !ZP.hasOptions(p) && qty + cart().filter(function (l) { return l.id === id; }).reduce(function (n, l) { return n + l.qty; }, 0) > p._server.stock_qty) { toast('This item does not have enough stock for that quantity.', 'error'); return false; }
     if (ZP.hasOptions(p)) {
       var already = cart().filter(function (l) { var cv = l.id === id ? variantOf(p, l.opt) : null; return cv && v && cv.sku === v.sku; })
         .reduce(function (sum, l) { return sum + l.qty; }, 0);
@@ -917,7 +917,7 @@
   }
   function showTip(el) {
     var text = tipText(el);
-    if (!text) { hideTip(); return; }
+    if (!el.isConnected || !text) { hideTip(); return; }
     tipFor = el; tipEl.textContent = text; tipEl.hidden = false;
     var r = el.getBoundingClientRect(), t = tipEl.getBoundingClientRect(), gap = 8;
     var top = r.top - t.height - gap < 4 ? r.bottom + gap : r.top - t.height - gap;
@@ -929,11 +929,12 @@
   document.addEventListener('pointerover', function (e) {
     if (e.pointerType === 'touch' || e.target === tipEl) { if (e.target === tipEl) clearTimeout(tipTimer); return; }
     var el = e.target.closest(TIP_TARGETS);
-    if (!el || el === tipFor) return;
+    if (!el || el === tipFor || (e.relatedTarget && el.contains(e.relatedTarget))) return;
     clearTimeout(tipTimer); tipTimer = setTimeout(function () { showTip(el); }, 350);
   });
   document.addEventListener('pointerout', function (e) {
     var to = e.relatedTarget;
+    // Moving between an icon's SVG children does not leave the button.
     if (to && (to === tipEl || (tipFor && tipFor.contains(to)) || (e.target.closest(TIP_TARGETS) && e.target.closest(TIP_TARGETS).contains(to)))) return;
     clearTimeout(tipTimer); tipTimer = setTimeout(hideTip, 120);
   });
@@ -942,9 +943,11 @@
     if (el && el.matches(':focus-visible')) { clearTimeout(tipTimer); showTip(el); } else hideTip();
   });
   document.addEventListener('focusout', hideTip);
-  document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !tipEl.hidden) hideTip(); });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') hideTip(); });
   document.addEventListener('click', hideTip, true);
-  window.addEventListener('scroll', function () { if (!tipEl.hidden) hideTip(); }, { passive: true });
+  window.addEventListener('scroll', hideTip, { passive: true, capture: true });
+  window.addEventListener('resize', hideTip);
+  window.addEventListener('hashchange', hideTip);
 
   // Save to localStorage and report whether it actually fitted (images can exceed the quota)
   function trySave(k, v) {
@@ -1053,15 +1056,6 @@
   var COMPLAINT_WANTS = [['refund', 'A refund'], ['replace', 'A replacement'], ['repair', 'A repair'], ['return', 'To return it'], ['fix', 'The seller to put it right'], ['inform', 'Just to let you know']];
   function complaintsOn() { return !!(OPTS.complaints && OPTS.complaints.enabled); }
   function complaints() { return store.get('complaints', []); }
-  // Status colours: green when done, amber while waiting on someone, red when stopped or refused.
-  // The words carry the meaning too, so colour is never the only signal.
-  function statusClass(text) {
-    var t = String(text || '').toLowerCase().trim();
-    var tone = /^(withdrawn|ended|closed|cancel declined)$/.test(t) ? ''
-      : /cancelled|cancel approved|not approved|rejected|failed|declined|refused/.test(t) ? 'bad'
-      : /^(delivered|approved|resolved|live|paid|collected|accepted|completed)$/.test(t) ? 'ok' : 'wait';
-    return 'status' + (tone ? ' status--' + tone : '');
-  }
   // Status colours: green when done, amber while waiting on someone, red when stopped or refused.
   // The words carry the meaning too, so colour is never the only signal.
   function statusClass(text) {
@@ -3648,7 +3642,7 @@
     cart: cart, addToCart: addToCart, complaints: complaints, listings: listingsApi, loc: function () { return loc; },
     esc: esc, kwacha: kwacha, niceDate: niceDate, waUrl: waUrl, toast: toast, show: show, crumbs: crumbs, head: head, empty: empty,
     cards: cards, ratingOf: ratingOf, priceOf: priceOf, coMode: function () { return coMode(); }, provinceOf: provinceOf,
-    route: route, $: $, $$: $$, newRef: newRef, statusClass: statusClass, statusClass: statusClass, payByName: payByName, cleanText: cleanText, backendActive: secureMode,
+    route: route, $: $, $$: $$, newRef: newRef, statusClass: statusClass, payByName: payByName, cleanText: cleanText, backendActive: secureMode,
     ingest: function (rows) {
       rows.forEach(function (row) {
         var p = window.ZSBackend.mapProduct(row), index = BASE_PRODUCTS.findIndex(function (x) { return x.id === p.id; });

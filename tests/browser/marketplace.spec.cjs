@@ -136,10 +136,27 @@ test('icon buttons name themselves on hover and focus, and colours match their m
   await expect(tip).toHaveAttribute('aria-hidden', 'true');
   await page.keyboard.press('Escape');
   await expect(tip).toBeHidden();
+  await page.locator('.like').first().scrollIntoViewIfNeeded();
+  await page.waitForTimeout(150);
   await page.locator('.like').first().hover();
   await expect(tip).toHaveText('Save to wishlist');
   await page.locator('.ptitle').first().hover();
   await expect(tip).toBeHidden();
+  // Escape also cancels the delay before a hint becomes visible.
+  await page.locator('.like').first().dispatchEvent('pointerover', { pointerType: 'mouse' });
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(450);
+  await expect(tip).toBeHidden();
+  // Scrolling during the delay must not leave a hint at an obsolete position.
+  await page.locator('.like').first().dispatchEvent('pointerover', { pointerType: 'mouse' });
+  await page.evaluate(() => window.dispatchEvent(new Event('scroll')));
+  await page.waitForTimeout(450);
+  await expect(tip).toBeHidden();
+  await page.keyboard.press('Tab');
+  await page.locator('a.hact[aria-label^="Wishlist"]').focus();
+  await expect(tip).toBeVisible();
+  await expect(tip).toHaveText('Wishlist, 0 items');
+  await page.keyboard.press('Escape');
   // No hint ever shows code
   expect(await page.evaluate(() => [...document.querySelectorAll('[title],[aria-label]')].map(e => (e.getAttribute('title') || '') + (e.getAttribute('aria-label') || '')).filter(t => /function|=>|\[object|undefined/.test(t)))).toEqual([]);
   expect(await page.evaluate(() => ['Delivered', 'Out for delivery', 'Cancellation requested', 'Not approved', 'cancel approved', 'cancel declined', 'Withdrawn', 'live', 'ended'].map(ZS.statusClass)))
