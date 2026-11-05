@@ -110,15 +110,17 @@
     var r = await B.rpc('order_receipt', { order_ref: ref });
     if (ticket !== navigation) return;
     var m = { ref: r.ref, date: String(r.created_at).slice(0, 10), status: r.status, name: r.name || '', whatsapp: '', email: '', mode: r.fulfilment === 'delivery' ? 'delivery' : 'collection',
-      deliverTo: r.deliver_to || r.buyer_town || '', sample: false, paid: r.payment_status === 'paid', payment: r.payment_method || '', vat: Number(r.vat) || 0,
+      deliverTo: r.deliver_to || r.buyer_town || '', sample: false, paid: r.payment_status === 'paid', payment: r.payment_method || '', vat: Number(r.vat) || 0, vatRate: r.vat_rate, vatIncluded: r.vat_included,
       lines: r.items.map(function (i) { return { title: i.title, label: '', qty: String(i.quantity), each: Number(i.unit_price), total: Number(i.unit_price) * i.quantity, seller: i.seller }; }),
       sub: Number(r.subtotal), save: 0, voucher: Number(r.discount) ? { code: r.voucher_code || 'Voucher', off: Number(r.discount) } : null,
       delivery: r.fulfilment === 'delivery' ? { speed: r.delivery_speed || 'standard', fee: r.delivery == null ? null : Number(r.delivery), pending: r.delivery == null,
         parcels: r.parcels.map(function (p) { return { seller: p.seller_id, sellerName: p.seller, speed: p.speed, fee: p.fee == null ? null : Number(p.fee), free: p.free, pending: p.fee == null, courier: p.courier_id || '' }; }) } : null,
       total: Number(r.grand_total), business: r.business_name ? { name: r.business_name, tpin: r.business_tpin, address: r.business_address } : null, gift: r.hide_prices ? { noPrice: true } : null };
+    m.giftReceipt = !!(r.hide_prices && query && query.get('gift') === '1');
     var p = B.profile() || {};
     Z().show(Z().crumbs([['Orders', '#/orders'], [m.ref, '#/order/' + encodeURIComponent(m.ref)], ['Receipt']]) +
-      '<div class="receipt-actions no-print"><button class="btn btn--primary" type="button" data-print-receipt>Download PDF or print</button><a class="btn btn--secondary" href="#/order/' + encodeURIComponent(m.ref) + '">Back to order</a></div>' +
+      '<div class="receipt-actions no-print"><button class="btn btn--primary" type="button" data-print-receipt>Download PDF or print</button>' +
+      (r.hide_prices ? '<a class="btn btn--secondary" href="#/receipt/' + encodeURIComponent(m.ref) + (m.giftReceipt ? '' : '?gift=1') + '">' + (m.giftReceipt ? 'Show prices' : 'Gift receipt (no prices)') + '</a>' : '') + '<a class="btn btn--secondary" href="#/order/' + encodeURIComponent(m.ref) + '">Back to order</a></div>' +
       '<form class="form form--card no-print" id="send-receipt"><h2>Send this receipt</h2><div class="field-row"><div class="field"><label for="rc-channel">Send by</label><select id="rc-channel"><option value="whatsapp">WhatsApp</option><option value="email">Email</option></select></div>' +
       '<div class="field"><label for="rc-to">To</label><input id="rc-to" maxlength="200" required value="' + esc(p.phone || '') + '" data-email="' + esc(p.email || '') + '" data-phone="' + esc(p.phone || '') + '"></div></div>' +
       '<button class="btn btn--secondary" type="submit">Send receipt</button><p class="form-status" role="status"></p></form>' + Z().receiptHTML(m), 'Receipt ' + m.ref);

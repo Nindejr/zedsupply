@@ -165,7 +165,7 @@ export const TEMPLATES: Record<string, (p: Json) => string[]> = {
   back_in_stock: p => [String(p.title)],
   price_drop: p => [String(p.title), 'K' + Number(p.price).toFixed(2)],
   seller_application_update: p => [String(p.business), ({ info_needed: 'needs more information', approved: 'is approved', rejected: 'was not approved' } as Record<string, string>)[String(p.status)] || 'has been updated'],
-  order_receipt: p => [String(p.name || 'there'), String(p.ref), p.delivery_pending ? 'K' + Number(p.total).toFixed(2) + ' before delivery' : 'K' + Number(p.total).toFixed(2)],
+  order_receipt: p => [String(p.name || 'there'), String(p.ref), p.hide_prices ? 'Gift receipt: prices are left out' : p.delivery_pending ? 'K' + Number(p.total).toFixed(2) + ' before delivery' : 'K' + Number(p.total).toFixed(2)],
   parcel_update: p => [String(p.ref), ({ out_for_delivery: 'is out for delivery', delivered: 'has been delivered by the courier', failed: 'could not be delivered; the courier will try again' } as Record<string, string>)[String(p.status)] || 'has an update']
 };
 
@@ -176,13 +176,14 @@ export const EMAILS: Record<string, (p: Json, site: string) => { subject: string
   order_receipt: (p, site) => {
     const ref = String(p.ref), link = site + 'index.html#/receipt/' + encodeURIComponent(ref);
     const total = 'K' + Number(p.total).toFixed(2) + (p.delivery_pending ? ' before delivery' : '');
-    const text = `Hello ${String(p.name || 'there')},\n\nThank you for your order ${ref} with Zed Supply. Order total: ${total}.\n\n` +
+    const summary = p.hide_prices ? 'Gift receipt: prices are left out.' : `Order total: ${total}.`;
+    const text = `Hello ${String(p.name || 'there')},\n\nThank you for your order ${ref} with Zed Supply. ${summary}\n\n` +
       `View or download your receipt (sign in to your account): ${link}\n\nWe never ask for your PIN. Questions? Reply on WhatsApp.\n\nZed Supply · Lusaka, Zambia`;
     return { subject: `Your Zed Supply receipt: ${ref}`, text,
       html: '<div style="font-family:Arial,sans-serif;max-width:560px;margin:auto;border:1px solid #DCDFE4;border-radius:12px;overflow:hidden">' +
         '<div style="background:#0A2A66;color:#fff;padding:20px 24px"><p style="margin:0;font-size:20px;font-weight:700">Zed Supply</p><p style="margin:4px 0 0">Order receipt ' + html(ref) + '</p></div>' +
         '<div style="height:5px;background:linear-gradient(90deg,#198A00 0 64%,#DE2010 64% 76%,#000 76% 88%,#EF7D00 88%)"></div>' +
-        '<div style="padding:20px 24px;color:#1A2238"><p>Hello ' + html(String(p.name || 'there')) + ',</p><p>Thank you for your order. Order total: <strong>' + html(total) + '</strong>.</p>' +
+        '<div style="padding:20px 24px;color:#1A2238"><p>Hello ' + html(String(p.name || 'there')) + ',</p><p>Thank you for your order. ' + html(summary) + '</p>' +
         '<p><a href="' + html(link) + '" style="display:inline-block;background:#F5C542;color:#2A1C00;padding:10px 18px;border-radius:999px;text-decoration:none;font-weight:700">View your receipt</a></p>' +
         '<p style="color:#4A5670;font-size:13px">Sign in to your account to open it. We never ask for your PIN.</p></div></div>' };
   }
@@ -334,7 +335,8 @@ export async function courierQuote(req: Request, deps: Deps): Promise<Response> 
         body: JSON.stringify({ origin: { town: parcel.from_town, province: parcel.from_province }, destination: { town: parcel.to_town, province: parcel.to_province },
           weight_kg: parcel.weight_kg, speed: parcel.speed, currency: 'ZMW' }) }).catch(() => null);
       const got = res && res.ok ? await res.json().catch(() => null) as Json | null : null;
-      const amount = got ? Number(got.amount) : NaN;
+      const validAmount = got && (typeof got.amount === 'number' || typeof got.amount === 'string' && got.amount.trim() !== '');
+      const amount = validAmount ? Number(got!.amount) : NaN;
       if (!got || got.currency !== 'ZMW' || !Number.isFinite(amount) || amount < 0 || amount > 100000 || Math.round(amount * 100) / 100 !== amount) continue;
       Object.assign(parcel, { fee: amount, pending: false, source: 'courier_api', courier_id: courier,
         min_days: Number.isInteger(got.min_days) ? got.min_days : parcel.min_days, max_days: Number.isInteger(got.max_days) ? got.max_days : parcel.max_days });

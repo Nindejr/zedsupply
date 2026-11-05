@@ -217,6 +217,7 @@ test('staff review, ask about and approve seller applications', async ({page}) =
   await expect(card.getByLabel('Store ID (used in web addresses)')).toHaveValue('kafue-solar-traders');
   await card.getByRole('button',{name:'Approve and open store'}).click();
   await expect.poll(() => calls.find(c => c.path === '/rest/v1/rpc/staff_approve_application')?.body).toEqual({application:'app-1',store_id:'kafue-solar-traders',store_name:'Kafue Solar Traders',note:null});
+  await expect(page.locator('#toast')).not.toHaveClass(/is-on/, { timeout: 10000 });
   await page.evaluate(fs.readFileSync(require.resolve('axe-core/axe.min.js'),'utf8'));
   expect(await page.evaluate(async () => (await axe.run('main', { runOnly: { type: 'tag', values: ['wcag2a','wcag2aa','wcag21aa','wcag22aa'] } })).violations.map(v => v.id + ' ' + v.nodes.map(n => n.target).join(';')))).toEqual([]);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);

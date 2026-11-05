@@ -3,7 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createHmac } from 'node:crypto';
-import { placeOrder, paymentWebhook, sendNotifications, dailyJobs, startPayment, validSignature, courierQuote, courierWebhook } from '../supabase/functions/_shared/handlers.ts';
+import { placeOrder, paymentWebhook, sendNotifications, dailyJobs, startPayment, validSignature, courierQuote, courierWebhook, EMAILS, TEMPLATES } from '../supabase/functions/_shared/handlers.ts';
 
 const ORIGIN = 'https://nindejr.github.io';
 function fakeDeps(env = {}, rows = () => [{ r: { ok: true } }]) {
@@ -218,6 +218,15 @@ test('courier-quote asks a connected courier for its live price and saves the qu
   }
 });
 
+test('courier prices reject empty and nonnumeric amounts instead of making delivery free', async () => {
+  for (const amount of [null, '', ' ', false, true, [], {}]) {
+    const d = quoteDeps(LIVE, { amount, currency: 'ZMW' });
+    const result = await (await courierQuote(post({ courier_id: 'zampost', items: [{ product_id: 'DA1' }] }), d)).json();
+    assert.equal(result.total, 383, JSON.stringify(amount));
+    assert.equal(result.quote_id, null);
+  }
+});
+
 test('courier-webhook needs the courier\'s signature, maps its statuses and records each event once', async () => {
   const env = { COURIER_WEBHOOK_SECRET: 'cwsec', COURIER_WEBHOOK_COURIER: 'dropsync', COURIER_CONTRACT_VALIDATED: 'true' };
   const event = JSON.stringify({ event_id: 'ev-1', tracking_number: 'TRK-0001', status: 'Out_For_Delivery', location: 'Lusaka', occurred_at: '2026-11-05T09:00:00Z' });
@@ -247,4 +256,12 @@ test('send-notifications emails receipts when an email provider is set up, separ
   assert.match(mail.body.html, /Chanda &lt;b&gt;/);
   assert.match(mail.body.text, /K883\.00/);
   assert.ok(d.calls.some(c => c.text && c.text.includes('No email template') && c.params[0] === 8));
+});
+
+
+test('shared gift receipt notifications omit prices on both channels', () => {
+  const p = {ref:'ZS-GIFT0001',name:'Buyer',total:123.45,hide_prices:true};
+  const email = EMAILS.order_receipt(p, 'https://example.test/');
+  for (const text of [email.html, email.text, ...TEMPLATES.order_receipt(p)]) assert.doesNotMatch(text, /123\.45|K[0-9]/);
+  assert.match(email.text, /prices are left out/);
 });

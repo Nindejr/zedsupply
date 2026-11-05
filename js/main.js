@@ -2340,12 +2340,15 @@
     return { ref: o.ref, date: o.date, sample: !!o.sample, status: o.cancel ? 'Cancellation requested' : STATUS[o.status] || '', name: o.name || u.name || '',
       whatsapp: rc.whatsapp || u.phone || '', email: rc.email || u.email || '', mode: o.mode || 'delivery', deliverTo: o.deliverTo || '', lines: lines,
       sub: o.sub != null ? o.sub : lines.reduce(function (n, l) { return n + l.total; }, 0), save: o.save || 0, voucher: o.voucher || null,
-      vat: o.vat || 0, delivery: o.delivery || null, total: o.total, payment: o.pay || '', paid: !!o.paid, business: o.business || null, gift: o.gift || null };
+      vat: o.vat || 0, vatRate: o.vatRate, vatIncluded: o.vatIncluded, delivery: o.delivery || null, total: o.total, payment: o.pay || '', paid: !!o.paid, business: o.business || null, gift: o.gift || null };
   }
   function shopPhone() { var n = String(S.whatsapp || ''); return n.length === 12 ? '+' + n.slice(0, 3) + ' ' + n.slice(3, 5) + ' ' + n.slice(5, 8) + ' ' + n.slice(8) : n; }
   function siteAddress() { return (location.host + location.pathname).replace(/(index|help|privacy|404)\.html$/, '').replace(/\/$/, ''); }
   function receiptHTML(m) {
-    var d = m.delivery, ps = (d && d.parcels) || [], hide = m.gift && m.gift.noPrice;
+    // The buyer's own receipt always shows prices (they need them for returns); the gift receipt
+    // (#/receipt/REF?gift=1), for the person receiving it, leaves every price out
+    var d = m.delivery, ps = (d && d.parcels) || [], hide = !!m.giftReceipt;
+    var taxRate = m.vatRate != null ? m.vatRate : VAT.rate, taxIncluded = m.vatIncluded != null ? m.vatIncluded : VAT.included;
     var known = d ? !d.pending && d.fee != null : m.mode === 'collection';
     var legal = (S.business || {}).legalName, tpin = vatActive() && VAT.tpin && !/^\[/.test(VAT.tpin) ? VAT.tpin : '';
     var row = function (label, value, cls) { return '<div' + (cls ? ' class="' + cls + '"' : '') + '><dt>' + label + '</dt><dd>' + value + '</dd></div>'; };
@@ -2361,12 +2364,12 @@
       '<div class="receipt__table" role="region" tabindex="0" aria-label="Items on this receipt"><table><thead><tr><th scope="col">Item</th><th scope="col">Qty</th>' + (hide ? '' : '<th scope="col" class="num">Price</th><th scope="col" class="num">Amount</th>') + '</tr></thead><tbody>' +
         m.lines.map(function (l) { return '<tr><th scope="row">' + esc(l.title) + (l.label ? '<small>' + esc(l.label) + '</small>' : '') + '</th><td>' + esc(l.qty) + '</td>' + (hide ? '' : '<td class="num">' + kwacha(l.each) + '</td><td class="num">' + kwacha(l.total) + '</td>') + '</tr>'; }).join('') +
       '</tbody></table></div>' +
-      (ps.length ? '<section class="receipt__parcels"><h3>Delivery</h3><ul>' + ps.map(function (p) { return '<li><span>' + parcelLine(p) + '</span><strong>' + (p.pending || p.fee == null ? 'To be quoted' : feeText(p.fee, p.free)) + '</strong></li>'; }).join('') + '</ul></section>' : '') +
+      (ps.length ? '<section class="receipt__parcels"><h3>Delivery</h3><ul>' + ps.map(function (p) { return '<li><span>' + parcelLine(p) + '</span>' + (hide ? '' : '<strong>' + (p.pending || p.fee == null ? 'To be quoted' : feeText(p.fee, p.free)) + '</strong>') + '</li>'; }).join('') + '</ul></section>' : '') +
       (hide ? '<p class="pmeta">Gift receipt: prices are left out.</p>' : '<dl class="receipt__totals">' + row('Items', kwacha(m.sub)) +
         (m.save ? row('You saved', kwacha(m.save), 'is-save') : '') +
         (m.voucher ? row('Voucher ' + esc(m.voucher.code), '−' + kwacha(m.voucher.off), 'is-save') : '') +
         (d && ps.length ? row('Delivery · ' + esc(speedName(d.speed)), known ? feeText(d.fee) : 'To be quoted', d.fee === 0 ? 'is-save' : '') : m.mode === 'collection' ? row('Collection', 'No delivery fee') : row('Delivery', 'Confirmed on WhatsApp')) +
-        (m.vat ? row(VAT.included === false ? 'VAT (' + esc(VAT.rate) + '%)' : 'Includes VAT (' + esc(VAT.rate) + '%)', kwacha(m.vat), 'is-vat') : '') +
+        (m.vat ? row(taxIncluded === false ? 'VAT (' + esc(taxRate) + '%)' : 'Includes VAT (' + esc(taxRate) + '%)', kwacha(m.vat), 'is-vat') : '') +
         row(known ? 'Order total' : 'Total before delivery', kwacha(m.total), 'is-total') + '</dl>') +
       '<footer class="receipt__foot"><p><strong>Zed Supply</strong>' + (legal ? ' · ' + esc(legal) : '') + ' · Lusaka, Zambia' + (tpin ? ' · TPIN ' + esc(tpin) : '') + '</p>' +
         '<p>WhatsApp ' + esc(shopPhone()) + ' · ' + esc(siteAddress()) + '</p>' +
@@ -2374,11 +2377,16 @@
   }
   function receiptText(m) {
     var d = m.delivery, ps = (d && d.parcels) || [], known = d ? !d.pending && d.fee != null : m.mode === 'collection';
+    if (m.giftReceipt) return ['Zed Supply - gift receipt', 'Order ' + m.ref + ' · ' + niceDate(m.date), ''].concat(
+      m.lines.map(function (l, i) { return (i + 1) + '. ' + l.title + (l.label ? ' [' + l.label + ']' : '') + ' x ' + l.qty; }),
+      ['', 'Prices are left out.', (m.mode === 'collection' ? 'Collecting near: ' : 'Deliver to: ') + (m.deliverTo || 'to be confirmed'),
+      'Questions? WhatsApp ' + shopPhone() + ' · ' + siteAddress()]).join('\n');
+    var taxRate = m.vatRate != null ? m.vatRate : VAT.rate, taxIncluded = m.vatIncluded != null ? m.vatIncluded : VAT.included;
     return ['Zed Supply - order receipt', 'Order ' + m.ref + ' · ' + niceDate(m.date) + (m.sample ? ' (demo)' : ''), ''].concat(
       m.lines.map(function (l, i) { return (i + 1) + '. ' + l.title + (l.label ? ' [' + l.label + ']' : '') + ' x ' + l.qty + ' = ' + kwacha(l.total); }), [''],
       ['Items: ' + kwacha(m.sub)], m.voucher ? ['Voucher ' + m.voucher.code + ': -' + kwacha(m.voucher.off)] : [],
       ps.map(function (p) { return 'Delivery, ' + sellerName(p.seller) + ' (' + speedName(p.speed) + '): ' + (p.pending || p.fee == null ? 'to be quoted' : feeText(p.fee, p.free)); }),
-      m.vat ? [(VAT.included === false ? 'VAT ' : 'Includes VAT ') + VAT.rate + '%: ' + kwacha(m.vat)] : [],
+      m.vat ? [(taxIncluded === false ? 'VAT ' : 'Includes VAT ') + taxRate + '%: ' + kwacha(m.vat)] : [],
       [(known ? 'Order total: ' : 'Total before delivery: ') + kwacha(m.total), '', (m.mode === 'collection' ? 'Collecting near: ' : 'Deliver to: ') + (m.deliverTo || 'to be confirmed'),
        'Payment: ' + (m.paid ? 'paid' : m.payment || 'to be arranged on WhatsApp'), '', 'Questions? WhatsApp ' + shopPhone() + ' · ' + siteAddress()]).join('\n');
   }
@@ -2395,6 +2403,7 @@
         : '<a class="btn btn--primary" href="#/receipt/' + encodeURIComponent(m.ref) + '">View receipt</a><a class="btn btn--secondary" href="#/receipt/' + encodeURIComponent(m.ref) + '?print=1">Download PDF</a>') +
       '<a class="btn btn--secondary" href="' + esc(waTo(m.whatsapp, text)) + '" target="_blank" rel="noopener noreferrer">Send to WhatsApp<span class="visually-hidden"> (opens WhatsApp)</span></a>' +
       '<a class="btn btn--secondary" href="mailto:' + esc(encodeURIComponent(m.email || '').replace(/%40/g, '@')) + '?subject=' + encodeURIComponent('Zed Supply receipt ' + m.ref) + '&body=' + encodeURIComponent(text) + '">Email receipt</a>' +
+      (onReceipt && m.gift && m.gift.noPrice ? '<a class="btn btn--secondary" href="#/receipt/' + encodeURIComponent(m.ref) + (m.giftReceipt ? '' : '?gift=1') + '">' + (m.giftReceipt ? 'Show prices' : 'Gift receipt (no prices)') + '</a>' : '') +
       (onReceipt ? '<a class="btn btn--secondary" href="#/order/' + encodeURIComponent(m.ref) + '">Back to order</a>' : '') + '</div>';
   }
   var CANCEL_REASONS = ['I ordered by mistake', 'I found a better price', 'Delivery would take too long', 'I need to change the items or address', 'I no longer need it', 'Another reason'];
@@ -3110,7 +3119,7 @@
         }
         var list = orders();
         list.unshift({ ref: ref, date: today, items: items.map(function (it) { return it.opt ? { id: it.p.id, qty: it.qty, price: it.each, opt: it.opt, label: it.label } : { id: it.p.id, qty: it.qty, price: it.each }; }), total: deliveryKnown() ? grand() : total, status: 0, deliverTo: locFull(), pay: payChoice, ship: COURIERS.length ? shipSummary() : '', shipId: shipChoice, message: co.getAttribute('data-wa-message'), vat: vat, when: when(), gift: gift().on ? gift() : null, addressId: chosenAddress ? chosenAddress.id : '', mode: coMode(), business: b, freight: heavy.length && coMode() !== 'collection' ? heavyText : '',
-          name: nameEl.value.trim(), sub: sub, save: save, voucher: vOff ? { code: v.code, off: vOff } : null, itemsTotal: total, vatRate: vat ? VAT.rate : null,
+          name: nameEl.value.trim(), sub: sub, save: save, voucher: vOff ? { code: v.code, off: vOff } : null, itemsTotal: total, vatRate: vat ? VAT.rate : null, vatIncluded: VAT.included,
           delivery: ratesOn() ? { speed: shipSpeed, fee: dq && !dq.pending ? dq.total : null, pending: !deliveryKnown(), parcels: parcelsNow(), sample: !!DELIVERY.sampleRates } : null,
           receipt: receiptTo() });
         store.set('orders', list);
@@ -3281,6 +3290,7 @@
       var o = findOrder(ref);
       if (!o) return views.track(null, null, ref);
       var m = receiptModel(o);
+      m.giftReceipt = !!(m.gift && m.gift.noPrice && q && q.get('gift') === '1');
       show(crumbs([['Orders', '#/orders'], [o.ref, '#/order/' + encodeURIComponent(o.ref)], ['Receipt']]) + receiptActionsHTML(m, true) + receiptHTML(m), 'Receipt ' + o.ref);
       if (q && q.get('print') === '1') setTimeout(function () { window.print(); }, 250);
     },

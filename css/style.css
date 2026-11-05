@@ -1963,12 +1963,12 @@ input[aria-invalid="true"], select[aria-invalid="true"], textarea[aria-invalid="
 .receipt__status { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem; margin: 0; padding: 0.6rem 1.5rem; background: #EEF7E8; color: #1A6B0E; font-weight: 700; font-size: 0.9rem; max-width: none; }
 .receipt__parties { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; padding: 1.1rem 1.5rem; }
 .receipt h3 { margin: 0 0 0.3rem; font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; color: #0057AE; }
-.receipt__parties p { margin: 0; }
+.receipt__parties p { margin: 0; overflow-wrap: anywhere; }
 .receipt__table { padding: 0 1.5rem; overflow-x: auto; }
 .receipt table { width: 100%; border-collapse: collapse; font-size: 0.92rem; }
 .receipt th, .receipt td { padding: 0.55rem 0.4rem; text-align: left; border-bottom: 1px solid #E3E6EA; vertical-align: top; }
 .receipt thead th { font-size: 0.72rem; letter-spacing: 0.06em; text-transform: uppercase; color: #4A5670; border-bottom: 2px solid #0A2A66; }
-.receipt tbody th { font-weight: 600; }
+.receipt tbody th { font-weight: 600; overflow-wrap: anywhere; }
 .receipt th small { display: block; font-weight: 400; color: #4A5670; }
 .receipt .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .receipt__parcels { padding: 1rem 1.5rem 0; }
@@ -1997,4 +1997,5 @@ input[aria-invalid="true"], select[aria-invalid="true"], textarea[aria-invalid="
   body:has(#receipt) #view { max-width: none; padding: 0; }
   .receipt { max-width: none; margin: 0; border: 0; box-shadow: none; border-radius: 0; }
   .receipt, .receipt * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .receipt tr, .receipt__head, .receipt__parties, .receipt__totals, .receipt__foot { break-inside: avoid; }
 }

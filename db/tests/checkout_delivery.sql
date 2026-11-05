@@ -114,6 +114,12 @@ SELECT pg_temp.expect_rejection($q$SELECT app.place_order(jsonb_build_object('re
   'items', '[{"product_id":"DB1","quantity":1}]'::jsonb, 'user_id', (SELECT id FROM users WHERE email = 'dbuyer@example.com')))$q$);
 
 -- ---------- Receipts ----------
+SAVEPOINT guest_receipt;
+SELECT app.place_order('{"ref":"ZS-DLVYGUEST","contact_name":"Guest buyer","recipient_phone":"+260970000099","items":[{"product_id":"DA1","quantity":1}]}');
+SELECT pg_temp.signed_in('00000000-0000-0000-0000-0000000091b1');
+SELECT pg_temp.expect_rejection($q$SELECT public.order_receipt('ZS-DLVYGUEST')$q$);
+SELECT pg_temp.expect_rejection($q$SELECT public.send_receipt('ZS-DLVYGUEST', 'email', 'me@example.com')$q$);
+ROLLBACK TO guest_receipt;
 SELECT pg_temp.signed_in('00000000-0000-0000-0000-0000000091b1');
 SELECT pg_temp.assert_true((SELECT (r ->> 'grand_total')::numeric = 883 AND jsonb_array_length(r -> 'items') = 2 AND jsonb_array_length(r -> 'parcels') = 2
   FROM (SELECT public.order_receipt('zs-dlvy0001') r) x), 'the buyer reads the receipt');
