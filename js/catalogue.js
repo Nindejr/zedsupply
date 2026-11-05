@@ -56,9 +56,13 @@ window.ZS_CATALOGUE = {
     //   WhatsApp" instead of a date. With figures in, products show "Arrives Tue 4 Nov – Thu 6 Nov".
     // cutoff: orders after this hour (24-hour clock) count from the next working day.
     // leadDays: the earliest day a buyer can pick, counted from today. closedDays: 0 = Sunday … 6 = Saturday.
+    // sameDay: towns where sellers who offer it deliver within their own town on the day, for
+    //   orders by the cutoff hour, e.g. { cutoff: 11, towns: ['Lusaka', 'Kitwe'] }. Sellers opt in
+    //   under "Your store location" in the Seller Centre. Empty towns = no same-day delivery.
     delivery: {
       enabled: true,
       estimates: { town: null, province: null, country: null, world: null },   // e.g. town: [1, 2]
+      sameDay: { cutoff: 11, towns: [] },
       cutoff: 14,
       leadDays: 1, daysAhead: 14, closedDays: [0],
       slots: [
@@ -67,6 +71,12 @@ window.ZS_CATALOGUE = {
         { id: 'evening', label: 'Evening (17:00–19:00)' }
       ]
     },
+
+    // ---- Seller deadlines ----
+    // Hours a seller has to accept a new order, and then to hand it to the courier (or have it
+    // ready to collect). Shown to sellers in the Seller Centre and to buyers on the delivery
+    // times page. null = not set yet, and nothing is promised.
+    sellerDeadlines: { acceptHours: null, dispatchHours: null },
 
     // ---- Location ----
     // Buyers set where they are (typed, or found from their device's GPS) and whether they want

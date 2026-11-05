@@ -11,7 +11,7 @@ test.beforeEach(async ({ page }) => {
   });
 });
 
-for (const route of ['', '#/departments', '#/search?q=solar', '#/product/L041', '#/cart', '#/account', '#/device', '#/seller', '#/staff', 'help.html', 'privacy.html', '404.html', 'shop/', 'shop/departments/solar/', 'shop/departments/enterprise/']) {
+for (const route of ['', '#/departments', '#/search?q=solar', '#/product/L041', '#/cart', '#/account', '#/device', '#/seller', '#/staff', '#/delivery-times', '#/riders', '#/services', 'help.html', 'privacy.html', '404.html', 'shop/', 'shop/departments/solar/', 'shop/departments/enterprise/']) {
   test('usable layout, working artwork and accessible content: ' + (route || 'home'), async ({ page }) => {
     const errors = [];
     page.on('pageerror', e => errors.push(e.message));
@@ -125,6 +125,54 @@ test('a seller builds a team with roles in the Seller Centre preview', async ({ 
   const results = await page.evaluate(async () => (await axe.run('#sc-team', { runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa'] } })).violations.map(v => v.id));
   expect(results).toEqual([]);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
+});
+
+test('delivery times by town, same-day delivery and seller deadlines', async ({ page }) => {
+  // 09:00 on a Wednesday: before the same-day cut-off of 11:00
+  await page.clock.setFixedTime(new Date('2026-11-04T09:00:00'));
+  await page.addInitScript(() => {
+    localStorage.setItem('zs-consent', 'denied');
+    localStorage.setItem('zs-loc-tip-seen', '1');
+    localStorage.setItem('zs-location', JSON.stringify({ town: 'Lusaka', province: 'lusaka', area: '', mode: 'delivery', remember: true }));
+  });
+  await page.goto('/index.html?demo=1&theme=off#/delivery-times');
+  await expect(page.locator('#dt-town')).toHaveValue('Lusaka');
+  const times = page.locator('#dt-result');
+  await expect(times).toContainText('Same day, from sellers in Lusaka who offer it');
+  await expect(times).toContainText('From a seller in Lusaka');
+  await expect(times).toContainText('1–2 working days');
+  await expect(times).toContainText('From elsewhere in Lusaka Province');
+  await page.locator('#dt-town').selectOption('Mongu');
+  await expect(times).not.toContainText('Same day');
+  await expect(times).toContainText('From elsewhere in Western Province');
+  await expect(times).toContainText('No sellers ship from Mongu yet');
+  await expect(page.locator('main')).toContainText('Accept your order');
+  await expect(page.locator('main')).toContainText('Within 12 hours');
+  // A Lusaka seller offering same day: a Lusaka buyer sees "Arrives today" before the cut-off
+  await page.goto('/index.html?demo=1&theme=off#/store/store-a');
+  const sameDayProduct = await page.locator('.pcard .ptitle').first().getAttribute('href');
+  await page.goto('/index.html?demo=1&theme=off' + sameDayProduct);
+  await expect(page.locator('.fulfil__main')).toHaveText('Arrives today if you order by 11:00');
+  // The Seller Centre shows the deadlines and the same-day choice
+  await page.goto('/index.html?demo=1&theme=off#/seller');
+  await page.locator('#sl-store').selectOption('store-a');
+  await page.getByRole('button', { name: 'Enter Seller Centre' }).click();
+  await expect(page.locator('#sc-deadlines')).toContainText('within 48 hours of accepting it');
+  await expect(page.getByLabel('I deliver the same day within my town')).toBeChecked();
+});
+
+test('rider sign-up and the services directory are marked coming soon', async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem('zs-consent', 'denied'));
+  await page.goto('/index.html?demo=1&theme=off#/riders');
+  await expect(page.getByRole('heading', { name: 'Deliver with Zed Supply', level: 1 })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Sign-up opens soon' })).toBeDisabled();
+  await expect(page.locator('#view form')).toHaveCount(0);
+  await page.goto('/index.html?demo=1&theme=off#/services');
+  await expect(page.getByRole('heading', { name: 'Services', level: 1 })).toBeVisible();
+  await expect(page.locator('main')).toContainText('Solar installation and repairs');
+  await expect(page.locator('main')).toContainText('Coming in a later phase');
+  await expect(page.locator('#view form')).toHaveCount(0);
+  await expect(page.locator('.site-footer a[href="index.html#/services"]')).toHaveText('Services (coming soon)');
 });
 
 test('the demo order shows a handover code while it is out for delivery', async ({ page }) => {

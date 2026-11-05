@@ -85,6 +85,8 @@
     if (X.deliveryEstimates && S.delivery && !Object.keys(liveEst).some(function (k) { return liveEst[k]; })) {
       S.delivery.estimates = X.deliveryEstimates; S.delivery.sampleEstimates = true;
     }
+    if (X.sameDay && S.delivery && !((S.delivery.sameDay || {}).towns || []).length) { S.delivery.sameDay = X.sameDay; S.delivery.sampleSameDay = true; }
+    if (X.sellerDeadlines && !(S.sellerDeadlines && S.sellerDeadlines.acceptHours)) S.sellerDeadlines = Object.assign({}, X.sellerDeadlines, { sample: true });
     S.isSample = true;
     S.vat = Object.assign({}, S.vat, { registered: true, tpin: '[SAMPLE TPIN]' });
     // Sample sales are [this month, last month], so the demo's trending and top picks never go stale
@@ -675,7 +677,7 @@
     if (!s) return null;
     var l = (store.get('seller-locations', {}) || {})[s.id] || s.location || (s.city ? { town: s.city } : null);
     if (!l || !l.town) return null;
-    return { town: l.town, area: l.area || '', province: l.province || (townInfo(l.town) || {}).province || '',
+    return { town: l.town, area: l.area || '', province: l.province || (townInfo(l.town) || {}).province || '', sameDay: !!l.sameDay,
       collection: l.collection || { enabled: false }, deliversTo: l.deliversTo && l.deliversTo !== 'all' ? l.deliversTo : 'all' };
   }
   // How far an order travels: 'town', 'province' or 'country'; '' when either end is unknown
@@ -706,14 +708,30 @@
     var from = workingDay(e[0]), to = workingDay(e[1]);
     return { min: e[0], max: e[1], text: e[0] === e[1] ? 'Arrives ' + shortDate(from) : 'Arrives ' + shortDate(from) + ' – ' + shortDate(to) };
   }
+  // "1–2 working days" for an estimate [fewest, most]
+  function daysText(e) { return (e[0] === e[1] ? e[0] : e[0] + '–' + e[1]) + ' working day' + (e[1] === 1 ? '' : 's'); }
+  function hourText(h) { return ('0' + (Number(h) || 0)).slice(-2) + ':00'; }
+  function sameDayTowns() { return ((DELIVERY.sameDay || {}).towns || []); }
+  function sameDayTown(t) { var n = String(t || '').toLowerCase(); return sameDayTowns().some(function (x) { return x.toLowerCase() === n; }); }
+  // Same day: the seller offers it, the buyer is in the seller's town, that town is on the
+  // same-day list (settings.delivery.sameDay) and it's a working day before the cut-off
+  function sameDayFor(s) {
+    var sl = sellerLoc(s), cut = Number((DELIVERY.sameDay || {}).cutoff) || 0;
+    if (!sl || !sl.sameDay || !loc || loc.mode === 'collection' || zoneFor(s) !== 'town' || !sameDayTown(loc.town)) return '';
+    if ((DELIVERY.closedDays || []).indexOf(now.getDay()) !== -1 || now.getHours() >= cut) return '';
+    return 'Arrives today if you order by ' + hourText(cut);
+  }
+  // What sellers promise: accept a new order, then hand it over, within these hours (settings.sellerDeadlines)
+  function deadlines() { var d = S.sellerDeadlines || {}; return d.acceptHours > 0 && d.dispatchHours > 0 ? d : null; }
+  function hoursText(h) { return h + ' hour' + (h === 1 ? '' : 's'); }
   // One line for a seller's parcel: when it arrives, or where to collect it
   function fulfilLine(s) {
     if (!loc) return '';
     var sl = sellerLoc(s);
     if (loc.mode === 'collection') { var c = collectionAt(s); return c ? 'Collect in ' + c.town + (c.collection.hours ? ' · ' + c.collection.hours : '') : 'No collection from this seller · delivered instead'; }
     if (!deliversHere(s)) return 'Doesn\'t deliver to ' + (provinceName(provinceOf(loc)) || loc.town) + ' yet';
-    var est = estimateFor(zoneFor(s));
-    return (sl ? 'Ships from ' + sl.town + ' · ' : '') + (est ? est.text : 'delivery time confirmed on WhatsApp');
+    var est = estimateFor(zoneFor(s)), sd = sameDayFor(s);
+    return (sl ? 'Ships from ' + sl.town + ' · ' : '') + (sd || (est ? est.text : 'delivery time confirmed on WhatsApp'));
   }
   // Product page: where it comes from, whether it reaches the buyer, and when
   function fulfilHTML(p) {
@@ -732,9 +750,9 @@
       out = '<p class="pstock pstock--out">Doesn\'t deliver to ' + esc(provinceName(provinceOf(loc)) || loc.town) + ' yet</p>' +
         (cc ? '<p class="pmeta">You can collect it in ' + esc(cc.town) + '. <button class="link-btn" type="button" data-set-mode="collection">Switch to collection</button></p>' : '<p class="pmeta">Ask us on WhatsApp: we may be able to arrange it.</p>');
     } else {
-      var zone = zoneFor(s), est = estimateFor(zone);
-      out = '<p class="fulfil__main">' + (est ? esc(est.text) : 'Delivery to ' + esc(loc.town) + ': time confirmed on WhatsApp') + '</p>' +
-        '<p class="pmeta">' + (zone === 'town' ? 'In stock near you, in ' + esc(sl.town) : sl ? 'Ships from ' + esc(sl.town) : '') + (est && DELIVERY.sampleEstimates ? ' · sample delivery times' : '') + '</p>';
+      var zone = zoneFor(s), est = estimateFor(zone), sd = sameDayFor(s);
+      out = '<p class="fulfil__main">' + (sd ? esc(sd) : est ? esc(est.text) : 'Delivery to ' + esc(loc.town) + ': time confirmed on WhatsApp') + '</p>' +
+        '<p class="pmeta">' + (zone === 'town' ? 'In stock near you, in ' + esc(sl.town) : sl ? 'Ships from ' + esc(sl.town) : '') + (est && DELIVERY.sampleEstimates ? ' · sample delivery times' : '') + ' · <a href="#/delivery-times">Delivery times</a></p>';
     }
     if (loc && !user()) out += '<p class="pmeta"><a href="#/account">Sign in</a> to keep your location and see the most accurate dates and offers.</p>';
     return '<div class="fulfil">' + out + '</div>';
@@ -3098,6 +3116,71 @@
         '<p class="pmeta">Prototype: the status here updates once complaints are handled through secure accounts. Until then, we keep you updated on WhatsApp.</p>', 'Complaints');
     },
 
+    'delivery-times': function () {
+      var est = DELIVERY.estimates || {}, dl = deadlines(), cut = (DELIVERY.sameDay || {}).cutoff, closed = (DELIVERY.closedDays || []).map(function (d) { return DAYS[d]; });
+      var start = loc && townInfo(loc.town) ? townInfo(loc.town).name : '';
+      var timeFor = function (zone) { var e = est[zone], x = estimateFor(zone); return e && x ? daysText(e) + '<span class="pmeta">Order now: ' + esc(x.text.replace(/^Arrives /, 'arrives ')) + '</span>' : 'Confirmed on WhatsApp before you pay'; };
+      show(crumbs([['Help', 'help.html#delivery'], ['Delivery times']]) + head('Delivery times by town', 'How long delivery takes depends on how far your parcel travels from the seller\'s town to yours.') +
+        '<div class="duo duo--gap"><section class="card" aria-labelledby="dt-check-title"><h2 id="dt-check-title">Check your town' + (DELIVERY.sampleEstimates ? ' <span class="tag-sample">Sample times</span>' : '') + '</h2>' +
+          '<div class="field"><label for="dt-town">Your town</label><select id="dt-town"><option value="">Choose your town</option>' + PROVINCES.map(function (pv) {
+            return '<optgroup label="' + esc(pv[1]) + '">' + TOWNS.filter(function (t) { return t.province === pv[0]; }).map(function (t) { return '<option' + (t.name === start ? ' selected' : '') + '>' + esc(t.name) + '</option>'; }).join('') + '</optgroup>';
+          }).join('') + '</select></div><div id="dt-result" aria-live="polite"></div></section>' +
+        '<section class="band" aria-labelledby="dt-how-title"><h2 id="dt-how-title">How we count</h2>' + ticks([
+          'Times are in working days' + (closed.length ? ', not counting ' + esc(closed.join(' or ')) : '') + '.',
+          DELIVERY.cutoff ? 'Orders after ' + hourText(DELIVERY.cutoff) + ' count from the next working day.' : '',
+          sameDayTowns().length ? 'Same day in ' + esc(sameDayTowns().join(', ')) + (DELIVERY.sampleSameDay ? ' (sample towns)' : '') + ': order by ' + hourText(cut) + ' from a seller in your town who offers it, and it arrives today.' : '',
+          'Each product page shows the date for your town, from that seller. You can pick a preferred day and time at checkout.',
+          'Every delivery is confirmed with your private <a href="help.html#delivery">handover code</a>.'].filter(Boolean)) + '</section></div>' +
+        (dl ? '<section class="section card" aria-labelledby="dt-sellers-title"><h2 id="dt-sellers-title">What sellers promise' + (dl.sample ? ' <span class="tag-sample">Sample</span>' : '') + '</h2>' +
+          '<dl class="totals"><div><dt>Accept your order</dt><dd>Within ' + hoursText(dl.acceptHours) + '</dd></div><div><dt>Hand it to the courier, or have it ready to collect</dt><dd>Within ' + hoursText(dl.dispatchHours) + ' of accepting</dd></div></dl>' +
+          '<p class="pmeta">If a seller misses these, we chase the order and keep you posted on WhatsApp.</p></section>' : '') +
+        '<p class="view-foot"><a href="help.html#couriers">Courier options</a> · <a href="help.html#delivery">Delivery help</a></p>', 'Delivery times');
+      var sel = $('#dt-town'), res = $('#dt-result');
+      function draw() {
+        var t = townInfo(sel.value);
+        if (!t) { res.innerHTML = '<p class="pmeta">Choose your town to see what to expect.</p>'; return; }
+        var here = D.sellers.filter(function (s) { var sl = sellerLoc(s); return sl && sl.town.toLowerCase() === t.name.toLowerCase(); });
+        res.innerHTML = '<dl class="totals dt-times">' +
+          (sameDayTown(t.name) ? '<div><dt>Same day, from sellers in ' + esc(t.name) + ' who offer it</dt><dd>Order by ' + hourText(cut) + '</dd></div>' : '') +
+          '<div><dt>From a seller in ' + esc(t.name) + '</dt><dd>' + timeFor('town') + '</dd></div>' +
+          '<div><dt>From elsewhere in ' + esc(provinceName(t.province)) + ' Province</dt><dd>' + timeFor('province') + '</dd></div>' +
+          '<div><dt>From elsewhere in Zambia</dt><dd>' + timeFor('country') + '</dd></div>' +
+          (est.world ? '<div><dt>From outside Zambia</dt><dd>' + timeFor('world') + '</dd></div>' : '') + '</dl>' +
+          '<p class="pmeta">' + (here.length ? here.length + (here.length === 1 ? ' seller ships' : ' sellers ship') + ' from ' + esc(t.name) + '.' : 'No sellers ship from ' + esc(t.name) + ' yet, so orders come from other towns.') + '</p>';
+      }
+      sel.addEventListener('change', draw); draw();
+    },
+
+    riders: function () {
+      var msg = 'Hi Zed Supply, please tell me when rider sign-up opens. My town is: ';
+      show(crumbs([['Deliver with Zed Supply']]) +
+        '<div class="store-hero" style="--brand-a:#0A2A66;--brand-b:#0F5E2E"><h1>Deliver with Zed Supply</h1><p>Deliver parcels from Zed Supply sellers to buyers in your town. Rider sign-up is coming soon.</p></div>' +
+        '<ol class="steps"><li class="step"><h2>Collect</h2><p>Pick up packed parcels from sellers near you.</p></li><li class="step"><h2>Deliver</h2><p>Take them to buyers in the day and time they chose.</p></li><li class="step"><h2>Confirm</h2><p>Enter the buyer\'s 6-digit handover code once the parcel is in their hands.</p></li></ol>' +
+        '<div class="duo duo--gap"><section class="band" aria-labelledby="rd-why-title"><h2 id="rd-why-title">Why sign-up isn\'t open yet</h2>' +
+          '<p>Riders go to people\'s homes and carry their goods, so we\'re settling how we check every rider before they take a parcel. We\'ll publish what you need and how we check it before sign-up opens.</p>' +
+          '<p>Courier companies licensed by ZICTA can already be chosen at checkout: see <a href="help.html#couriers">courier options</a>.</p></section>' +
+        '<section class="card" aria-labelledby="rd-soon-title"><h2 id="rd-soon-title">Rider sign-up</h2><p class="notice">Coming soon. Nothing is collected here yet.</p>' +
+          '<div class="btn-row"><button class="btn btn--primary" type="button" disabled>Sign-up opens soon</button>' +
+          '<a class="btn btn--secondary" href="' + waUrl(msg) + '" data-wa-message="' + esc(msg) + '" target="_blank" rel="noopener noreferrer">Tell me when it opens</a></div></section></div>', 'Deliver with Zed Supply');
+    },
+
+    services: function () {
+      var msg = 'Hi Zed Supply, please tell me when the services directory opens. I\'m interested in: ';
+      var plan = [['solar', 'Solar installation and repairs'], ['tv', 'TV mounting and setup'], ['home', 'Appliance installation and repair'],
+        ['hardware', 'Electricians, plumbers and builders'], ['computers', 'Phone, laptop and computer repairs'], ['smarthome', 'Smart home and security camera setup'],
+        ['auto', 'Vehicle fitting and servicing'], ['agri', 'Farm services, such as irrigation setup']].filter(function (x) { return byId(D.departments, x[0]); });
+      show(crumbs([['Services']]) +
+        '<div class="store-hero" style="--brand-a:#0A2A66;--brand-b:#0B6E69"><h1>Services</h1><p>Book checked local professionals to install, fix and set up what you buy. Coming in a later phase.</p></div>' +
+        '<div class="duo duo--gap"><section class="band" aria-labelledby="sv-how-title"><h2 id="sv-how-title">How we plan it to work</h2><ol class="steps-list">' +
+          '<li>Find a provider near you by service, or straight from the product you bought, such as installation for a solar kit.</li>' +
+          '<li>See the price before you book, and pay through Zed Supply.</li>' +
+          '<li>We pay the provider once you confirm the job is done: the same protection as your orders.</li></ol></section>' +
+        '<section class="card" aria-labelledby="sv-list-title"><h2 id="sv-list-title">Services we plan to start with</h2>' +
+          ticks(plan.map(function (x) { return esc(x[1]) + ' <span class="pmeta">· for <a href="#/dept/' + x[0] + '">' + esc(dept(x[0]).name) + '</a></span>'; })) +
+          '<p class="notice">Not open yet. Providers will be able to apply once we\'ve settled how we check them.</p>' +
+          '<a class="btn btn--secondary" href="' + waUrl(msg) + '" data-wa-message="' + esc(msg) + '" target="_blank" rel="noopener noreferrer">Tell me when it opens</a></section></div>', 'Services');
+    },
+
     sell: function () {
       show(crumbs([['Sell on Zed Supply']]) +
         '<div class="store-hero" style="--brand-a:#0A2A66;--brand-b:#106B3A"><h1>Sell on Zed Supply</h1><p>Open your store, reach more customers and run your own promotions.</p></div>' +
@@ -3170,6 +3253,8 @@
             '<div class="check"><input type="checkbox" id="sl-collect"' + (col.enabled ? ' checked' : '') + '><label for="sl-collect">Buyers can collect from me</label></div>' +
             '<div class="field-row" id="sl-collect-fields"' + (col.enabled ? '' : ' hidden') + '><div class="field"><label for="sl-caddr">Collection address</label><input id="sl-caddr" maxlength="120" placeholder="e.g. Shop 4, Cairo Road" value="' + esc(col.address || '') + '"></div>' +
               '<div class="field"><label for="sl-chours">Collection hours</label><input id="sl-chours" maxlength="60" placeholder="e.g. Mon–Sat 08:00–17:00" value="' + esc(col.hours || '') + '"></div></div>' +
+            (sameDayTowns().length ? '<div class="check"><input type="checkbox" id="sl-sameday"' + (sl.sameDay ? ' checked' : '') + ' aria-describedby="sl-sameday-hint"><label for="sl-sameday">I deliver the same day within my town</label></div>' +
+              '<p class="hint" id="sl-sameday-hint">For orders by ' + hourText((DELIVERY.sameDay || {}).cutoff) + ' on working days, in ' + esc(sameDayTowns().join(', ')) + (DELIVERY.sampleSameDay ? ' (sample towns)' : '') + '. Buyers in your town see "Arrives today". <a href="#/delivery-times">Delivery times</a></p>' : '') +
             '<fieldset class="field"><legend>Where you deliver</legend><div class="check"><input type="radio" name="sl-areas" id="sl-areas-all" value="all"' + (limited ? '' : ' checked') + '><label for="sl-areas-all">All of Zambia</label></div>' +
               '<div class="check"><input type="radio" name="sl-areas" id="sl-areas-some" value="some"' + (limited ? ' checked' : '') + '><label for="sl-areas-some">Only these provinces</label></div>' +
               '<div class="checks" id="sl-provs"' + (limited ? '' : ' hidden') + '>' + PROVINCES.map(function (pv) { return '<div class="check"><input type="checkbox" id="sl-p-' + pv[0] + '" value="' + pv[0] + '"' + (limited && sl.deliversTo.indexOf(pv[0]) !== -1 ? ' checked' : '') + '><label for="sl-p-' + pv[0] + '">' + esc(pv[1]) + '</label></div>'; }).join('') + '</div></fieldset>' +
@@ -3184,6 +3269,11 @@
             (OPTS.complaints && OPTS.complaints.sellerDashboard ? '' : '<p class="notice">You\'ll be able to read and answer complaints here once seller accounts move to our secure server.</p>') +
             (mineC.length ? '<ul class="orders">' + mineC.map(function (c) { var t = COMPLAINT_TYPES.filter(function (x) { return x[0] === c.type; })[0]; return '<li class="order-row"><span><strong>' + esc(c.ref) + '</strong> · ' + esc(t ? t[1] : '') + '<br><span class="pmeta">' + niceDate(c.date) + (c.order ? ' · order ' + esc(c.order) : '') + ' · prototype, from this device</span></span><span class="' + statusClass(c.status) + '">' + esc(COMPLAINT_STATUS[c.status] || c.status) + '</span></li>'; }).join('') + '</ul>' : '') + '</section>';
         })() : '') +
+        (deadlines() ? '<section class="card sc-products" id="sc-deadlines" aria-labelledby="sc-dl-title"><h2 id="sc-dl-title">Your delivery deadlines' + (deadlines().sample ? ' <span class="tag-sample">Sample</span>' : '') + '</h2>' +
+          '<ol class="steps-list"><li><strong>Accept</strong> each new order within ' + hoursText(deadlines().acceptHours) + ', or tell us straight away if you can\'t fill it.</li>' +
+          '<li><strong>Hand it over</strong> to the courier, or have it ready to collect, within ' + hoursText(deadlines().dispatchHours) + ' of accepting it.</li>' +
+          '<li><strong>Confirm the handover</strong> with the buyer\'s 6-digit code, or a photo when they can\'t be there.</li></ol>' +
+          '<p class="pmeta">Dispatching on time counts towards your performance score. <a href="#/delivery-times">See what buyers are told</a></p></section>' : '') +
         ext('sellerSections', s, mine) +
         '<div class="duo duo--gap">' +
         '<section class="card" id="sc-promos" aria-labelledby="sc-p-title"><h2 id="sc-p-title">Your promotions</h2>' + (promos.length ? '<ul class="orders">' + promos.map(function (pr) {
@@ -3285,7 +3375,7 @@
           var all = store.get('seller-locations', {});
           all[s.id] = { town: town, area: cleanText($('#sl-area', locSeller).value, 60), province: $('#sl-province', locSeller).value,
             collection: { enabled: collect, address: cleanText($('#sl-caddr', locSeller).value, 120), hours: cleanText($('#sl-chours', locSeller).value, 60) },
-            deliversTo: some ? provs : 'all' };
+            sameDay: !!($('#sl-sameday', locSeller) && $('#sl-sameday', locSeller).checked), deliversTo: some ? provs : 'all' };
           store.set('seller-locations', all);
           toast('Store location saved', 'success');
           route();

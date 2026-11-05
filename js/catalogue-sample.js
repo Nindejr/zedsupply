@@ -12,6 +12,9 @@ window.ZS_SAMPLE = {
   // [SAMPLE] delivery times in working days, used in demo mode only while the live
   // settings.delivery.estimates are still empty, so the demo can show delivery dates
   deliveryEstimates: { town: [1, 2], province: [2, 4], country: [3, 7], world: null },
+  // [SAMPLE] same-day towns and seller deadlines, used in demo mode while the live ones are unset
+  sameDay: { cutoff: 11, towns: ['Lusaka', 'Kitwe', 'Ndola', 'Livingstone'] },
+  sellerDeadlines: { acceptHours: 12, dispatchHours: 48 },
 
   // [SAMPLE] pickup points, used in demo mode while settings.pickupPoints is empty
   pickupPoints: [
@@ -27,7 +30,7 @@ window.ZS_SAMPLE = {
 
   // Registered sellers [SAMPLE]
   sellers: [
-    { id: 'store-a', sample: true, trust: { since: '2025-03-01', delivered: 214, replyHours: 2 }, couriers: ['rapidriders', 'zampost'], name: 'Sample Store A', city: 'Lusaka', location: { town: 'Lusaka', area: 'Cairo Road', collection: { enabled: true, address: '[SAMPLE] Shop 4, Cairo Road', hours: 'Mon–Sat 08:00–17:00' }, deliversTo: 'all' }, verified: true, about: '[SAMPLE] Office, tech and home products.', colours: ['#0A2A66', '#0057AE'] },
+    { id: 'store-a', sample: true, trust: { since: '2025-03-01', delivered: 214, replyHours: 2 }, couriers: ['rapidriders', 'zampost'], name: 'Sample Store A', city: 'Lusaka', location: { town: 'Lusaka', area: 'Cairo Road', sameDay: true, collection: { enabled: true, address: '[SAMPLE] Shop 4, Cairo Road', hours: 'Mon–Sat 08:00–17:00' }, deliversTo: 'all' }, verified: true, about: '[SAMPLE] Office, tech and home products.', colours: ['#0A2A66', '#0057AE'] },
     { id: 'store-b', sample: true, trust: { since: '2025-08-15', delivered: 58, replyHours: 6 }, couriers: ['kingsway', 'fedex', 'dhl'], name: 'Sample Store B', city: 'Kitwe', location: { town: 'Kitwe', area: 'Freedom Avenue', collection: { enabled: false }, deliversTo: ['copperbelt', 'central', 'lusaka', 'northwestern'] }, verified: true, about: '[SAMPLE] Solar, power and small business equipment.', colours: ['#0F5E2E', '#1A8A3A'] },
     { id: 'store-c', sample: true, trust: { since: '2026-01-10', delivered: 97, replyHours: 3 }, couriers: ['dropsync', 'yango', 'zampost'], name: 'Sample Store C', city: 'Lusaka', location: { town: 'Lusaka', area: 'Kabulonga', collection: { enabled: true, address: '[SAMPLE] Kabulonga Shopping Centre', hours: 'Mon–Fri 09:00–18:00' }, deliversTo: ['lusaka', 'central', 'southern'] }, verified: false, about: '[SAMPLE] Fashion, homeware and everyday essentials.', colours: ['#7C2D12', '#C2410C'] }
   ],
