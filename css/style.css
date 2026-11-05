@@ -611,6 +611,8 @@ a.tile { text-decoration: none; }
 .totals .is-total { border-top: 1px solid var(--color-border); padding-top: 0.5rem; margin-top: 0.25rem; font-size: 1.15rem; }
 .totals .is-total dt, .totals .is-total dd { color: var(--color-heading); font-weight: 700; }
 .totals .is-save dd { color: var(--color-accent-ink); }
+.dt-times dd { text-align: right; }
+.dt-times dd .pmeta { font-weight: 400; }
 .voucher { display: flex; gap: 0.5rem; }
 .voucher input { flex: 1; min-width: 0; }
 

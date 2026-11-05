@@ -712,7 +712,7 @@
   function daysText(e) { return (e[0] === e[1] ? e[0] : e[0] + '–' + e[1]) + ' working day' + (e[1] === 1 ? '' : 's'); }
   function hourText(h) { return ('0' + (Number(h) || 0)).slice(-2) + ':00'; }
   function sameDayTowns() { return ((DELIVERY.sameDay || {}).towns || []); }
-  function sameDayTown(t) { var n = String(t || '').toLowerCase(); return sameDayTowns().some(function (x) { return x.toLowerCase() === n; }); }
+  function sameDayTown(t) { var n = String(t || '').trim().toLowerCase(); return sameDayTowns().some(function (x) { return String(x || '').trim().toLowerCase() === n; }); }
   // Same day: the seller offers it, the buyer is in the seller's town, that town is on the
   // same-day list (settings.delivery.sameDay) and it's a working day before the cut-off
   function sameDayFor(s) {
@@ -751,8 +751,13 @@
         (cc ? '<p class="pmeta">You can collect it in ' + esc(cc.town) + '. <button class="link-btn" type="button" data-set-mode="collection">Switch to collection</button></p>' : '<p class="pmeta">Ask us on WhatsApp: we may be able to arrange it.</p>');
     } else {
       var zone = zoneFor(s), est = estimateFor(zone), sd = sameDayFor(s);
+      var meta = [
+        zone === 'town' ? 'In stock near you, in ' + esc(sl.town) : sl ? 'Ships from ' + esc(sl.town) : '',
+        ((sd ? DELIVERY.sampleSameDay : (est && DELIVERY.sampleEstimates)) ? 'sample delivery times' : ''),
+        '<a href="#/delivery-times">Delivery times</a>'
+      ].filter(Boolean).join(' · ');
       out = '<p class="fulfil__main">' + (sd ? esc(sd) : est ? esc(est.text) : 'Delivery to ' + esc(loc.town) + ': time confirmed on WhatsApp') + '</p>' +
-        '<p class="pmeta">' + (zone === 'town' ? 'In stock near you, in ' + esc(sl.town) : sl ? 'Ships from ' + esc(sl.town) : '') + (est && DELIVERY.sampleEstimates ? ' · sample delivery times' : '') + ' · <a href="#/delivery-times">Delivery times</a></p>';
+        '<p class="pmeta">' + meta + '</p>';
     }
     if (loc && !user()) out += '<p class="pmeta"><a href="#/account">Sign in</a> to keep your location and see the most accurate dates and offers.</p>';
     return '<div class="fulfil">' + out + '</div>';
@@ -3119,9 +3124,9 @@
     'delivery-times': function () {
       var est = DELIVERY.estimates || {}, dl = deadlines(), cut = (DELIVERY.sameDay || {}).cutoff, closed = (DELIVERY.closedDays || []).map(function (d) { return DAYS[d]; });
       var start = loc && townInfo(loc.town) ? townInfo(loc.town).name : '';
-      var timeFor = function (zone) { var e = est[zone], x = estimateFor(zone); return e && x ? daysText(e) + '<span class="pmeta">Order now: ' + esc(x.text.replace(/^Arrives /, 'arrives ')) + '</span>' : 'Confirmed on WhatsApp before you pay'; };
+      var timeFor = function (zone) { var e = est[zone], x = estimateFor(zone); return e && x ? daysText(e) + '<br><span class="pmeta">Order now: ' + esc(x.text.replace(/^Arrives /, 'arrives ')) + '</span>' : 'Confirmed on WhatsApp before you pay'; };
       show(crumbs([['Help', 'help.html#delivery'], ['Delivery times']]) + head('Delivery times by town', 'How long delivery takes depends on how far your parcel travels from the seller\'s town to yours.') +
-        '<div class="duo duo--gap"><section class="card" aria-labelledby="dt-check-title"><h2 id="dt-check-title">Check your town' + (DELIVERY.sampleEstimates ? ' <span class="tag-sample">Sample times</span>' : '') + '</h2>' +
+        '<div class="duo duo--gap"><section class="card" aria-labelledby="dt-check-title"><h2 id="dt-check-title">Check your town' + (DELIVERY.sampleEstimates || DELIVERY.sampleSameDay ? ' <span class="tag-sample">Sample times</span>' : '') + '</h2>' +
           '<div class="field"><label for="dt-town">Your town</label><select id="dt-town"><option value="">Choose your town</option>' + PROVINCES.map(function (pv) {
             return '<optgroup label="' + esc(pv[1]) + '">' + TOWNS.filter(function (t) { return t.province === pv[0]; }).map(function (t) { return '<option' + (t.name === start ? ' selected' : '') + '>' + esc(t.name) + '</option>'; }).join('') + '</optgroup>';
           }).join('') + '</select></div><div id="dt-result" aria-live="polite"></div></section>' +

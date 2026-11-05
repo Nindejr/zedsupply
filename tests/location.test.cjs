@@ -47,6 +47,16 @@ test('delivery settings are well formed', () => {
     if (e !== null) assert(Array.isArray(e) && e.length === 2 && e[0] <= e[1], zone);
   }
   for (const [zone, e] of Object.entries(X.deliveryEstimates)) if (e !== null) assert(e[0] <= e[1], zone);
+  // same-day delivery configuration
+  assert(Number.isInteger(S.delivery.sameDay.cutoff) && S.delivery.sameDay.cutoff >= 0 && S.delivery.sameDay.cutoff <= 23);
+  assert(Array.isArray(S.delivery.sameDay.towns));
+  assert(Number.isInteger(X.sameDay.cutoff) && X.sameDay.cutoff >= 0 && X.sameDay.cutoff <= 23);
+  assert(Array.isArray(X.sameDay.towns) && X.sameDay.towns.length > 0);
+  for (const t of X.sameDay.towns) assert(S.towns.some(town => town[0] === t), 'unknown demo same-day town: ' + t);
+  for (const t of S.delivery.sameDay.towns) assert(S.towns.some(town => town[0] === t), 'unknown live same-day town: ' + t);
+  // seller deadlines configuration
+  assert('acceptHours' in S.sellerDeadlines && 'dispatchHours' in S.sellerDeadlines);
+  assert(X.sellerDeadlines.acceptHours > 0 && X.sellerDeadlines.dispatchHours > 0);
 });
 
 test('demo sellers and regional promotions use known places', () => {
