@@ -603,6 +603,46 @@
       "sha256": "3be6873db01200d3759491ebada6c95e115ee5e53e064c61613fc3b8d84e4cf8"
     },
     {
+      "path": "assets/categories-3d/benefit-confirmation.webp",
+      "branding": "ZED SUPPLY / ZS",
+      "method": "pixel-composite-v1",
+      "width": 224,
+      "height": 224,
+      "bytes": 14564,
+      "sourceSha256": "95c5edbeff835c81ca52199182f37c29ec27c9096832aeb3d5f66d6594db53f1",
+      "sha256": "a98fc1a22f09aae463bc3ba696bb1ca61944daa9dcfd191f495d178d21123dfd"
+    },
+    {
+      "path": "assets/categories-3d/benefit-kwacha.webp",
+      "branding": "ZED SUPPLY / ZS",
+      "method": "pixel-composite-v1",
+      "width": 224,
+      "height": 224,
+      "bytes": 15212,
+      "sourceSha256": "ee9a817aba6c3b36843914f5942d1e1816e3020d62953c51fd82f53e5c24eb3c",
+      "sha256": "42f611c088f0cd55184c7289c1935c61c865e8d04b97a8594a683b27c6d31997"
+    },
+    {
+      "path": "assets/categories-3d/benefit-lusaka.webp",
+      "branding": "ZED SUPPLY / ZS",
+      "method": "pixel-composite-v1",
+      "width": 224,
+      "height": 224,
+      "bytes": 13018,
+      "sourceSha256": "6bae4a6577e160dcdb99fe261c1d8a464d349a5ba276fd232155806d26ab63d8",
+      "sha256": "f823b391f5b0bf8abec5bbcac078accd12ab8f347e4c62d7f6dcbd3daaede123"
+    },
+    {
+      "path": "assets/categories-3d/benefit-whatsapp.webp",
+      "branding": "ZED SUPPLY / ZS",
+      "method": "pixel-composite-v1",
+      "width": 224,
+      "height": 224,
+      "bytes": 13060,
+      "sourceSha256": "dab222337f20de16c9bd6cfa8b2be0e3ea00b52551491f2ae7bfd9cde1b88845",
+      "sha256": "31b01188c31659d6c808bbaaf30d86aa58aa05301b3e2977f0e1701ba3dfebb5"
+    },
+    {
       "path": "assets/categories-3d/boys.webp",
       "branding": "ZED SUPPLY / ZS",
       "method": "pixel-composite-v1",

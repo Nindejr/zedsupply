@@ -81,3 +81,28 @@ test('a device position is matched to the nearest town by the storefront code', 
   assert(Math.abs(context.kmBetween(-15.417, 28.283, -12.802, 28.213) - 291) < 10, 'Lusaka to Kitwe is about 290 km');
   assert(near(-33.92, 18.42).km > S.location.gpsMaxKm, 'Cape Town is too far to match');
 });
+
+
+test('delivery promises use the current Zambia clock, cutoff and closed days', () => {
+  const src = fs.readFileSync('js/main.js', 'utf8');
+  const grab = name => src.slice(src.indexOf('  function ' + name + '('), src.indexOf('\n  }\n', src.indexOf('  function ' + name + '(')) + 4);
+  let clock = Date.parse('2026-11-04T08:59:00Z');
+  class Clock extends Date { static now() { return clock; } }
+  const context = { Date: Clock, DELIVERY: { sameDay: { cutoff: 11, towns: ['Lusaka'] }, cutoff: 14, closedDays: [0] },
+    loc: { town: ' Lusaka ', mode: 'delivery' }, sellerLoc: s => s,
+    provinceOf: () => 'lusaka', sameDayTown: t => t.trim().toLowerCase() === 'lusaka',
+    hourText: h => h + ':00', shift: (d, n) => new Clock(d.getFullYear(), d.getMonth(), d.getDate() + n) };
+  vm.runInNewContext(['zoneFor', 'deliveryNow', 'workingDay', 'sameDayFor'].map(grab).join('\n'), context);
+  const seller = { town: 'Lusaka', province: 'lusaka', sameDay: true };
+  assert.equal(context.zoneFor(seller), 'town');
+  assert.match(context.sameDayFor(seller), /Arrives today/);
+  clock = Date.parse('2026-11-04T09:00:00Z');
+  assert.equal(context.sameDayFor(seller), '', '11:00 Zambia cutoff applies even while page remains open');
+  clock = Date.parse('2026-11-07T22:30:00Z');
+  assert.equal(context.sameDayFor(seller), '', 'Sunday in Zambia is closed');
+  clock = Date.parse('2026-11-04T12:00:00Z');
+  assert.equal(context.workingDay(1).getDate(), 6, '14:00 Zambia cutoff moves the estimate forward');
+  context.loc.mode = 'collection';
+  clock = Date.parse('2026-11-04T07:00:00Z');
+  assert.equal(context.sameDayFor(seller), '');
+});

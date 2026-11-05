@@ -684,7 +684,7 @@
   function zoneFor(s) {
     var sl = sellerLoc(s);
     if (!sl || !loc) return '';
-    if (sl.town.toLowerCase() === String(loc.town).toLowerCase()) return 'town';
+    if (sl.town.trim().toLowerCase() === String(loc.town).trim().toLowerCase()) return 'town';
     var bp = provinceOf(loc);
     return bp && bp === sl.province ? 'province' : 'country';
   }
@@ -694,10 +694,15 @@
     return !sl || !loc || sl.deliversTo === 'all' || !bp || sl.deliversTo.indexOf(bp) !== -1;
   }
   function collectionAt(s) { var sl = sellerLoc(s); return sl && sl.collection && sl.collection.enabled ? sl : null; }
+  function deliveryNow() {
+    var z = new Date(Date.now() + 2 * 60 * 60 * 1000);
+    return new Date(z.getUTCFullYear(), z.getUTCMonth(), z.getUTCDate(), z.getUTCHours(), z.getUTCMinutes());
+  }
   // The working day n days ahead, skipping closed days; orders after the cutoff start tomorrow
   function workingDay(n) {
-    var d = new Date(now.getFullYear(), now.getMonth(), now.getDate()), closed = DELIVERY.closedDays || [];
-    var left = n + (now.getHours() >= (Number(DELIVERY.cutoff) || 24) ? 1 : 0);
+    var current = deliveryNow();
+    var d = new Date(current.getFullYear(), current.getMonth(), current.getDate()), closed = DELIVERY.closedDays || [];
+    var left = n + (current.getHours() >= (Number(DELIVERY.cutoff) || 24) ? 1 : 0);
     while (left > 0) { d = shift(d, 1); if (closed.indexOf(d.getDay()) === -1) left--; }
     return d;
   }
@@ -718,7 +723,9 @@
   function sameDayFor(s) {
     var sl = sellerLoc(s), cut = Number((DELIVERY.sameDay || {}).cutoff) || 0;
     if (!sl || !sl.sameDay || !loc || loc.mode === 'collection' || zoneFor(s) !== 'town' || !sameDayTown(loc.town)) return '';
-    if ((DELIVERY.closedDays || []).indexOf(now.getDay()) !== -1 || now.getHours() >= cut) return '';
+    // Zambia uses UTC+2 year-round. Recheck the clock whenever this is rendered.
+    var current = deliveryNow();
+    if ((DELIVERY.closedDays || []).indexOf(current.getDay()) !== -1 || current.getHours() >= cut) return '';
     return 'Arrives today if you order by ' + hourText(cut);
   }
   // What sellers promise: accept a new order, then hand it over, within these hours (settings.sellerDeadlines)
@@ -3133,7 +3140,7 @@
         '<section class="band" aria-labelledby="dt-how-title"><h2 id="dt-how-title">How we count</h2>' + ticks([
           'Times are in working days' + (closed.length ? ', not counting ' + esc(closed.join(' or ')) : '') + '.',
           DELIVERY.cutoff ? 'Orders after ' + hourText(DELIVERY.cutoff) + ' count from the next working day.' : '',
-          sameDayTowns().length ? 'Same day in ' + esc(sameDayTowns().join(', ')) + (DELIVERY.sampleSameDay ? ' (sample towns)' : '') + ': order by ' + hourText(cut) + ' from a seller in your town who offers it, and it arrives today.' : '',
+          sameDayTowns().length ? 'Same day in ' + esc(sameDayTowns().join(', ')) + (DELIVERY.sampleSameDay ? ' (sample towns)' : '') + ': order before ' + hourText(cut) + ' Zambia time on a working day from a seller in your town who offers it.' : '',
           'Each product page shows the date for your town, from that seller. You can pick a preferred day and time at checkout.',
           'Every delivery is confirmed with your private <a href="help.html#delivery">handover code</a>.'].filter(Boolean)) + '</section></div>' +
         (dl ? '<section class="section card" aria-labelledby="dt-sellers-title"><h2 id="dt-sellers-title">What sellers promise' + (dl.sample ? ' <span class="tag-sample">Sample</span>' : '') + '</h2>' +

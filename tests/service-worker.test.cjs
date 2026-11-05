@@ -4,17 +4,19 @@ const fs = require('node:fs');
 const vm = require('node:vm');
 
 function worker(overrides = {}) {
+  const source = fs.readFileSync('sw.js', 'utf8');
+  const version = source.match(/var VERSION = '([^']+)'/)[1];
   const handlers = {}, deleted = [], writes = [];
   const cache = { match: async () => undefined, put: async req => { writes.push(req.url); } };
   const sandbox = {
     URL, Response, location: { origin: 'https://example.com' },
     self: { registration: { scope: 'https://example.com/store/' },
       addEventListener: (name, fn) => { handlers[name] = fn; }, clients: { claim: async () => {} } },
-    caches: { keys: async () => ['other-app', 'zs-old', 'zs-20261105-r16'],
+    caches: { keys: async () => ['other-app', 'zs-old', version],
       delete: async name => { deleted.push(name); }, open: async () => cache },
     fetch: async () => new Response('fresh'), ...overrides
   };
-  vm.runInNewContext(fs.readFileSync('sw.js', 'utf8'), sandbox);
+  vm.runInNewContext(source, sandbox);
   return { handlers, deleted, writes, cache };
 }
 

@@ -129,7 +129,7 @@ test('a seller builds a team with roles in the Seller Centre preview', async ({ 
 
 test('delivery times by town, same-day delivery and seller deadlines', async ({ page }) => {
   // 09:00 on a Wednesday: before the same-day cut-off of 11:00
-  await page.clock.setFixedTime(new Date('2026-11-04T09:00:00'));
+  await page.clock.setFixedTime(new Date('2026-11-04T07:00:00Z'));
   await page.addInitScript(() => {
     localStorage.setItem('zs-consent', 'denied');
     localStorage.setItem('zs-loc-tip-seen', '1');
@@ -153,6 +153,9 @@ test('delivery times by town, same-day delivery and seller deadlines', async ({ 
   const sameDayProduct = await page.locator('.pcard .ptitle').first().getAttribute('href');
   await page.goto('/index.html?demo=1&theme=off' + sameDayProduct);
   await expect(page.locator('.fulfil__main')).toHaveText('Arrives today if you order by 11:00');
+  await page.clock.setFixedTime(new Date('2026-11-04T09:00:00Z'));
+  await page.reload();
+  await expect(page.locator('.fulfil__main')).not.toContainText('Arrives today');
   // The Seller Centre shows the deadlines and the same-day choice
   await page.goto('/index.html?demo=1&theme=off#/seller');
   await page.locator('#sl-store').selectOption('store-a');
