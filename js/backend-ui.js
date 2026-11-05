@@ -68,15 +68,19 @@
     box.innerHTML = '<p role="status">Checking current prices and stock…</p>';
     B.rpc('checkout_quote', { p: payload }).then(function (quote) {
       if (quoteId !== navigation || !box.isConnected) return;
-      box.innerHTML = '<section class="notice"><h3>Review your server total</h3><p>Items and applicable tax: <strong>' + Z().kwacha(Number(quote.total)) + '</strong></p>' +
-        '<p>' + (quote.delivery_pending ? 'Delivery is still to be confirmed. This is not a final delivered price; payment stays unavailable until delivery is quoted.' : 'Collection order. Delivery is not required.') + '</p>' +
-        '<p>Stock is checked again when you place the order.</p><button class="btn btn--primary" type="button" id="confirm-server-order">Place order for ' + Z().kwacha(Number(quote.total)) + ' in items</button><p role="status"></p></section>';
+      var pending = !!quote.delivery_pending, fee = quote.delivery == null ? null : Number(quote.delivery), grand = Number(quote.grand_total != null ? quote.grand_total : quote.total);
+      box.innerHTML = '<section class="notice"><h3>Review your server total</h3><dl class="totals"><div><dt>Items and applicable tax</dt><dd>' + Z().kwacha(Number(quote.total)) + '</dd></div>' +
+        '<div><dt>Delivery' + (quote.delivery_speed ? ' · ' + esc(Z().speedName(quote.delivery_speed)) : '') + '</dt><dd>' + (pending ? 'To be quoted' : Z().feeText(fee)) + '</dd></div>' +
+        '<div class="is-total"><dt>' + (pending ? 'Total before delivery' : 'Order total') + '</dt><dd>' + Z().kwacha(grand) + '</dd></div></dl>' +
+        '<p>' + (pending ? 'Delivery is still to be quoted. Payment stays unavailable until it is.' : fee === 0 && payload.fulfilment !== 'collection' ? 'Delivery is free for this order.' : 'Stock and the delivery fee are checked again when you place the order.') + '</p>' +
+        '<button class="btn btn--primary" type="button" id="confirm-server-order">Place order' + (pending ? ' for ' + Z().kwacha(grand) + ' before delivery' : ' · ' + Z().kwacha(grand)) + '</button><p role="status"></p></section>';
       payload.expected_total_zmw = Number(quote.total);
+      if (!pending) payload.expected_delivery_zmw = fee; else delete payload.expected_delivery_zmw;
       document.getElementById('confirm-server-order').onclick = async function () {
         var button = this, status = box.querySelector('[role="status"]'); button.disabled = true;
         try {
           var order = await B.placeOrder(payload);
-          Z().clearCheckout(); location.hash = '#/order/' + encodeURIComponent(order.ref);
+          Z().clearCheckout(); location.hash = '#/order/' + encodeURIComponent(order.ref) + '?placed=1';
         } catch (e) { status.textContent = e.message + ' Retry uses the same order reference.'; button.disabled = false; }
       };
     }).catch(function (error) { if (quoteId === navigation && box.isConnected) box.innerHTML = errorHTML(error); });
@@ -100,7 +104,33 @@
       (more ? '<a class="btn btn--secondary" href="#/search?q=' + encodeURIComponent(term) + (department ? '&dept=' + encodeURIComponent(department) : '') + '&after=' + encodeURIComponent(rows[rows.length - 1].id) + '">Next page</a>' : ''), title);
     document.getElementById('server-search').onsubmit = function (e) { e.preventDefault(); location.hash = '#/search?q=' + encodeURIComponent(document.getElementById('server-query').value.trim()) + '&dept=' + encodeURIComponent(document.getElementById('server-dept').value); };
   }
-  async function orders(ref, ticket) {
+  // The server's receipt, drawn with the storefront's own receipt design, and sent by WhatsApp or email
+  async function receipt(ref, query, ticket) {
+    if (!requireUser()) return;
+    var r = await B.rpc('order_receipt', { order_ref: ref });
+    if (ticket !== navigation) return;
+    var m = { ref: r.ref, date: String(r.created_at).slice(0, 10), status: r.status, name: r.name || '', whatsapp: '', email: '', mode: r.fulfilment === 'delivery' ? 'delivery' : 'collection',
+      deliverTo: r.deliver_to || r.buyer_town || '', sample: false, paid: r.payment_status === 'paid', payment: r.payment_method || '', vat: Number(r.vat) || 0,
+      lines: r.items.map(function (i) { return { title: i.title, label: '', qty: String(i.quantity), each: Number(i.unit_price), total: Number(i.unit_price) * i.quantity, seller: i.seller }; }),
+      sub: Number(r.subtotal), save: 0, voucher: Number(r.discount) ? { code: r.voucher_code || 'Voucher', off: Number(r.discount) } : null,
+      delivery: r.fulfilment === 'delivery' ? { speed: r.delivery_speed || 'standard', fee: r.delivery == null ? null : Number(r.delivery), pending: r.delivery == null,
+        parcels: r.parcels.map(function (p) { return { seller: p.seller_id, sellerName: p.seller, speed: p.speed, fee: p.fee == null ? null : Number(p.fee), free: p.free, pending: p.fee == null, courier: p.courier_id || '' }; }) } : null,
+      total: Number(r.grand_total), business: r.business_name ? { name: r.business_name, tpin: r.business_tpin, address: r.business_address } : null, gift: r.hide_prices ? { noPrice: true } : null };
+    var p = B.profile() || {};
+    Z().show(Z().crumbs([['Orders', '#/orders'], [m.ref, '#/order/' + encodeURIComponent(m.ref)], ['Receipt']]) +
+      '<div class="receipt-actions no-print"><button class="btn btn--primary" type="button" data-print-receipt>Download PDF or print</button><a class="btn btn--secondary" href="#/order/' + encodeURIComponent(m.ref) + '">Back to order</a></div>' +
+      '<form class="form form--card no-print" id="send-receipt"><h2>Send this receipt</h2><div class="field-row"><div class="field"><label for="rc-channel">Send by</label><select id="rc-channel"><option value="whatsapp">WhatsApp</option><option value="email">Email</option></select></div>' +
+      '<div class="field"><label for="rc-to">To</label><input id="rc-to" maxlength="200" required value="' + esc(p.phone || '') + '" data-email="' + esc(p.email || '') + '" data-phone="' + esc(p.phone || '') + '"></div></div>' +
+      '<button class="btn btn--secondary" type="submit">Send receipt</button><p class="form-status" role="status"></p></form>' + Z().receiptHTML(m), 'Receipt ' + m.ref);
+    var channel = document.getElementById('rc-channel'), to = document.getElementById('rc-to');
+    channel.onchange = function () { to.value = to.getAttribute(channel.value === 'email' ? 'data-email' : 'data-phone'); to.type = channel.value === 'email' ? 'email' : 'tel'; };
+    bind('send-receipt', async function (form) {
+      await B.rpc('send_receipt', { order_ref: m.ref, channel: channel.value, destination: to.value.trim() });
+      form.querySelector('[role="status"]').textContent = 'Sent to the queue: it arrives in a few minutes.';
+    });
+    if (query && query.get('print') === '1') setTimeout(function () { window.print(); }, 250);
+  }
+  async function orders(ref, ticket, query) {
     if (!requireUser()) return;
     var rows = await B.read('orders?select=id,ref,status,created_at,total_zmw,delivery_zmw,paid_zmw,payment_status,fulfilment,business_name,business_tpin,business_address,heavy_delivery,order_items(id,product_id,quantity,unit_price_zmw,order_item_addons(price_zmw))&user_id=eq.' + B.profile().id + (ref ? '&ref=eq.' + encodeURIComponent(ref) : '') + '&order=created_at.desc&limit=50');
     if (ticket !== navigation) return;
@@ -109,13 +139,24 @@
     var events = await B.read('shipment_events?select=id,status,tracking_ref,note,handover,created_at&order_id=eq.' + o.id + '&order=created_at.asc&limit=100');
     var handover = /^(placed|confirmed|dispatched)$/.test(o.status) ? await B.read('order_handover_codes?select=code&order_id=eq.' + o.id) : [];
     var refunds = await B.read('refund_events?select=amount_zmw,payments!inner(order_id)&payments.order_id=eq.' + o.id + '&limit=100');
+    var parcels = await B.read('order_parcels?select=seller_id,speed,fee_zmw,free,courier_id,tracking_ref,courier_status,min_days,max_days&order_id=eq.' + o.id);
+    var tracking = parcels.length ? await B.read('courier_tracking_events?select=seller_id,status,description,location,occurred_at&order_id=eq.' + o.id + '&order=occurred_at.desc&limit=100') : [];
     if (ticket !== navigation) return;
-    show('<section class="card"><h2>' + esc(o.ref) + '</h2><p>Order: ' + esc(o.status) + ' · Payment: ' + esc(o.payment_status) + '</p><dl class="totals"><div><dt>Items total</dt><dd>' + Z().kwacha(Number(o.total_zmw)) + '</dd></div><div><dt>Delivery</dt><dd>' + (o.delivery_zmw === null ? 'Awaiting confirmation; no final payment total yet' : Z().kwacha(Number(o.delivery_zmw))) + '</dd></div><div><dt>Paid</dt><dd>' + Z().kwacha(Number(o.paid_zmw)) + '</dd></div></dl>' +
+    show((query && query.get('placed') ? '<div class="placed" role="status"><p class="placed__title">Thank you, your order is placed</p><p>We\'ll confirm it on WhatsApp. Your receipt is ready to download or send.</p></div>' : '') +
+      '<div class="receipt-actions"><a class="btn btn--primary" href="#/receipt/' + encodeURIComponent(o.ref) + '">View receipt</a><a class="btn btn--secondary" href="#/receipt/' + encodeURIComponent(o.ref) + '?print=1">Download PDF</a></div>' +
+      '<section class="card"><h2>' + esc(o.ref) + '</h2><p>Order: ' + esc(o.status) + ' · Payment: ' + esc(o.payment_status) + '</p><dl class="totals"><div><dt>Items total</dt><dd>' + Z().kwacha(Number(o.total_zmw)) + '</dd></div><div><dt>Delivery</dt><dd>' + (o.delivery_zmw === null ? 'Awaiting confirmation; no final payment total yet' : Z().kwacha(Number(o.delivery_zmw))) + '</dd></div><div><dt>Paid</dt><dd>' + Z().kwacha(Number(o.paid_zmw)) + '</dd></div></dl>' +
       (o.business_name ? '<div class="deliver-box"><p class="deliver-box__label">Billed to</p><p>' + esc(o.business_name) + (o.business_tpin ? '<br>TPIN ' + esc(o.business_tpin) : '') + (o.business_address ? '<br>' + esc(o.business_address) : '') + '</p></div>' : '') +
       (handover[0] ? Z().handoverHTML(o.ref, handover[0].code) : '') +
       (o.heavy_delivery && o.fulfilment !== 'collection' ? '<p class="notice notice--freight">Truck delivery: the fee for heavy or bulky items is quoted before you pay.</p>' : '') +
       '<ul>' + o.order_items.map(function (i) { return '<li>' + esc(i.product_id) + ' × ' + i.quantity + ' · ' + Z().kwacha((Number(i.unit_price_zmw) + i.order_item_addons.reduce(function (sum, a) { return sum + Number(a.price_zmw); }, 0)) * i.quantity) + '</li>'; }).join('') + '</ul>' +
       '<p>Reconciled refunds: ' + Z().kwacha(refunds.reduce(function (sum, r) { return sum + Number(r.amount_zmw); }, 0)) + '</p>' +
+      (parcels.length ? '<section class="parcels"><h3>' + (parcels.length === 1 ? 'Your parcel' : 'Your ' + parcels.length + ' parcels') + '</h3>' + parcels.map(function (p) {
+        var c = p.courier_id ? Z().courier(p.courier_id) : null, url = Z().trackUrl(c, p.tracking_ref), evs = tracking.filter(function (t) { return t.seller_id === p.seller_id; });
+        return '<article class="parcel"><p class="parcel__head"><strong>' + esc((Z().seller(p.seller_id) || {}).name || p.seller_id) + '</strong><span>' + esc(Z().speedName(p.speed)) + ' · ' + (p.fee_zmw == null ? 'fee to be quoted' : Z().feeText(Number(p.fee_zmw), p.free)) + '</span></p>' +
+          '<p class="pmeta">' + (c ? 'Courier: ' + esc(c.name) : 'Courier: arranged by Zed Supply') + ' · ' + (p.tracking_ref ? 'Tracking number <strong>' + esc(p.tracking_ref) + '</strong>' : 'tracking number added when it\'s sent') + '</p>' +
+          (url ? '<a class="btn btn--secondary btn--sm" href="' + esc(url) + '" target="_blank" rel="noopener noreferrer">Track with ' + esc(c.name) + '<span class="visually-hidden"> (opens in a new tab)</span></a>' : '') +
+          (evs.length ? '<ol class="track-events" aria-label="Courier updates, newest first">' + evs.map(function (t, i) { return '<li' + (i ? '' : ' class="is-latest"') + '><span class="track-events__what">' + esc(Z().TRACK[t.status] || t.status) + '</span>' + (t.description ? '<span>' + esc(t.description) + '</span>' : '') + '<small>' + esc([t.location, new Date(t.occurred_at).toLocaleString('en-GB', { timeZone: 'Africa/Lusaka', dateStyle: 'medium', timeStyle: 'short' })].filter(Boolean).join(' · ')) + '</small></li>'; }).join('') + '</ol>' : '') + '</article>';
+      }).join('') + '</section>' : '') +
       '<h2>Delivery updates</h2><ol>' + events.map(function (ev) { return '<li>' + esc(ev.status) + (ev.handover ? ' · confirmed with your handover code' : '') + ' · ' + esc(ev.tracking_ref || '') + '<p>' + esc(ev.note || '') + '</p></li>'; }).join('') + '</ol>' + (!events.length ? '<p>No delivery updates have been recorded yet.</p>' : '') +
       '<a class="btn btn--secondary" href="#/complaints?order=' + encodeURIComponent(o.ref) + '">Return or report a problem</a>' +
       ((Z().S.payments || {}).prompt && (o.fulfilment === 'collection' || o.delivery_zmw !== null) && o.status !== 'cancelled' && Number(o.total_zmw) + Number(o.delivery_zmw || 0) > Number(o.paid_zmw) ? '<form id="server-pay" class="form"><label for="pay-phone">Mobile number (+260…)</label><input id="pay-phone" type="tel" required pattern="\\+?260[0-9]{9}"><button type="submit" class="btn btn--primary">Request payment prompt</button><p role="status"></p></form>' : '') + '</section>', 'Order ' + o.ref);
@@ -387,10 +428,10 @@
     }
     if (path[0] === 'seller') { show('<p>Your store team and shipments use secure server records. Listing, promotion and store-detail tools are awaiting their authenticated integration.</p><div class="btn-row"><a class="btn btn--primary" href="#/team">Store team</a><a class="btn btn--secondary" href="#/fulfilment">Store fulfilment</a><a class="btn btn--secondary" href="#/sell">Apply to sell</a><a class="btn btn--secondary" href="#/account">My Account</a></div>', 'Seller Centre'); return true; }
     if (['staff', 'addresses', 'alerts'].indexOf(path[0]) !== -1) { show('<p>This account uses secure server records. These management tools are awaiting their authenticated integration.</p><a class="btn btn--secondary" href="#/account">My Account</a>', 'Secure account tools'); return true; }
-    if (['search', 'dept', 'orders', 'order', 'complaints', 'product', 'fulfilment', 'staff-support', 'team', 'sell', 'staff-applications'].indexOf(path[0]) === -1) return false;
+    if (['search', 'dept', 'orders', 'order', 'receipt', 'complaints', 'product', 'fulfilment', 'staff-support', 'team', 'sell', 'staff-applications'].indexOf(path[0]) === -1) return false;
     if (path[0] === 'product' && ready[path[1]]) return false;
     show('<p role="status">Loading secure marketplace data…</p>', 'Loading');
-    var action = path[0] === 'sell' ? sellApply(ticket) : path[0] === 'staff-applications' ? staffApplications(query, ticket) : path[0] === 'team' ? team(path[1] ? decodeURIComponent(path[1]) : '', ticket) : path[0] === 'fulfilment' ? fulfilment(ticket) : path[0] === 'staff-support' ? staffSupport(ticket) : path[0] === 'search' || path[0] === 'dept' ? catalogue(path, query, ticket) : path[0] === 'orders' || path[0] === 'order' ? orders(path[1], ticket) : path[0] === 'complaints' ? support(query, ticket) :
+    var action = path[0] === 'sell' ? sellApply(ticket) : path[0] === 'staff-applications' ? staffApplications(query, ticket) : path[0] === 'team' ? team(path[1] ? decodeURIComponent(path[1]) : '', ticket) : path[0] === 'fulfilment' ? fulfilment(ticket) : path[0] === 'staff-support' ? staffSupport(ticket) : path[0] === 'search' || path[0] === 'dept' ? catalogue(path, query, ticket) : path[0] === 'receipt' ? receipt(decodeURIComponent(path[1] || ''), query, ticket) : path[0] === 'orders' || path[0] === 'order' ? orders(path[1], ticket, query) : path[0] === 'complaints' ? support(query, ticket) :
       B.rpc('catalogue_page', { product_id: path[1], page_size: 1 }).then(function (rows) { if (ticket !== navigation) return; if (!rows.length) throw new Error('This listing is not available.'); Z().ingest(rows); ready[path[1]] = true; Z().route(); });
     Promise.resolve(action).catch(function (error) { if (ticket === navigation) show(errorHTML(error) + '<a class="btn btn--secondary" href="#/account">My Account</a>', 'Request unavailable'); });
     return true;

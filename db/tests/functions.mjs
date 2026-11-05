@@ -4,7 +4,7 @@
 // Never point it at a database holding real data: it inserts and then deletes fixtures.
 import pg from 'pg';
 import { createHmac } from 'node:crypto';
-import { placeOrder, paymentWebhook } from '../../supabase/functions/_shared/handlers.ts';
+import { placeOrder, paymentWebhook, courierQuote } from '../../supabase/functions/_shared/handlers.ts';
 
 const cfg = { host: process.env.PGHOST || 'localhost', port: Number(process.env.PGPORT) || 5432, user: process.env.PGUSER || 'postgres', database: process.env.PGDATABASE || 'zedsupply_test' };
 const db = new pg.Client(cfg);
@@ -40,6 +40,23 @@ const o = (await db.query(`SELECT paid_zmw, status, (SELECT count(*)::int FROM p
 report('a webhook delivered twice records one payment and confirms the order', first.payment_status === 'paid' && again.payment_status === 'paid'
   && Number(o.paid_zmw) === 500 && o.status === 'confirmed' && o.n === 1, JSON.stringify(o));
 
+// Delivery: the courier-quote function prices from the rate card, and checkout charges that fee
+await db.query(`INSERT INTO delivery_rates (zone, speed, fee_zmw, included_kg, per_kg_zmw, min_days, max_days) VALUES ('country', 'standard', 150, 5, 12, 3, 7);
+  INSERT INTO seller_locations (seller_id, town) VALUES ('fs', 'Kitwe');`);
+res = await courierQuote(post(JSON.stringify({ buyer_town: 'Lusaka', items: [{ product_id: 'FA', quantity: 1 }] })), deps);
+body = await res.json();
+report('courier-quote prices a parcel from the rate card', res.status === 200 && body.total === 150 && body.parcels[0].zone === 'country' && body.quote_id === null, JSON.stringify(body));
+await db.query(`UPDATE products SET stock_qty = 3 WHERE id = 'FA'`);
+res = await placeOrder(post(JSON.stringify({ ref: 'ZS-FUNC0003', contact_name: 'Guest', recipient_phone: '+260970000009', buyer_town: 'Lusaka', expected_delivery_zmw: 150,
+  receipt_email: 'guest@example.com', items: [{ product_id: 'FA', quantity: 1 }] })), deps);
+body = await res.json();
+const parcels = (await db.query(`SELECT count(*)::int n, sum(fee_zmw)::numeric fee FROM order_parcels WHERE order_id = (SELECT id FROM orders WHERE ref = 'ZS-FUNC0003')`)).rows[0];
+report('an order placed over HTTP is charged the quoted delivery', res.status === 200 && Number(body.delivery) === 150 && Number(body.grand_total) === 400 && parcels.n === 1 && Number(parcels.fee) === 150, JSON.stringify(body));
+res = await placeOrder(post(JSON.stringify({ ref: 'ZS-FUNC0004', contact_name: 'Guest', recipient_phone: '+260970000009', buyer_town: 'Lusaka', expected_delivery_zmw: 99, items: [{ product_id: 'FA', quantity: 1 }] })), deps);
+report('a changed delivery fee is refused with the reason from the database', res.status === 409 && /delivery fee changed/.test((await res.json()).error));
+
+await db.query(`DELETE FROM order_parcels WHERE order_id IN (SELECT id FROM orders WHERE ref LIKE 'ZS-FUNC%');
+  DELETE FROM seller_locations WHERE seller_id = 'fs'; DELETE FROM delivery_rates WHERE zone = 'country' AND speed = 'standard' AND courier_id IS NULL AND fee_zmw = 150;`);
 await db.query(`DELETE FROM notifications WHERE order_id IN (SELECT id FROM orders WHERE ref LIKE 'ZS-FUNC%');
   DELETE FROM seller_payouts WHERE seller_id = 'fs'; DELETE FROM payments WHERE provider_ref = 'GEN-1';
   DELETE FROM order_items WHERE product_id = 'FA'; DELETE FROM orders WHERE ref LIKE 'ZS-FUNC%';

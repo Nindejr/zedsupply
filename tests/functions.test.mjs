@@ -3,7 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createHmac } from 'node:crypto';
-import { placeOrder, paymentWebhook, sendNotifications, dailyJobs, startPayment, validSignature } from '../supabase/functions/_shared/handlers.ts';
+import { placeOrder, paymentWebhook, sendNotifications, dailyJobs, startPayment, validSignature, courierQuote, courierWebhook } from '../supabase/functions/_shared/handlers.ts';
 
 const ORIGIN = 'https://nindejr.github.io';
 function fakeDeps(env = {}, rows = () => [{ r: { ok: true } }]) {
@@ -176,4 +176,75 @@ test('start-payment asks for the deposit on a new lay-by, and only for the buyer
   res = await startPayment(post({ order_ref: 'ZS-ABCD1234', phone: '+260971110001' }), d);
   assert.equal(res.status, 401);   // a phone number is not verified account authorization
   assert.ok(!d.calls.some(c => c.url));
+});
+
+// ---------- Courier quotes, courier tracking and email receipts ----------
+const rateQuote = { speed: 'express', total: 383, pending: false, parcels: [
+  { seller_id: 'da', zone: 'town', speed: 'express', fee: 93, free: false, pending: false, weight_kg: 6, from_town: 'Lusaka', from_province: 'lusaka', to_town: 'Lusaka', to_province: 'lusaka' },
+  { seller_id: 'db', zone: 'country', speed: 'express', fee: 290, free: false, pending: false, weight_kg: 1, from_town: 'Kitwe', from_province: 'copperbelt', to_town: 'Lusaka', to_province: 'lusaka' }] };
+const quoteDeps = (env = {}, courierReply = { amount: 120, currency: 'ZMW', min_days: 1, max_days: 2 }) => {
+  const d = fakeDeps(env, text => text.includes('save_delivery_quote') ? [{ id: 'quote-1' }] : text.includes('delivery_quote') ? [{ q: structuredClone(rateQuote) }] : []);
+  d.fetch = async (url, init) => { d.calls.push({ url, body: JSON.parse(init.body) }); return new Response(JSON.stringify(courierReply), { status: 200 }); };
+  return d;
+};
+const LIVE = { COURIER_API_URL: 'https://courier.example/rates', COURIER_API_KEY: 'k', COURIER_API_COURIER: 'zampost', COURIER_CONTRACT_VALIDATED: 'true' };
+
+test('courier-quote prices the cart from the rate card, passing only known fields', async () => {
+  const d = quoteDeps();
+  const res = await courierQuote(post({ buyer_town: 'Lusaka', delivery_speed: 'express', user_id: 9, items: [{ product_id: 'DA1', quantity: 3, price: 1 }] }), d);
+  const body = await res.json();
+  assert.equal(res.status, 200);
+  assert.deepEqual([body.total, body.quote_id, body.parcels[0].source], [383, null, 'rate_card']);
+  const sent = JSON.parse(d.calls[0].params[0]);
+  assert.deepEqual(sent.items, [{ product_id: 'DA1', quantity: 3 }]);
+  assert.equal(sent.user_id, undefined);
+  assert.equal(d.calls.some(c => c.url), false, 'no courier is asked without a connected courier');
+  assert.equal((await courierQuote(post({ items: [] }), quoteDeps())).status, 400);
+});
+
+test('courier-quote asks a connected courier for its live price and saves the quote', async () => {
+  const d = quoteDeps(LIVE);
+  const body = await (await courierQuote(post({ buyer_town: 'Lusaka', courier_id: 'zampost', items: [{ product_id: 'DA1' }, { product_id: 'DB1' }] }), d)).json();
+  assert.equal(body.quote_id, 'quote-1');
+  assert.deepEqual(body.parcels.map(p => [p.fee, p.source]), [[120, 'courier_api'], [120, 'courier_api']]);
+  assert.equal(body.total, 240);
+  const ask = d.calls.find(c => c.url && c.body.origin.town === 'Kitwe').body;
+  assert.deepEqual([ask.destination.town, ask.weight_kg, ask.currency], ['Lusaka', 1, 'ZMW']);
+  // A different courier, an unvalidated contract or a bad answer leaves the rate card in place
+  for (const [env, choice, answer] of [[LIVE, 'dhl', undefined], [{ ...LIVE, COURIER_CONTRACT_VALIDATED: '' }, 'zampost', undefined],
+    [LIVE, 'zampost', { amount: 120, currency: 'USD' }], [LIVE, 'zampost', { amount: -5, currency: 'ZMW' }], [LIVE, 'zampost', { amount: 1.234, currency: 'ZMW' }]]) {
+    const r = await (await courierQuote(post({ courier_id: choice, items: [{ product_id: 'DA1' }] }), quoteDeps(env, answer))).json();
+    assert.deepEqual([r.total, r.quote_id], [383, null], JSON.stringify([choice, answer]));
+  }
+});
+
+test('courier-webhook needs the courier\'s signature, maps its statuses and records each event once', async () => {
+  const env = { COURIER_WEBHOOK_SECRET: 'cwsec', COURIER_WEBHOOK_COURIER: 'dropsync', COURIER_CONTRACT_VALIDATED: 'true' };
+  const event = JSON.stringify({ event_id: 'ev-1', tracking_number: 'TRK-0001', status: 'Out_For_Delivery', location: 'Lusaka', occurred_at: '2026-11-05T09:00:00Z' });
+  const sign = b => createHmac('sha256', 'cwsec').update(b).digest('hex');
+  assert.equal((await courierWebhook(post(event, { 'x-signature': sign(event) }), fakeDeps({}))).status, 503);
+  assert.equal((await courierWebhook(post(event, { 'x-signature': 'bad' }), fakeDeps(env))).status, 401);
+  const d = fakeDeps(env, () => [{ r: { recorded: true } }]);
+  const res = await courierWebhook(post(event, { 'x-signature': sign(event) }), d);
+  assert.equal(res.status, 200);
+  assert.deepEqual(d.calls[0].params.slice(0, 4), ['dropsync', 'ev-1', 'TRK-0001', 'out_for_delivery']);
+  const odd = JSON.stringify({ event_id: 'ev-2', tracking_number: 'TRK-0001', status: 'teleported' });
+  assert.equal((await courierWebhook(post(odd, { 'x-signature': sign(odd) }), fakeDeps(env))).status, 400);
+  const unknown = Object.assign(new Error('Unknown tracking number'), { code: 'P0001' });
+  assert.equal((await courierWebhook(post(event, { 'x-signature': sign(event) }), fakeDeps(env, () => unknown))).status, 422);
+});
+
+test('send-notifications emails receipts when an email provider is set up, separately from WhatsApp', async () => {
+  const queued = [{ id: 7, claim_token: 'lease-7', to_address: 'buyer@example.com', template: 'order_receipt', payload: { ref: 'ZS-ABCD1234', name: 'Chanda <b>', total: 883 } },
+    { id: 8, claim_token: 'lease-8', to_address: 'buyer@example.com', template: 'back_in_stock', payload: {} }];
+  const d = fakeDeps({ CRON_SECRET: 'cron', EMAIL_API_KEY: 'ek', EMAIL_FROM: 'Zed Supply <orders@example.com>' }, (text, params) => (text.includes('claim_notifications($1)') && params[0] === 'email' ? queued : []));
+  const res = await sendNotifications(post({}, { authorization: 'Bearer cron' }), d);
+  assert.deepEqual(await res.json(), { configured: false, sent: 0, email: { sent: 1, tried: 2 } });
+  const mail = d.calls.find(c => c.url);
+  assert.equal(mail.url, 'https://api.resend.com/emails');
+  assert.deepEqual(mail.body.to, ['buyer@example.com']);
+  assert.match(mail.body.subject, /ZS-ABCD1234/);
+  assert.match(mail.body.html, /Chanda &lt;b&gt;/);
+  assert.match(mail.body.text, /K883\.00/);
+  assert.ok(d.calls.some(c => c.text && c.text.includes('No email template') && c.params[0] === 8));
 });

@@ -59,8 +59,22 @@ window.ZS_CATALOGUE = {
     // sameDay: towns where sellers who offer it deliver within their own town on the day, for
     //   orders by the cutoff hour, e.g. { cutoff: 11, towns: ['Lusaka', 'Kitwe'] }. Sellers opt in
     //   under "Your store location" in the Seller Centre. Empty towns = no same-day delivery.
+    // ---- Delivery fees (js/delivery.js) ----
+    // rates: the rate card. Each seller's parcel is priced by zone (town, province, country) and
+    //   speed (standard, express, same_day, or truck for heavy items): fee covers the first kg
+    //   kilograms, perKg each further kilogram, days the working days it takes. Add courier: 'id'
+    //   for a courier's own price. Empty = no fees shown: the fee is confirmed on WhatsApp.
+    //   The server's delivery_rates table must hold the same figures before connected checkout.
+    //   e.g. { zone: 'town', speed: 'standard', fee: 45, kg: 5, perKg: 5, days: [1, 2] }
+    // freeDelivery: standard delivery is free in these zones once the items reach min (kwacha).
+    // defaultKg: the weight assumed for an item without one. origin: where items without a
+    //   seller location are sent from, e.g. { town: 'Lusaka', province: 'lusaka' }.
     delivery: {
       enabled: true,
+      rates: [],
+      freeDelivery: { min: null, zones: ['town', 'province'] },
+      defaultKg: 1,
+      origin: null,
       estimates: { town: null, province: null, country: null, world: null },   // e.g. town: [1, 2]
       sameDay: { cutoff: 11, towns: [] },
       cutoff: 14,

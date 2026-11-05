@@ -162,7 +162,7 @@ pre-orders) are not built.
 ## Delivery handover codes
 
 Migration 024 gives every order a private 6-digit handover code (`order_handover_codes`), issued
-by a trigger when the order is placed. Migration 024 is not yet applied to the hosted project.
+by a trigger when the order is placed. Migration 024 is applied to the hosted project.
 
 - **Only the buyer can read it**, on their order page. Sellers, riders and staff can't, so nobody
   else can confirm a delivery for the buyer. A share link lets the buyer pass it to whoever is
@@ -179,6 +179,43 @@ by a trigger when the order is placed. Migration 024 is not yet applied to the h
 
 `db/tests/handover.sql` covers issuing, who can read the codes, the handover itself across two
 stores, wrong codes and the lock.
+
+## Delivery fees, receipts and courier tracking
+
+Migration 025 prices delivery on the server and adds receipts and courier tracking. It is not yet
+applied to the hosted project.
+
+- **Rate card.** `delivery_rates` holds one row per zone (same town, same province, elsewhere in
+  Zambia) and speed (standard, express, same day, truck), with the kilograms the fee includes and
+  the price of each further kilogram, and optionally a courier's own price. Each seller's parcel is
+  priced on its own. `app.delivery_quote()` and `js/delivery.js` apply the same rule, and
+  `tests/delivery.test.cjs` and `db/tests/checkout_delivery.sql` check the same figures, so the
+  fee in the cart is the fee charged. The table starts **empty**: until real rates are added,
+  delivery stays "quoted before you pay" exactly as before. Add the same rates to
+  `settings.delivery.rates` in `js/catalogue.js` so the storefront shows them.
+- **Free delivery and same day.** `shop_settings.free_delivery_min_zmw` (empty = off) and
+  `free_delivery_zones`; same day needs `same_day_towns`, the seller's `seller_locations.same_day`
+  and an order before `same_day_cutoff` (Zambian time) on an open day.
+- **Checkout.** `place_order` now stores `delivery_zmw`, `delivery_speed` and one `order_parcels`
+  row per seller, and refuses the order if the delivery fee differs from `expected_delivery_zmw`
+  (the fee the buyer reviewed). With a fee in place, the buyer can pay at once: staff no longer
+  need to confirm it by hand. Parcels with no rate still wait for staff, as before.
+- **Couriers' live prices.** The `courier-quote` function prices from the rate card and, for one
+  connected courier, asks the courier's API instead (`COURIER_API_URL`, `COURIER_API_KEY`,
+  `COURIER_API_COURIER`, `COURIER_CONTRACT_VALIDATED=true` after its sandbox passes). A live price
+  is saved for 30 minutes (`delivery_quotes`) and charged only for the same cart and destination.
+  No courier is connected yet: none of the couriers listed publishes an API we've verified.
+- **Tracking.** A seller's tracking number at dispatch reaches the parcel. A connected courier
+  posts events to `courier-webhook` (signed with `COURIER_WEBHOOK_SECRET`), recorded once each
+  (`courier_tracking_events`) and shown to the buyer; "out for delivery", "delivered" and "failed"
+  also queue a `parcel_update` message. A courier's "delivered" doesn't complete the order: the
+  handover code or photo evidence still does, so payouts aren't released on a courier's word.
+- **Receipts.** `order_receipt()` (buyer or staff only) feeds the receipt page, which prints or
+  saves as PDF on its own. `send_receipt()` queues it to a Zambian WhatsApp number or an email
+  address, five times a day per order. A `receipt_email` given at checkout is sent automatically.
+  Email goes through `send-notifications` once `EMAIL_API_KEY` and `EMAIL_FROM` are set (Resend's
+  API by default; `EMAIL_API_URL` for another provider with the same format). WhatsApp needs the
+  `order_receipt` and `parcel_update` templates approved first.
 
 ## Native catalogue pages
 

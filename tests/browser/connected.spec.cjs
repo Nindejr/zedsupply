@@ -8,7 +8,7 @@ const product = { id:'LIVE1',title:'Approved studio lamp',department_id:'tech',s
 
 const application = {id:'app-1',business:'Kafue Solar Traders',contact_name:'Mwila Banda',phone:'+260977123456',email:'buyer@example.test',town:'Kafue',pacra:null,
   categories:['Solar, Power & Energy'],about:'Solar lamps and panels',status:'new',staff_note:null,seller_id:null,created_at:'2026-11-03T08:00:00Z',updated_at:'2026-11-03T08:00:00Z',decided_at:null};
-async function setup(page, { staff = false, teamRole = 'owner', applications = [] } = {}) {
+async function setup(page, { staff = false, teamRole = 'owner', applications = [], quote = {total:100,subtotal:100,vat:0,currency:'ZMW',delivery_pending:true} } = {}) {
   const calls = [];
   await page.addInitScript(() => {
     localStorage.setItem('zs-consent','denied');
@@ -28,7 +28,13 @@ async function setup(page, { staff = false, teamRole = 'owner', applications = [
     else if (url.pathname === '/auth/v1/user') data = {id:'verified-auth-id',email_confirmed_at:'2026-11-01T00:00:00Z'};
     else if (url.pathname === '/rest/v1/users') data = [{id:7,name:'Verified Buyer',email:'buyer@example.test',phone:'+260970000001',is_staff:false}];
     else if (url.pathname === '/rest/v1/rpc/catalogue_page') data = [product];
-    else if (url.pathname === '/rest/v1/rpc/checkout_quote') data = {total:100,subtotal:100,vat:0,currency:'ZMW',delivery_pending:true};
+    else if (url.pathname === '/rest/v1/rpc/checkout_quote') data = quote;
+    else if (url.pathname === '/rest/v1/order_parcels') data = [{seller_id:'live-store',speed:'express',fee_zmw:85,free:false,courier_id:'dhl',tracking_ref:'JD0001',courier_status:'in_transit',min_days:1,max_days:1}];
+    else if (url.pathname === '/rest/v1/courier_tracking_events') data = [{seller_id:'live-store',status:'in_transit',description:'At the Lusaka hub',location:'Lusaka',occurred_at:'2026-11-02T08:00:00Z'}];
+    else if (url.pathname === '/rest/v1/rpc/order_receipt') data = {ref:'ZS-LIVE0001',created_at:'2026-11-01T08:00:00Z',status:'placed',payment_status:'unpaid',payment_method:'mtn',name:'Verified Buyer',
+      fulfilment:'delivery',deliver_to:'Test area, Lusaka',subtotal:100,discount:0,vat:0,total:100,delivery:85,delivery_speed:'express',grand_total:185,hide_prices:false,
+      items:[{title:'Approved studio lamp',seller:'Live store',quantity:1,unit_price:100}],parcels:[{seller:'Live store',seller_id:'live-store',speed:'express',fee:85,free:false,courier_id:'dhl',tracking:'JD0001'}]};
+    else if (url.pathname === '/rest/v1/rpc/send_receipt') data = {queued:true,channel:body.channel};
     else if (url.pathname === '/functions/v1/place-order') data = {ref:body.ref,total:100,order_id:41};
     else if (url.pathname === '/rest/v1/rpc/my_seller_invites') data = [{id:'invite-1',store:'Live store',role:'dispatch',expires_at:'2026-11-10T00:00:00Z'}];
     else if (url.pathname === '/rest/v1/rpc/seller_respond_invite') data = 'live-store';
@@ -80,7 +86,7 @@ test('verified sign-in, server search and quote-before-order use trusted identit
   await page.getByRole('link',{name:'Review server total',exact:true}).click();
   await expect(page.getByRole('heading',{name:'Review your server total'})).toBeVisible();
   expect(calls.filter(c => c.path.endsWith('/place-order'))).toHaveLength(0);
-  await page.getByRole('button',{name:'Place order for K100 in items',exact:true}).click();
+  await page.getByRole('button',{name:'Place order for K100 before delivery',exact:true}).click();
   await expect(page.getByRole('heading',{name:/Order ZS-/})).toBeVisible();
   const placed = calls.find(c => c.path.endsWith('/place-order'));
   expect(placed.body.expected_total_zmw).toBe(100);
@@ -96,9 +102,9 @@ test('a changed checkout field invalidates the reviewed quote', async ({page}) =
   await page.getByRole('button',{name:'Add to cart',exact:true}).click();
   await page.goto('/index.html?demo=0#/cart');
   await page.getByRole('link',{name:'Review server total',exact:true}).click();
-  await expect(page.getByRole('button',{name:'Place order for K100 in items',exact:true})).toBeVisible();
+  await expect(page.getByRole('button',{name:'Place order for K100 before delivery',exact:true})).toBeVisible();
   await page.getByLabel('Recipient phone (+260…)').fill('+260970000002');
-  await expect(page.getByRole('button',{name:'Place order for K100 in items',exact:true})).toHaveCount(0);
+  await expect(page.getByRole('button',{name:'Place order for K100 before delivery',exact:true})).toHaveCount(0);
   expect(calls.filter(c => c.path.endsWith('/place-order'))).toHaveLength(0);
 });
 test('a store invitation is accepted from My Account and owners manage the team', async ({page}) => {
@@ -271,5 +277,44 @@ test('a business buyer saves their details once and they go with the order', asy
   await expect.poll(() => calls.filter(c => c.path === '/functions/v1/place-order').length).toBe(1);
   const order = calls.find(c => c.path === '/functions/v1/place-order').body;
   expect([order.business_name, order.business_tpin, order.business_address]).toEqual(['Mwila Farms','1234567890','Plot 4, Chongwe']);
+  expect(errors).toEqual([]);
+});
+
+test('a priced server quote shows delivery and the order total, and the order is held to that fee', async ({page}) => {
+  const calls = await setup(page, {quote:{total:100,subtotal:100,vat:0,currency:'ZMW',delivery:85,delivery_speed:'standard',delivery_pending:false,grand_total:185}});
+  await signIn(page);
+  await page.goto('/index.html?demo=0#/product/LIVE1');
+  await page.getByRole('button',{name:'Add to cart',exact:true}).click();
+  await page.goto('/index.html?demo=0#/cart');
+  await page.getByLabel('Email (optional)').fill('buyer@example.test');
+  await page.getByRole('link',{name:'Review server total',exact:true}).click();
+  const review = page.locator('#server-checkout-review');
+  await expect(review).toContainText('Delivery · Standard');
+  await expect(review).toContainText('Order total');
+  await page.getByRole('button',{name:'Place order · K185',exact:true}).click();
+  await expect(page.getByText('Thank you, your order is placed')).toBeVisible();
+  const placed = calls.find(c => c.path.endsWith('/place-order'));
+  expect([placed.body.expected_total_zmw, placed.body.expected_delivery_zmw, placed.body.delivery_speed, placed.body.receipt_email]).toEqual([100, 85, 'standard', 'buyer@example.test']);
+  // The order page lists each parcel with its courier, tracking number and updates
+  const parcel = page.locator('.parcel');
+  await expect(parcel).toContainText('Express · K85');
+  await expect(parcel).toContainText('Tracking number JD0001');
+  await expect(parcel.locator('.track-events')).toContainText('At the Lusaka hub');
+  await expect(parcel.getByRole('link',{name:/Track with DHL Express/})).toHaveAttribute('href', /tracking-id=JD0001/);
+});
+test('the server receipt is drawn in the storefront design and can be sent by email', async ({page}) => {
+  const errors = []; page.on('pageerror', e => errors.push(e.message));
+  const calls = await setup(page); await signIn(page);
+  await page.goto('/index.html?demo=0#/receipt/ZS-LIVE0001');
+  const receipt = page.locator('#receipt');
+  await expect(receipt.getByRole('heading',{name:'Order receipt'})).toBeVisible();
+  await expect(receipt).toContainText('Approved studio lamp');
+  await expect(receipt).toContainText('Live store · Express · DHL Express');
+  await expect(receipt.locator('.is-total')).toContainText('K185');
+  await page.getByLabel('Send by').selectOption('email');
+  await expect(page.getByLabel('To',{exact:true})).toHaveValue('buyer@example.test');
+  await page.getByRole('button',{name:'Send receipt',exact:true}).click();
+  await expect(page.locator('#send-receipt [role="status"]')).toContainText('arrives in a few minutes');
+  expect(calls.find(c => c.path === '/rest/v1/rpc/send_receipt').body).toEqual({order_ref:'ZS-LIVE0001',channel:'email',destination:'buyer@example.test'});
   expect(errors).toEqual([]);
 });

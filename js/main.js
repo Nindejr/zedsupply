@@ -87,6 +87,10 @@
     }
     if (X.sameDay && S.delivery && !((S.delivery.sameDay || {}).towns || []).length) { S.delivery.sameDay = X.sameDay; S.delivery.sampleSameDay = true; }
     if (X.sellerDeadlines && !(S.sellerDeadlines && S.sellerDeadlines.acceptHours)) S.sellerDeadlines = Object.assign({}, X.sellerDeadlines, { sample: true });
+    // Sample delivery prices, free-delivery threshold and origin, while the real ones are unset
+    if (X.deliveryRates && S.delivery && !(S.delivery.rates || []).length) { S.delivery.rates = X.deliveryRates; S.delivery.sampleRates = true; }
+    if (X.freeDelivery && S.delivery && !(S.delivery.freeDelivery && S.delivery.freeDelivery.min != null)) S.delivery.freeDelivery = X.freeDelivery;
+    if (X.deliveryOrigin && S.delivery && !S.delivery.origin) S.delivery.origin = X.deliveryOrigin;
     S.isSample = true;
     S.vat = Object.assign({}, S.vat, { registered: true, tpin: '[SAMPLE TPIN]' });
     // Sample sales are [this month, last month], so the demo's trending and top picks never go stale
@@ -1189,8 +1193,9 @@
     });
     (src.profiles || []).forEach(function (p) {
       var c = p.licence && byLic[p.licence];
-      if (c) { c.id = p.id; c.name = p.name || c.name; c.url = p.url || ''; c.about = p.about || ''; c.note = p.note || ''; c.profile = true; }
-      else out.push({ id: p.id, licence: '', name: p.name, legal: '', type: '', scope: p.scope || ['town'], url: p.url || '', about: p.about || '', note: p.note || '', profile: true, unlicensed: true });
+      var track = /^https:\/\/[^\s]+\{n\}/.test(p.track || '') ? p.track : '';
+      if (c) { c.id = p.id; c.name = p.name || c.name; c.url = p.url || ''; c.about = p.about || ''; c.note = p.note || ''; c.track = track; c.profile = true; }
+      else out.push({ id: p.id, licence: '', name: p.name, legal: '', type: '', scope: p.scope || ['town'], url: p.url || '', about: p.about || '', note: p.note || '', track: track, profile: true, unlicensed: true });
     });
     return out;
   })();
@@ -1281,7 +1286,73 @@
   }
   function shipSummary() {
     var c = courier(shipChoice);
-    return SCOPES[shipScope] + ': ' + (c ? c.name + (c.licence ? ' (' + c.licence + ')' : ' (licence not confirmed)') : 'Zed Supply arranges the courier');
+    // With priced delivery each parcel has its own route, so name the courier only
+    return (ratesOn() ? 'Courier' : SCOPES[shipScope]) + ': ' + (c ? c.name + (c.licence ? ' (' + c.licence + ')' : ' (licence not confirmed)') : 'Zed Supply arranges the courier');
+  }
+
+  /* ---------- Delivery fees (js/delivery.js, settings.delivery.rates) ----------
+     Each seller's parcel is priced by how far it travels and how fast; the buyer picks the speed
+     for the order. Without a rate card, fees stay "confirmed on WhatsApp" as before. */
+  var ZD = window.ZS_DELIVERY || null;
+  var shipSpeed = 'standard';   // this cart's delivery speed; kept in memory only
+  function ratesOn() { return !!(ZD && DELIVERY.enabled !== false && (DELIVERY.rates || []).length); }
+  // How far a parcel travels: from the seller's location, or from settings.delivery.origin
+  function parcelZone(s) {
+    if (!loc) return '';
+    if (sellerLoc(s)) return zoneFor(s);
+    var o = DELIVERY.origin;
+    if (!o || !o.town) return '';
+    if (String(o.town).trim().toLowerCase() === String(loc.town).trim().toLowerCase()) return 'town';
+    var bp = provinceOf(loc);
+    return bp && bp === (o.province || (townInfo(o.town) || {}).province) ? 'province' : 'country';
+  }
+  // One parcel per seller: its zone, weight (settings.delivery.defaultKg for items without one),
+  // whether it needs a truck and whether same day is possible
+  function parcelsFor(groups) {
+    var dkg = Number(DELIVERY.defaultKg) || 1;
+    return groups.map(function (g) {
+      return { id: g.sid, zone: parcelZone(g.s), sameDay: !!sameDayFor(g.s),
+        heavy: g.list.some(function (x) { return ZP.orderRules(x.it.p).heavy; }),
+        kg: g.list.reduce(function (n, x) { return n + (ZP.orderRules(x.it.p).weight || dkg) * x.it.qty; }, 0) };
+    });
+  }
+  function deliveryArgs(groups, itemsTotal, speed) {
+    return { rates: DELIVERY.rates, parcels: parcelsFor(groups), speed: speed || shipSpeed, courier: shipChoice, itemsTotal: itemsTotal, free: DELIVERY.freeDelivery || {} };
+  }
+  function deliveryQuote(groups, itemsTotal, speed) { return ZD.quote(deliveryArgs(groups, itemsTotal, speed)); }
+  function speedName(sp) { return (ZD && ZD.NAMES[sp]) || 'Delivery'; }
+  // "Arrives Thu 6 Nov – Fri 7 Nov", or "Arrives today"
+  function arrivesText(days) {
+    if (!days) return '';
+    if (days[1] === 0) return 'Arrives today';
+    var a = workingDay(days[0]), b = workingDay(days[1]);
+    return 'Arrives ' + (days[0] === days[1] ? shortDate(a) : shortDate(a) + ' – ' + shortDate(b));
+  }
+  // When the last parcel arrives, at one speed
+  function quoteArrives(q) {
+    var lo = 0, hi = 0, known = false;
+    q.parcels.forEach(function (p) { if (p.days) { known = true; lo = Math.max(lo, p.days[0]); hi = Math.max(hi, p.days[1]); } });
+    return known ? arrivesText([lo, hi]) : '';
+  }
+  function feeText(fee, free) { return free || fee === 0 ? 'FREE' : kwacha(fee); }
+  function sellerName(id) { var s = seller(id); return s ? s.name : 'Zed Supply'; }
+  // Checkout: one card per speed, with its price for this cart and when it arrives
+  function speedChoiceHTML(opts) {
+    if (!opts.length) return '';
+    if (!opts.some(function (x) { return x.speed === shipSpeed; })) shipSpeed = opts[0].speed;
+    return '<fieldset class="field speed-choice" id="speed-choice"><legend>Delivery speed</legend>' + opts.map(function (x) {
+      var q = x.quote, id = 'co-speed-' + x.speed, when = quoteArrives(q);
+      var price = q.pending ? (q.parcels.some(function (p) { return p.note === 'location'; }) ? 'Set your location' : 'Quoted before you pay') : feeText(q.total);
+      return '<div class="speed-option"><input type="radio" name="co-speed" id="' + id + '" value="' + x.speed + '"' + (x.speed === shipSpeed ? ' checked' : '') + '>' +
+        '<label for="' + id + '"><span class="speed-option__name">' + esc(x.name) + '</span>' +
+        '<span class="speed-option__fee' + (q.total === 0 ? ' is-free' : '') + '">' + esc(price) + '</span>' +
+        (when ? '<small>' + esc(when) + '</small>' : '') + '</label></div>';
+    }).join('') + (DELIVERY.sampleRates ? '<p class="hint"><span class="tag-sample">Sample prices</span> Demo delivery prices to show how fees work, not real courier rates.</p>' : '') + '</fieldset>';
+  }
+  // A short line about a parcel, for the review, receipt and order page
+  function parcelLine(p) {
+    var c = p.courier ? courier(p.courier) : null;
+    return esc(p.sellerName || sellerName(p.seller)) + ' · ' + esc(speedName(p.speed)) + (p.eta ? ' · ' + esc(p.eta) : '') + (c ? ' · ' + esc(c.name) : '');
   }
 
   function payChoiceHTML() {
@@ -1480,7 +1551,7 @@
       if (onIndex && /^#\/(cart|dept|search|deals)/.test(location.hash)) route();
       return;
     }
-    if (e.target.closest('[data-print-order]')) { window.print(); return; }
+    if (e.target.closest('[data-print-order]') || e.target.closest('[data-print-receipt]')) { window.print(); return; }
     var step = e.target.closest('[data-step]');
     if (step) {
       var input = $(step.getAttribute('data-target')), by = Number(input.step) || 1, lo = Number(input.min) || 1, hi = Number(input.max) || 99;
@@ -2224,6 +2295,108 @@
       '<p class="pmeta">Read it out only when the parcel is in your hands and you\'ve checked it: the code confirms you received it. Zed Supply staff will never ask you for it.</p>' +
       '<a class="link-btn" href="https://wa.me/?text=' + encodeURIComponent(share) + '" target="_blank" rel="noopener noreferrer">Someone else receiving it? Send them the code</a></div>';
   }
+  /* ---------- Receipts and parcel tracking ----------
+     The receipt is built from the order as it was placed: items, each parcel's speed and fee,
+     voucher, VAT and the total. It prints (or saves as PDF) on its own, and can be sent to the
+     buyer's WhatsApp or email. Connected mode builds the same model from public.order_receipt(). */
+  var TRACK = { booked: 'Booked with the courier', picked_up: 'Picked up from the seller', in_transit: 'On the way', out_for_delivery: 'Out for delivery',
+    delivered: 'Delivered', failed: 'Delivery attempt failed', returned: 'Returned to the seller' };
+  function trackUrl(c, number) { return c && c.track && number ? c.track.replace('{n}', encodeURIComponent(number)) : ''; }
+  function whenText(at) { var t = String(at || ''); return t.length >= 16 ? niceDate(t.slice(0, 10)) + ', ' + t.slice(11, 16) : t ? niceDate(t.slice(0, 10)) : ''; }
+  function orderTotalsHTML(o) {
+    var d = o.delivery;
+    if (o.sub == null && !d) return '<dl class="totals"><div class="is-total"><dt>Total</dt><dd>' + kwacha(o.total) + '</dd></div>' + (o.vat ? vatRowHTML(o.vat) : '') + '</dl>';
+    var sub = o.sub != null ? o.sub : (o.items || []).reduce(function (n, it) { return n + it.price * it.qty; }, 0);
+    var known = d ? !d.pending && d.fee != null : o.mode === 'collection';
+    return '<dl class="totals"><div><dt>Items</dt><dd>' + kwacha(sub) + '</dd></div>' +
+      (o.save ? '<div class="is-save"><dt>You saved</dt><dd>' + kwacha(o.save) + '</dd></div>' : '') +
+      (o.voucher ? '<div class="is-save"><dt>Voucher ' + esc(o.voucher.code) + '</dt><dd>−' + kwacha(o.voucher.off) + '</dd></div>' : '') +
+      (d && (d.parcels || []).length ? '<div' + (d.fee === 0 ? ' class="is-save"' : '') + '><dt>Delivery · ' + esc(speedName(d.speed)) + '</dt><dd>' + (known ? feeText(d.fee) : 'Quoted before you pay') + '</dd></div>'
+        : o.mode === 'collection' ? '<div><dt>Collection</dt><dd>No delivery fee</dd></div>' : '<div><dt>Delivery</dt><dd>Confirmed on WhatsApp</dd></div>') +
+      '<div class="is-total"><dt>' + (known ? 'Order total' : 'Total before delivery') + '</dt><dd>' + kwacha(o.total) + '</dd></div>' + (o.vat ? vatRowHTML(o.vat) : '') + '</dl>';
+  }
+  // Each parcel on the order page: seller, speed, fee, courier, tracking number and its updates
+  function parcelsHTML(o) {
+    var ps = (o.delivery && o.delivery.parcels) || [];
+    if (!ps.length || o.mode === 'collection' && !ps.length) return '';
+    return '<section class="parcels" aria-labelledby="parcels-title"><h3 id="parcels-title">' + (ps.length === 1 ? 'Your parcel' : 'Your ' + ps.length + ' parcels') + '</h3>' + ps.map(function (p) {
+      var c = p.courier ? courier(p.courier) : null, url = !o.sample && trackUrl(c, p.tracking);
+      return '<article class="parcel"><p class="parcel__head"><strong>' + esc(sellerName(p.seller)) + '</strong><span>' + esc(speedName(p.speed)) + ' · ' + (p.pending || p.fee == null ? 'fee to be quoted' : feeText(p.fee, p.free)) + '</span></p>' +
+        (p.eta ? '<p class="pmeta">' + esc(p.eta) + ' (estimated when you ordered)</p>' : '') +
+        '<p class="pmeta">' + (c ? 'Courier: ' + esc(c.name) : 'Courier: arranged by Zed Supply') + ' · ' + (p.tracking ? 'Tracking number <strong>' + esc(p.tracking) + '</strong>' : 'tracking number added when it\'s sent') + '</p>' +
+        (url ? '<a class="btn btn--secondary btn--sm" href="' + esc(url) + '" target="_blank" rel="noopener noreferrer">Track with ' + esc(c.name) + '<span class="visually-hidden"> (opens in a new tab)</span></a>' : '') +
+        ((p.events || []).length ? '<ol class="track-events" aria-label="Courier updates, newest first">' + p.events.slice().reverse().map(function (ev, i) {
+          return '<li' + (i === 0 ? ' class="is-latest"' : '') + '><span class="track-events__what">' + esc(TRACK[ev.status] || ev.status) + '</span>' + (ev.text ? '<span>' + esc(ev.text) + '</span>' : '') +
+            '<small>' + esc([ev.where, whenText(ev.at)].filter(Boolean).join(' · ')) + '</small></li>';
+        }).join('') + '</ol>' : '') + '</article>';
+    }).join('') + (o.sample ? '<p class="pmeta"><span class="tag-sample">Demo</span> Sample courier updates. Real ones arrive from the courier once it\'s connected.</p>' : '') + '</section>';
+  }
+  function receiptModel(o) {
+    var lines = (o.items || []).map(function (it) {
+      var p = product(it.id), q = parseInt(it.qty, 10) || 0, price = Number(it.price) || 0;
+      return { title: p ? p.title : it.id, label: it.label || '', qty: p ? qtyLabel(p, q) : String(q), each: price, total: price * q, seller: p ? sellerName(p.seller) : '' };
+    });
+    var u = user() || {}, rc = o.receipt || {};
+    return { ref: o.ref, date: o.date, sample: !!o.sample, status: o.cancel ? 'Cancellation requested' : STATUS[o.status] || '', name: o.name || u.name || '',
+      whatsapp: rc.whatsapp || u.phone || '', email: rc.email || u.email || '', mode: o.mode || 'delivery', deliverTo: o.deliverTo || '', lines: lines,
+      sub: o.sub != null ? o.sub : lines.reduce(function (n, l) { return n + l.total; }, 0), save: o.save || 0, voucher: o.voucher || null,
+      vat: o.vat || 0, delivery: o.delivery || null, total: o.total, payment: o.pay || '', paid: !!o.paid, business: o.business || null, gift: o.gift || null };
+  }
+  function shopPhone() { var n = String(S.whatsapp || ''); return n.length === 12 ? '+' + n.slice(0, 3) + ' ' + n.slice(3, 5) + ' ' + n.slice(5, 8) + ' ' + n.slice(8) : n; }
+  function siteAddress() { return (location.host + location.pathname).replace(/(index|help|privacy|404)\.html$/, '').replace(/\/$/, ''); }
+  function receiptHTML(m) {
+    var d = m.delivery, ps = (d && d.parcels) || [], hide = m.gift && m.gift.noPrice;
+    var known = d ? !d.pending && d.fee != null : m.mode === 'collection';
+    var legal = (S.business || {}).legalName, tpin = vatActive() && VAT.tpin && !/^\[/.test(VAT.tpin) ? VAT.tpin : '';
+    var row = function (label, value, cls) { return '<div' + (cls ? ' class="' + cls + '"' : '') + '><dt>' + label + '</dt><dd>' + value + '</dd></div>'; };
+    return '<article class="receipt" id="receipt" aria-labelledby="rc-title">' +
+      '<header class="receipt__head"><img src="assets/brand/logo-original-3d-dark.webp" alt="Zed Supply" width="190" height="48">' +
+        '<div class="receipt__id"><h2 id="rc-title">Order receipt</h2><p>No. <strong>' + esc(m.ref) + '</strong></p><p>' + niceDate(m.date) + '</p>' +
+        (m.sample ? '<p><span class="tag-sample">Demo order</span></p>' : '') + '</div></header>' +
+      '<div class="receipt__flag" aria-hidden="true"></div>' +
+      '<p class="receipt__status"><span>' + esc(m.status) + '</span><span>' + (m.paid ? 'Paid' : 'Payment: ' + esc(m.payment || 'to be arranged on WhatsApp')) + '</span></p>' +
+      '<section class="receipt__parties"><div><h3>Customer</h3><p>' + esc(m.name || 'Customer') + (m.business ? '<br>' + esc(m.business.name) + (m.business.tpin ? '<br>TPIN ' + esc(m.business.tpin) : '') + (m.business.address ? '<br>' + esc(m.business.address) : '') : '') + '</p></div>' +
+        '<div><h3>' + (m.mode === 'collection' ? 'Collection' : 'Deliver to') + '</h3><p>' + (m.deliverTo ? esc(m.deliverTo) : 'Confirmed on WhatsApp') + '</p></div>' +
+        '<div><h3>Sold by</h3><p>' + esc(m.lines.map(function (l) { return l.seller; }).filter(function (x, i, a) { return x && a.indexOf(x) === i; }).join(', ') || 'Zed Supply') + '</p></div></section>' +
+      '<div class="receipt__table" role="region" tabindex="0" aria-label="Items on this receipt"><table><thead><tr><th scope="col">Item</th><th scope="col">Qty</th>' + (hide ? '' : '<th scope="col" class="num">Price</th><th scope="col" class="num">Amount</th>') + '</tr></thead><tbody>' +
+        m.lines.map(function (l) { return '<tr><th scope="row">' + esc(l.title) + (l.label ? '<small>' + esc(l.label) + '</small>' : '') + '</th><td>' + esc(l.qty) + '</td>' + (hide ? '' : '<td class="num">' + kwacha(l.each) + '</td><td class="num">' + kwacha(l.total) + '</td>') + '</tr>'; }).join('') +
+      '</tbody></table></div>' +
+      (ps.length ? '<section class="receipt__parcels"><h3>Delivery</h3><ul>' + ps.map(function (p) { return '<li><span>' + parcelLine(p) + '</span><strong>' + (p.pending || p.fee == null ? 'To be quoted' : feeText(p.fee, p.free)) + '</strong></li>'; }).join('') + '</ul></section>' : '') +
+      (hide ? '<p class="pmeta">Gift receipt: prices are left out.</p>' : '<dl class="receipt__totals">' + row('Items', kwacha(m.sub)) +
+        (m.save ? row('You saved', kwacha(m.save), 'is-save') : '') +
+        (m.voucher ? row('Voucher ' + esc(m.voucher.code), '−' + kwacha(m.voucher.off), 'is-save') : '') +
+        (d && ps.length ? row('Delivery · ' + esc(speedName(d.speed)), known ? feeText(d.fee) : 'To be quoted', d.fee === 0 ? 'is-save' : '') : m.mode === 'collection' ? row('Collection', 'No delivery fee') : row('Delivery', 'Confirmed on WhatsApp')) +
+        (m.vat ? row(VAT.included === false ? 'VAT (' + esc(VAT.rate) + '%)' : 'Includes VAT (' + esc(VAT.rate) + '%)', kwacha(m.vat), 'is-vat') : '') +
+        row(known ? 'Order total' : 'Total before delivery', kwacha(m.total), 'is-total') + '</dl>') +
+      '<footer class="receipt__foot"><p><strong>Zed Supply</strong>' + (legal ? ' · ' + esc(legal) : '') + ' · Lusaka, Zambia' + (tpin ? ' · TPIN ' + esc(tpin) : '') + '</p>' +
+        '<p>WhatsApp ' + esc(shopPhone()) + ' · ' + esc(siteAddress()) + '</p>' +
+        '<p class="pmeta">Thank you for shopping with Zed Supply. This receipt confirms your order' + (tpin ? '' : '; it is not a tax invoice') + '. Keep it for returns and buyer protection.</p></footer></article>';
+  }
+  function receiptText(m) {
+    var d = m.delivery, ps = (d && d.parcels) || [], known = d ? !d.pending && d.fee != null : m.mode === 'collection';
+    return ['Zed Supply - order receipt', 'Order ' + m.ref + ' · ' + niceDate(m.date) + (m.sample ? ' (demo)' : ''), ''].concat(
+      m.lines.map(function (l, i) { return (i + 1) + '. ' + l.title + (l.label ? ' [' + l.label + ']' : '') + ' x ' + l.qty + ' = ' + kwacha(l.total); }), [''],
+      ['Items: ' + kwacha(m.sub)], m.voucher ? ['Voucher ' + m.voucher.code + ': -' + kwacha(m.voucher.off)] : [],
+      ps.map(function (p) { return 'Delivery, ' + sellerName(p.seller) + ' (' + speedName(p.speed) + '): ' + (p.pending || p.fee == null ? 'to be quoted' : feeText(p.fee, p.free)); }),
+      m.vat ? [(VAT.included === false ? 'VAT ' : 'Includes VAT ') + VAT.rate + '%: ' + kwacha(m.vat)] : [],
+      [(known ? 'Order total: ' : 'Total before delivery: ') + kwacha(m.total), '', (m.mode === 'collection' ? 'Collecting near: ' : 'Deliver to: ') + (m.deliverTo || 'to be confirmed'),
+       'Payment: ' + (m.paid ? 'paid' : m.payment || 'to be arranged on WhatsApp'), '', 'Questions? WhatsApp ' + shopPhone() + ' · ' + siteAddress()]).join('\n');
+  }
+  // wa.me to the buyer's own number (they can message themselves), or to any chat they choose
+  function waTo(number, text) {
+    var n = String(number || '').replace(/\D/g, '');
+    if (/^0\d{9}$/.test(n)) n = '260' + n.slice(1);
+    return 'https://wa.me/' + (/^\d{11,15}$/.test(n) ? n : '') + '?text=' + encodeURIComponent(text);
+  }
+  function receiptActionsHTML(m, onReceipt) {
+    var text = receiptText(m);
+    return '<div class="receipt-actions no-print">' +
+      (onReceipt ? '<button class="btn btn--primary" type="button" data-print-receipt>Download PDF or print</button>'
+        : '<a class="btn btn--primary" href="#/receipt/' + encodeURIComponent(m.ref) + '">View receipt</a><a class="btn btn--secondary" href="#/receipt/' + encodeURIComponent(m.ref) + '?print=1">Download PDF</a>') +
+      '<a class="btn btn--secondary" href="' + esc(waTo(m.whatsapp, text)) + '" target="_blank" rel="noopener noreferrer">Send to WhatsApp<span class="visually-hidden"> (opens WhatsApp)</span></a>' +
+      '<a class="btn btn--secondary" href="mailto:' + esc(encodeURIComponent(m.email || '').replace(/%40/g, '@')) + '?subject=' + encodeURIComponent('Zed Supply receipt ' + m.ref) + '&body=' + encodeURIComponent(text) + '">Email receipt</a>' +
+      (onReceipt ? '<a class="btn btn--secondary" href="#/order/' + encodeURIComponent(m.ref) + '">Back to order</a>' : '') + '</div>';
+  }
   var CANCEL_REASONS = ['I ordered by mistake', 'I found a better price', 'Delivery would take too long', 'I need to change the items or address', 'I no longer need it', 'Another reason'];
   // Order page: ask to cancel until the order is packed (settings.orderOptions.cancel); after that,
   // the seller may still stop it, or the buyer can return it under the returns policy
@@ -2634,6 +2807,7 @@
       var html = crumbs([['Cart']]) + head('Your cart') +
         // Subtotal and the way to checkout first, so phones don't have to scroll past every item
         '<div class="cart-top"><p><span>Subtotal (' + unitsText + '):</span> <strong>' + kwacha(sub) + '</strong></p><a class="btn btn--primary" href="#checkout-steps" data-jump="checkout-steps">Proceed to checkout</a></div>' +
+        '<div id="co-free" aria-live="polite"></div>' +
         (changes.length ? '<div class="notice" role="status"><p><strong>Prices have changed since you added ' + (changes.length === 1 ? 'this item' : 'these items') + ':</strong></p><ul>' + changes.map(function (c) {
           return '<li>' + esc(c.it.p.title) + (c.it.label ? ' (' + esc(c.it.label) + ')' : '') + ': ' + (c.it.each < c.was ? 'down' : 'up') + ' from ' + kwacha(c.was) + ' to ' + kwacha(c.it.each) + ' each.</li>';
         }).join('') + '</ul></div>' : '') +
@@ -2654,6 +2828,7 @@
             '<div class="deliver-box" id="co-loc-box"><p class="deliver-box__label">Deliver to *</p><p data-loc-summary>' + locSummaryHTML() + '</p><button class="link-btn" type="button" data-open-location aria-haspopup="dialog">Set or change delivery location</button>' +
               (addressesOn() ? ' · <button class="link-btn" type="button" id="co-save-address">Save to my addresses</button>' : '') + '<p class="form-status is-error" id="co-loc-err" hidden></p></div>' +
             ext('checkoutCollect') +
+            '<div id="speed-wrap"></div>' +
             '<div id="ship-wrap">' + shipChoiceHTML() + '</div>' +
             (heavy.length ? '<div class="notice notice--freight" id="co-freight"><p><strong>Truck delivery:</strong> ' + esc(heavyText) + '.</p><p class="pmeta">We quote the delivery fee for these before you pay, or you can collect.' + (COURIERS.length && heavy.length < items.length ? ' The courier choice above is for your other items.' : '') + '</p></div>' : '') +
             (days.length ? '<fieldset class="field co-when"><legend>Preferred delivery day and time</legend><div class="field-row">' +
@@ -2675,25 +2850,103 @@
             '<form class="voucher" id="voucher-form"><label for="voucher" class="visually-hidden">Voucher code</label><input id="voucher" placeholder="Voucher code" value="' + esc(voucher) + '" autocapitalize="characters"><button class="btn btn--secondary btn--sm" type="submit">Apply</button></form>' +
             (voucher && !v ? '<p class="form-status is-error">That voucher code isn\'t valid.</p>' : '') +
             (v && !vOff ? '<p class="form-status is-error">' + esc(v.code) + ' needs a minimum spend of ' + kwacha(v.minSpend) + '.</p>' : '')) +
-          step(3, 'Review and send',
-            '<dl class="totals"><div><dt>Items (' + units + ')</dt><dd>' + kwacha(sub) + '</dd></div>' +
-            (save ? '<div class="is-save"><dt>You save</dt><dd>' + kwacha(save) + '</dd></div>' : '') +
-            (vOff ? '<div class="is-save"><dt>Voucher ' + esc(v.code) + '</dt><dd>−' + kwacha(vOff) + '</dd></div>' : '') +
-            (VAT.included === false ? vatRowHTML(vat) : '') +
-            '<div><dt>Delivery</dt><dd>' + (heavy.length ? 'Truck delivery quoted' : 'Confirmed on WhatsApp') + '</dd></div>' +
-            '<div class="is-total"><dt>Estimated total</dt><dd>' + kwacha(total) + '</dd></div>' + (VAT.included === false ? '' : vatRowHTML(vat)) + '</dl>' +
+          step(3, 'Review and place your order',
+            '<div id="co-totals" aria-live="polite"></div>' +
             (secureMode() ? '<div class="field"><label for="co-phone">Recipient phone (+260…)</label><input id="co-phone" type="tel" autocomplete="tel" required value="' + esc(u.phone || '') + '"></div>' : '') +
-            '<a class="btn btn--primary btn--block" id="checkout" href="#" target="_blank" rel="noopener noreferrer">' + (secureMode() ? 'Review server total' : 'Send order on WhatsApp') + '</a>' +
+            '<fieldset class="field co-receipt"><legend>Send my receipt to</legend>' +
+              (secureMode() ? '' : '<div class="field"><label for="co-rc-wa">WhatsApp number (optional)</label><input id="co-rc-wa" type="tel" autocomplete="tel" inputmode="tel" maxlength="20" placeholder="+260 97…" value="' + esc(u.phone || '') + '"></div>') +
+              '<div class="field"><label for="co-rc-email">Email (optional)</label><input id="co-rc-email" type="email" autocomplete="email" maxlength="200" value="' + esc(u.email || '') + '" aria-describedby="co-rc-err"><p class="form-status is-error" id="co-rc-err" hidden></p></div>' +
+              '<p class="hint">Your receipt is ready to download as soon as you place the order, and you can send it again from the order page.</p></fieldset>' +
+            (secureMode() ? '<a class="btn btn--primary btn--block" id="checkout" href="#" target="_blank" rel="noopener noreferrer">Review server total</a>'
+              : '<button class="btn btn--primary btn--block" type="button" id="co-review" aria-haspopup="dialog">Review and place order</button>') +
             '<div id="server-checkout-review" aria-live="polite"></div>' +
-            '<p class="pmeta">Your order reaches us when you press Send in WhatsApp. We confirm the final price and delivery fee there, then send payment instructions. We never ask for your PIN.</p>' +
-            '<p class="pmeta">By sending your order you agree to our <a href="privacy.html">privacy policy</a> and <a href="help.html#returns">returns and buyer protection</a>.</p>') +
+            '<p class="pmeta">' + (ratesOn() ? 'Check everything in the next step before you place the order. ' : '') + 'Your order reaches us when you press Send in WhatsApp. We confirm it there, then send payment instructions. We never ask for your PIN.</p>' +
+            '<p class="pmeta">By placing your order you agree to our <a href="privacy.html">privacy policy</a> and <a href="help.html#returns">returns and buyer protection</a>.</p>') +
           '<button class="link-btn link-btn--danger" type="button" id="clear-cart">Empty cart</button>' +
-        '</aside></div>';
+        '</aside></div>' +
+        // Review before buying: everything in one window, then the button that places the order
+        (secureMode() ? '' : '<dialog class="co-review" id="co-review-dialog" aria-labelledby="co-review-title">' +
+          '<div class="co-review__head"><p id="co-review-title">Review your order</p><button class="icon-btn" type="button" data-close-dialog aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>' +
+          '<div class="co-review__body" id="co-review-body"></div>' +
+          '<div class="co-review__foot"><a class="btn btn--primary btn--block" id="checkout" href="#" target="_blank" rel="noopener noreferrer">Place order and send on WhatsApp</a>' +
+          '<button class="btn btn--secondary btn--block" type="button" data-close-dialog>Keep editing</button>' +
+          '<p class="pmeta">WhatsApp opens with your order: press Send so it reaches us. Your receipt opens here straight away.</p></div></dialog>');
       show(html, 'Cart');
 
       var ref = newRef('ZS');
       var co = $('#checkout');
       var chosenAddress = null;
+      // Delivery: only the parcels that are delivered (a seller without collection still delivers)
+      var deliveryGroups = function () { return coMode() === 'collection' ? groups.filter(function (g) { return !collectionAt(g.s); }) : groups; };
+      var dq = null;   // the delivery quote for the current choices
+      var deliveryKnown = function () { return ratesOn() && (!deliveryGroups().length || !!(dq && !dq.pending)); };
+      var grand = function () { return total + (dq && !dq.pending ? dq.total : 0); };
+      var deliveryMsg = function () {
+        if (!dq || dq.pending) return '';
+        return '\nDelivery (' + speedName(dq.speed) + '): ' + feeText(dq.total) + (dq.parcels.length > 1 ? ' [' + dq.parcels.map(function (p) { return sellerName(p.id) + ' ' + speedName(p.speed).toLowerCase() + ' ' + feeText(p.fee); }).join('; ') + ']' : '');
+      };
+      var totalsHTML = function () {
+        var dg = deliveryGroups(), rows;
+        if (!dg.length) rows = '<div><dt>Collection</dt><dd>No delivery fee</dd></div>';
+        else if (!ratesOn()) rows = '<div><dt>Delivery</dt><dd>' + (heavy.length ? 'Truck delivery quoted' : 'Confirmed on WhatsApp') + '</dd></div>';
+        else if (!loc) rows = '<div><dt>Delivery</dt><dd>Set your location</dd></div>';
+        else if (!dq || dq.pending) rows = '<div><dt>Delivery</dt><dd>Quoted before you pay</dd></div>';
+        else {
+          rows = '<div' + (dq.total === 0 ? ' class="is-save"' : '') + '><dt>Delivery · ' + esc(speedName(dq.speed)) + (dq.parcels.length > 1 ? ' (' + dq.parcels.length + ' parcels)' : '') + '</dt><dd>' + feeText(dq.total) + '</dd></div>';
+          if (dq.parcels.length > 1 || dq.parcels.some(function (p) { return p.speed !== dq.speed; }))
+            rows += dq.parcels.map(function (p) { return '<div class="totals__sub"><dt>' + esc(sellerName(p.id)) + ' · ' + esc(speedName(p.speed)) + '</dt><dd>' + feeText(p.fee, p.free) + '</dd></div>'; }).join('');
+        }
+        return '<dl class="totals"><div><dt>Items (' + units + ')</dt><dd>' + kwacha(sub) + '</dd></div>' +
+          (save ? '<div class="is-save"><dt>You save</dt><dd>' + kwacha(save) + '</dd></div>' : '') +
+          (vOff ? '<div class="is-save"><dt>Voucher ' + esc(v.code) + '</dt><dd>−' + kwacha(vOff) + '</dd></div>' : '') +
+          (VAT.included === false ? vatRowHTML(vat) : '') + rows +
+          '<div class="is-total"><dt>' + (deliveryKnown() ? 'Order total' : 'Estimated total') + '</dt><dd>' + kwacha(deliveryKnown() ? grand() : total) + '</dd></div>' +
+          (VAT.included === false ? '' : vatRowHTML(vat)) + '</dl>' +
+          (dq && dq.parcels.some(function (p) { return p.note === 'fallback'; }) ? '<p class="pmeta">Some parcels can\'t go at that speed, so they go at the next fastest.</p>' : '');
+      };
+      // Amazon-style nudge: how much more for free standard delivery
+      var freeBarHTML = function () {
+        var f = DELIVERY.freeDelivery || {}, dg = deliveryGroups();
+        if (!ratesOn() || !loc || !dg.length || f.min == null) return '';
+        var sq = deliveryQuote(dg, total, 'standard');
+        if (sq.freeGap) return '<div class="free-bar"><p>Add <strong>' + kwacha(sq.freeGap) + '</strong> more for <strong>FREE standard delivery</strong>.</p>' +
+          '<div class="free-bar__track" aria-hidden="true"><span style="width:' + Math.max(4, Math.min(100, Math.round(total / f.min * 100))) + '%"></span></div></div>';
+        if (sq.parcels.some(function (p) { return p.free; })) return '<p class="free-bar is-done">Your order qualifies for <strong>FREE standard delivery</strong>' + (shipSpeed !== 'standard' ? ' if you choose Standard' : '') + '.</p>';
+        return '';
+      };
+      var renderDelivery = function () {
+        var dg = deliveryGroups(), on = ratesOn() && dg.length > 0, sw = $('#speed-wrap');
+        if (sw) sw.innerHTML = on ? speedChoiceHTML(ZD.options(deliveryArgs(dg, total))) : '';
+        dq = on && loc ? deliveryQuote(dg, total) : null;
+        $('#co-totals').innerHTML = totalsHTML();
+        $('#co-free').innerHTML = freeBarHTML();
+      };
+      renderDelivery();
+      var speedWrap = $('#speed-wrap');
+      if (speedWrap) speedWrap.addEventListener('change', function (e) {
+        if (e.target.name !== 'co-speed') return;
+        shipSpeed = e.target.value; renderDelivery(); syncCo();
+        var again = $('input[name="co-speed"][value="' + shipSpeed + '"]', speedWrap); if (again) again.focus();
+      });
+      var receiptTo = function () { var w = $('#co-rc-wa'), m = $('#co-rc-email'); return { whatsapp: w ? cleanText(w.value, 20) : '', email: m ? m.value.trim() : '' }; };
+      // The parcels as they stand now, kept with the order for the receipt and tracking
+      var parcelsNow = function () {
+        return dq ? dq.parcels.map(function (p) { return { seller: p.id, zone: p.zone, speed: p.speed, fee: p.fee, free: p.free, pending: p.pending, days: p.days, eta: arrivesText(p.days), courier: p.courier || shipChoice || '' }; }) : [];
+      };
+      var reviewHTML = function () {
+        var col = coMode() === 'collection', g = gift(), pm = payChoice ? payByName(payChoice) : null;
+        return '<section class="review-block"><h3>' + (col ? 'Collecting' : 'Delivering to') + '</h3><p><strong>' + esc($('#co-name').value.trim()) + '</strong><br>' + esc(locFull() || 'Location to be confirmed') + '</p>' +
+            (chosenAddress && chosenAddress.instructions ? '<p class="pmeta">' + esc(chosenAddress.instructions) + '</p>' : '') + '</section>' +
+          '<section class="review-block"><h3>Items</h3><ul class="review-items">' + items.map(function (it) {
+            return '<li><span class="review-items__name">' + esc(it.p.title) + (it.label ? '<small>' + esc(it.label) + '</small>' : '') + '<small>' + esc(qtyLabel(it.p, it.qty)) + ' × ' + kwacha(it.each) + ' · sold by ' + esc(sellerName(it.p.seller)) + '</small></span><strong>' + kwacha(it.each * it.qty) + '</strong></li>';
+          }).join('') + '</ul></section>' +
+          (dq && !dq.pending && deliveryGroups().length ? '<section class="review-block"><h3>Delivery</h3><ul class="review-parcels">' + parcelsNow().map(function (p) {
+            return '<li><span>' + parcelLine(p) + '</span><strong>' + feeText(p.fee, p.free) + '</strong></li>'; }).join('') + '</ul></section>'
+            : heavy.length && !col ? '<section class="review-block"><h3>Truck delivery</h3><p>' + esc(heavyText) + '. We quote this before you pay.</p></section>' : '') +
+          '<section class="review-block"><h3>Payment</h3><p>' + esc(payChoice || 'Decide on WhatsApp') + (pm && pm.note ? '<br><span class="pmeta">' + esc(pm.note) + '</span>' : '') + '</p></section>' +
+          (g.on ? '<section class="review-block"><h3>Gift</h3><p>' + (g.message ? '“' + esc(g.message) + '”' : 'Yes') + (g.noPrice ? '<br><span class="pmeta">Prices left out of the parcel</span>' : '') + '</p></section>' : '') +
+          '<section class="review-block review-block--totals">' + totalsHTML() + '</section>';
+      };
       var when = function () { return { day: $('#co-day') ? $('#co-day').value : '', slot: $('#co-slot') ? $('#co-slot').value : '' }; };
       var business = function () {
         return $('#co-biz').checked ? { name: cleanText($('#co-biz-name').value, 120), tpin: $('#co-biz-tpin').value.replace(/\s+/g, ''), address: cleanText($('#co-biz-addr').value, 200) } : null;
@@ -2705,7 +2958,7 @@
       var buildMsg = function () {
         var m = 'Hi Zed Supply, I\'d like to place an order (ref ' + ref + '):\n' +
           items.map(function (it, i) { return (i + 1) + '. ' + it.p.title + ' (' + it.p.id + (it.sku ? ', SKU ' + it.sku : '') + ')' + (it.label ? ' [' + it.label + ']' : '') + ' x ' + qtyLabel(it.p, it.qty) + ' = ' + kwacha(it.each * it.qty) + (it.commit ? ' (my offer, pending the seller)' : ''); }).join('\n') +
-          (vOff ? '\nVoucher ' + v.code + ': -' + kwacha(vOff) : '') + '\nEstimated total: ' + kwacha(total) +
+          (vOff ? '\nVoucher ' + v.code + ': -' + kwacha(vOff) : '') + deliveryMsg() + (deliveryKnown() ? '\nOrder total: ' + kwacha(grand()) : '\nEstimated total: ' + kwacha(total)) +
           (vat ? (VAT.included === false ? ' (with VAT ' + VAT.rate + '%: ' + kwacha(vat) + ')' : ' (includes VAT ' + VAT.rate + '%: ' + kwacha(vat) + ')') : '');
         var nm = $('#co-name').value.trim(), note = $('#co-note').value.trim(), w = when();
         if (nm) m += '\nName: ' + nm;
@@ -2765,6 +3018,7 @@
         warn.hidden = !(col && noCollect.length);
         warn.textContent = col && noCollect.length ? noCollect.join(' and ') + (noCollect.length === 1 ? ' doesn\'t' : ' don\'t') + ' offer collection, so ' + (noCollect.length === 1 ? 'that parcel' : 'those parcels') + ' will be delivered.' : '';
         $('#co-loc-box .deliver-box__label').textContent = col ? 'Your location (to find collection points near you)' : 'Deliver to *';
+        renderDelivery();
         syncCo();
       };
       $$('input[name="co-mode"]', view).forEach(function (r) { r.addEventListener('change', function () { setMode(r.value); syncMode(); }); });
@@ -2795,12 +3049,11 @@
           shipChoice = e.target.value;
           $$('input[name="co-ship"]', shipWrap).forEach(function (r) { r.checked = !shipChoice && r.value === ''; });
         }
+        renderDelivery();
         syncCo();
       });
       syncCo();
-      co.addEventListener('click', function (e) {
-        // A second click on the same order (double click) sends nothing more
-        if (orders().some(function (o) { return o.ref === ref; })) { e.preventDefault(); return; }
+      var checkReady = function () {
         var reserved = {}, unavailable = items.some(function (it) {
           if (!ZP.hasOptions(it.p)) return false;
           var current = variantOf(it.p, it.opt);
@@ -2809,8 +3062,8 @@
           reserved[key] = (reserved[key] || 0) + it.qty;
           return reserved[key] > current.stock;
         });
-        if (unavailable) { e.preventDefault(); toast('A variation is unavailable or its quantity exceeds stock. Update your cart before checkout.', 'error'); return; }
-        if (hasCardNumber($('#co-name').value + ' ' + $('#co-note').value + ' ' + gift().message + ' ' + $('#co-biz-addr').value)) { e.preventDefault(); toast(esc(CARD_WARNING), 'error'); $('#co-note').focus(); return; }
+        if (unavailable) { toast('A variation is unavailable or its quantity exceeds stock. Update your cart before checkout.', 'error'); return false; }
+        if (hasCardNumber($('#co-name').value + ' ' + $('#co-note').value + ' ' + gift().message + ' ' + $('#co-biz-addr').value)) { toast(esc(CARD_WARNING), 'error'); $('#co-note').focus(); return false; }
         // Like an address on Amazon: a name and a delivery location are needed before the order goes
         var nameEl = $('#co-name'), nameErr = $('#co-name-err'), locErr = $('#co-loc-err');
         // A location is needed to deliver; collecting needs only a name
@@ -2822,26 +3075,48 @@
         bizErr.hidden = !bizMsg; bizErr.textContent = bizMsg;
         $('#co-biz-name').setAttribute('aria-invalid', String(!!(b && !b.name)));
         $('#co-biz-tpin').setAttribute('aria-invalid', String(!!(b && b.name && !tpinOK(b.tpin))));
-        if (noName || noLoc || bizMsg) {
-          e.preventDefault();
-          if (noName) nameEl.focus(); else if (noLoc) $('#co-loc-box [data-open-location]').focus(); else $(b.name ? '#co-biz-tpin' : '#co-biz-name').focus();
-          return;
+        var rc = receiptTo(), rcErr = $('#co-rc-err'), badMail = !!rc.email && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(rc.email);
+        rcErr.hidden = !badMail; rcErr.textContent = badMail ? 'Enter an email address like name@example.com, or leave it empty.' : '';
+        $('#co-rc-email').setAttribute('aria-invalid', String(badMail));
+        if (noName || noLoc || bizMsg || badMail) {
+          if (noName) nameEl.focus(); else if (noLoc) $('#co-loc-box [data-open-location]').focus(); else if (bizMsg) $(b.name ? '#co-biz-tpin' : '#co-biz-name').focus(); else $('#co-rc-email').focus();
+          return false;
         }
+        return true;
+      };
+      var reviewBtn = $('#co-review'), reviewDlg = $('#co-review-dialog');
+      if (reviewBtn) reviewBtn.addEventListener('click', function () {
+        if (!checkReady()) return;
+        syncCo();
+        $('#co-review-body').innerHTML = reviewHTML();
+        co.textContent = deliveryKnown() ? 'Place order · ' + kwacha(grand()) : 'Place order and send on WhatsApp';
+        openDialog(reviewDlg);
+      });
+      co.addEventListener('click', function (e) {
+        // A second click on the same order (double click) sends nothing more
+        if (orders().some(function (o) { return o.ref === ref; })) { e.preventDefault(); return; }
+        if (!checkReady()) { e.preventDefault(); if (reviewDlg && reviewDlg.open) closeDialog(reviewDlg); return; }
+        var nameEl = $('#co-name'), b = business();
         if (secureMode()) {
           e.preventDefault();
           ext('serverCheckout', { ref: ref, items: items, contact_name: nameEl.value.trim(), recipient_phone: $('#co-phone').value.trim(),
             fulfilment: coMode(), buyer_town: loc ? loc.town : '', buyer_province_id: loc ? provinceOf(loc) : '', deliver_to: locFull(),
             payment_method: (payByName(payChoice) || {}).id || '', notes: $('#co-note').value.trim(), voucher_code: voucher,
             preferred_date: when().day, preferred_slot: when().slot, is_gift: gift().on, gift_message: gift().message, hide_prices: gift().noPrice,
-            business_name: b ? b.name : '', business_tpin: b ? b.tpin : '', business_address: b ? b.address : '' });
+            business_name: b ? b.name : '', business_tpin: b ? b.tpin : '', business_address: b ? b.address : '',
+            delivery_scope: shipScope, courier_id: shipChoice, delivery_speed: shipSpeed, receipt_email: receiptTo().email,
+            expected_delivery_zmw: deliveryKnown() && deliveryGroups().length ? dq.total : undefined });
           return;
         }
         var list = orders();
-        list.unshift({ ref: ref, date: today, items: items.map(function (it) { return it.opt ? { id: it.p.id, qty: it.qty, price: it.each, opt: it.opt, label: it.label } : { id: it.p.id, qty: it.qty, price: it.each }; }), total: total, status: 0, deliverTo: locFull(), pay: payChoice, ship: COURIERS.length ? shipSummary() : '', shipId: shipChoice, message: co.getAttribute('data-wa-message'), vat: vat, when: when(), gift: gift().on ? gift() : null, addressId: chosenAddress ? chosenAddress.id : '', mode: coMode(), business: b, freight: heavy.length && coMode() !== 'collection' ? heavyText : '' });
+        list.unshift({ ref: ref, date: today, items: items.map(function (it) { return it.opt ? { id: it.p.id, qty: it.qty, price: it.each, opt: it.opt, label: it.label } : { id: it.p.id, qty: it.qty, price: it.each }; }), total: deliveryKnown() ? grand() : total, status: 0, deliverTo: locFull(), pay: payChoice, ship: COURIERS.length ? shipSummary() : '', shipId: shipChoice, message: co.getAttribute('data-wa-message'), vat: vat, when: when(), gift: gift().on ? gift() : null, addressId: chosenAddress ? chosenAddress.id : '', mode: coMode(), business: b, freight: heavy.length && coMode() !== 'collection' ? heavyText : '',
+          name: nameEl.value.trim(), sub: sub, save: save, voucher: vOff ? { code: v.code, off: vOff } : null, itemsTotal: total, vatRate: vat ? VAT.rate : null,
+          delivery: ratesOn() ? { speed: shipSpeed, fee: dq && !dq.pending ? dq.total : null, pending: !deliveryKnown(), parcels: parcelsNow(), sample: !!DELIVERY.sampleRates } : null,
+          receipt: receiptTo() });
         store.set('orders', list);
         setCart([]);
         store.set('voucher', '');
-        setTimeout(function () { location.hash = '#/order/' + ref; }, 400);
+        setTimeout(function () { location.hash = '#/order/' + ref + '?placed=1'; }, 400);
       });
       $$('[data-cart-qty]', view).forEach(function (inp) {
         inp.addEventListener('change', function () {
@@ -2943,15 +3218,19 @@
         '<p class="view-foot"><a href="#/track">Track an order by number</a></p>', 'Orders');
     },
 
-    order: function (ref) {
+    order: function (ref, q) {
       var o = findOrder(ref);
       if (!o) return views.track(null, null, ref);
-      var msg = 'Hi Zed Supply, I\'d like an update on my order ' + o.ref + '.';
+      var msg = 'Hi Zed Supply, I\'d like an update on my order ' + o.ref + '.', placed = !!(q && q.get('placed'));
       show(crumbs([['Orders', '#/orders'], [o.ref]]) + head('Order ' + esc(o.ref), 'Placed ' + niceDate(o.date) + (o.sample ? ' · <span class="tag-sample">Demo order</span>' : '')) +
+        (placed ? '<div class="placed" id="placed" role="status" tabindex="-1"><p class="placed__title">Thank you, your order is placed</p>' +
+          '<p>' + (!o.sample && !o.status && o.message ? 'Press Send in WhatsApp so it reaches us; we then confirm it and send payment instructions. ' : '') + 'Your receipt is ready: download it, or send it to your WhatsApp or email.</p></div>' : '') +
+        receiptActionsHTML(receiptModel(o), false) +
         '<div class="cart"><div class="card"><h2>Tracking</h2><ol class="timeline">' + STATUS.map(function (s, i) {
           return '<li class="' + (i < o.status ? 'is-done' : (i === o.status ? 'is-done is-current' : '')) + '">' + s + (i === o.status ? ' <span class="visually-hidden">(current status)</span>' : '') + '</li>';
         }).join('') + '</ol>' +
         (o.sample ? '<p class="pmeta">This is a demo order to show how tracking will look.</p>' : '<p class="pmeta">We update your order once it\'s confirmed on WhatsApp. Prototype: live tracking arrives with full accounts.</p>') +
+        parcelsHTML(o) +
         (o.handover && o.status < 4 && !o.cancel ? handoverHTML(o.ref, o.handover, o.sample) : '') +
         // Until we confirm it, the order may not have been sent: WhatsApp opened, but Send wasn't pressed
         (!o.sample && !o.status && !o.cancel && o.message ? '<div class="notice" role="status"><p><strong>Didn\'t press Send?</strong> Your order reaches us only when the WhatsApp message is sent.</p><a class="btn btn--secondary btn--sm" href="' + waUrl(o.message) + '" data-wa-message="' + esc(o.message) + '" target="_blank" rel="noopener noreferrer">Open WhatsApp again</a></div>' : '') +
@@ -2961,7 +3240,7 @@
           (complaintsOn() && !o.sample ? '<a class="btn btn--secondary" href="#/complaint?order=' + encodeURIComponent(o.ref) + '">' + (o.status >= 4 ? 'Return or report a problem' : 'Report a problem') + '</a>' : '') + '</div></div>' +
         '<aside class="summary"><h2>Items</h2><ul class="lines">' + o.items.map(function (it) { var p = product(it.id); return '<li class="line line--plain"><div><a class="line__title" href="#/product/' + it.id + '">' + esc(p ? p.title : it.id) + '</a><p class="pmeta">' + (it.label ? esc(it.label) + ' · ' : '') + 'Quantity ' + (p ? esc(qtyLabel(p, parseInt(it.qty, 10) || 0)) : (parseInt(it.qty, 10) || 0)) + ' · ' + kwacha(it.price * it.qty) + '</p>' +
           (p && !o.sample ? '<a class="link-btn" href="#/product/' + encodeURIComponent(it.id) + '?review=1">' + (((store.get('reviews', {})[it.id]) || []).some(function (v) { return v.mine; }) ? 'Edit your review' : 'Rate this item') + '<span class="visually-hidden">: ' + esc(p.title) + '</span></a>' : '') + '</div></li>'; }).join('') + '</ul>' +
-        '<dl class="totals"><div class="is-total"><dt>Total</dt><dd>' + kwacha(o.total) + '</dd></div>' + (o.vat ? vatRowHTML(o.vat) : '') + '</dl>' +
+        orderTotalsHTML(o) +
         (o.business ? '<div class="deliver-box"><p class="deliver-box__label">Billed to</p><p>' + esc(o.business.name) + (o.business.tpin ? '<br>TPIN ' + esc(o.business.tpin) : '') + (o.business.address ? '<br>' + esc(o.business.address) : '') + '</p>' +
           '<p class="pmeta">An order summary, not a tax invoice.</p></div>' : '') +
         (o.freight ? '<div class="deliver-box"><p class="deliver-box__label">Truck delivery</p><p>' + esc(o.freight) + '</p><p class="pmeta">The delivery fee is quoted before you pay.</p></div>' : '') +
@@ -2971,6 +3250,7 @@
         (o.gift ? '<div class="deliver-box"><p class="deliver-box__label">Gift</p><p>' + (o.gift.message ? '“' + esc(o.gift.message) + '”' : 'Yes') + (o.gift.noPrice ? '<br><span class="pmeta">Prices left out of the parcel</span>' : '') + '</p></div>' : '') +
         (o.pay ? '<div class="deliver-box"><p class="deliver-box__label">Payment</p><p>' + esc(o.pay) + '</p></div>' : '') +
         '<div class="deliver-box"><p class="deliver-box__label">Deliver to</p><p>' + (o.deliverTo ? esc(o.deliverTo) : '<span class="pmeta">No location given. We\'ll ask on WhatsApp.</span>') + '</p></div></aside></div>', 'Order ' + o.ref);
+      if (placed && $('#placed')) $('#placed').focus();
       // Cancellation request: the message follows the chosen reason; sending it marks the order
       var cxSend = $('#cx-send'), cxReason = $('#cx-reason');
       if (cxSend) {
@@ -2995,6 +3275,14 @@
         });
         toast(added ? 'Added ' + added + (added === 1 ? ' item' : ' items') + ' to your cart' + (skipped ? '; ' + skipped + ' no longer available' : '') + '. <a href="#/cart">View cart</a>' : 'These items are no longer available.');
       });
+    },
+
+    receipt: function (ref, q) {
+      var o = findOrder(ref);
+      if (!o) return views.track(null, null, ref);
+      var m = receiptModel(o);
+      show(crumbs([['Orders', '#/orders'], [o.ref, '#/order/' + encodeURIComponent(o.ref)], ['Receipt']]) + receiptActionsHTML(m, true) + receiptHTML(m), 'Receipt ' + o.ref);
+      if (q && q.get('print') === '1') setTimeout(function () { window.print(); }, 250);
     },
 
     track: function (arg, q, missing) {
@@ -3909,7 +4197,8 @@
         if (row.seller) { var s = { id: row.seller.id, name: row.seller.name, city: row.seller.city, verified: row.seller.verified, about: row.seller.about || '', colours: ['#0A2A66', '#0057AE'] }; var si = D.sellers.findIndex(function (x) { return x.id === s.id; }); if (si === -1) D.sellers.push(s); else D.sellers[si] = s; }
       }); loadProducts();
     },
-    clearCheckout: function () { setCart([]); store.set('voucher', ''); }, refreshCounts: updateCounts
+    clearCheckout: function () { setCart([]); store.set('voucher', ''); }, refreshCounts: updateCounts,
+    receiptHTML: receiptHTML, receiptText: receiptText, arrivesText: arrivesText, waTo: waTo, speedName: speedName, feeText: feeText, courier: courier, trackUrl: trackUrl, TRACK: TRACK
   };
 
   // Support index.html?q=term (from other pages and search engines)

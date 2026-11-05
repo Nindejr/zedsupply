@@ -15,6 +15,26 @@ window.ZS_SAMPLE = {
   // [SAMPLE] same-day towns and seller deadlines, used in demo mode while the live ones are unset
   sameDay: { cutoff: 11, towns: ['Lusaka', 'Kitwe', 'Ndola', 'Livingstone'] },
   sellerDeadlines: { acceptHours: 12, dispatchHours: 48 },
+  // [SAMPLE] delivery prices, used in demo mode while settings.delivery.rates is empty. They show
+  // how fees, express, same day, truck delivery and free delivery work; they are not real courier
+  // prices. Courier-specific rows show how a courier's own price changes the total.
+  deliveryRates: [
+    { zone: 'town', speed: 'standard', fee: 45, kg: 5, perKg: 5, days: [1, 2] },
+    { zone: 'town', speed: 'express', fee: 85, kg: 5, perKg: 8, days: [1, 1] },
+    { zone: 'town', speed: 'same_day', fee: 120, kg: 5, perKg: 10 },
+    { zone: 'province', speed: 'standard', fee: 95, kg: 5, perKg: 8, days: [2, 4] },
+    { zone: 'province', speed: 'express', fee: 170, kg: 5, perKg: 12, days: [1, 2] },
+    { zone: 'country', speed: 'standard', fee: 150, kg: 5, perKg: 12, days: [3, 7] },
+    { zone: 'country', speed: 'express', fee: 290, kg: 5, perKg: 20, days: [2, 3] },
+    { zone: 'town', speed: 'truck', fee: 450, kg: 500, perKg: 0.6, days: [1, 3] },
+    { zone: 'province', speed: 'truck', fee: 1200, kg: 500, perKg: 1.5, days: [2, 5] },
+    { zone: 'country', speed: 'truck', fee: 2800, kg: 500, perKg: 3, days: [3, 8] },
+    { courier: 'rapidriders', zone: 'town', speed: 'express', fee: 75, kg: 5, perKg: 7, days: [1, 1] },
+    { courier: 'zampost', zone: 'country', speed: 'standard', fee: 125, kg: 5, perKg: 10, days: [4, 8] },
+    { courier: 'dhl', zone: 'country', speed: 'express', fee: 420, kg: 2, perKg: 45, days: [1, 2] }
+  ],
+  freeDelivery: { min: 1500, zones: ['town', 'province'] },
+  deliveryOrigin: { town: 'Lusaka', province: 'lusaka' },
 
   // [SAMPLE] pickup points, used in demo mode while settings.pickupPoints is empty
   pickupPoints: [
@@ -149,5 +169,12 @@ window.ZS_SAMPLE = {
   ],
 
   // Demo order so customers can try order tracking: type ZS-DEMO01 on the Track order page
-  demoOrder: { ref: 'ZS-DEMO01', sample: true, date: '2026-10-20', items: [{ id: 'L006', qty: 1, price: 1850 }], total: 1850, status: 3, handover: '482913' }
+  demoOrder: { ref: 'ZS-DEMO01', sample: true, date: '2026-10-20', items: [{ id: 'L006', qty: 1, price: 1850 }], status: 3, handover: '482913',
+    name: 'Sample Buyer', deliverTo: 'Cairo Road, Lusaka', mode: 'delivery', pay: 'MTN MoMo', paid: true, sub: 1850, save: 250, itemsTotal: 1850, vat: 255.17, total: 2140,
+    delivery: { speed: 'express', fee: 290, sample: true, parcels: [{ seller: 'store-b', zone: 'country', speed: 'express', fee: 290, free: false, days: [2, 3], eta: 'Arrives Wed 22 Oct – Thu 23 Oct', courier: 'fedex', tracking: 'SAMPLE-7712345601',
+      events: [
+        { at: '2026-10-21 09:40', status: 'booked', text: 'Sample Store B booked the collection', where: 'Kitwe' },
+        { at: '2026-10-21 14:05', status: 'picked_up', text: 'Collected from Sample Store B', where: 'Kitwe' },
+        { at: '2026-10-22 07:30', status: 'in_transit', text: 'Arrived at the Lusaka depot', where: 'Lusaka' },
+        { at: '2026-10-22 10:15', status: 'out_for_delivery', text: 'With the rider for delivery today', where: 'Lusaka' }] }] } }
 };

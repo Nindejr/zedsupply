@@ -336,9 +336,9 @@ test('trade buyers order by the bag, sellers set minimums and heavy items get a 
   await page.getByLabel('Your name *').fill('Chanda Mwila');
   await page.evaluate(() => window.ZS.store.set('loc', { town: 'Lusaka', area: 'Kabulonga', province: 'lusaka', mode: 'delivery' }));
   const send = page.locator('#checkout');
-  await send.evaluate(a => a.removeAttribute('target'));
-  await send.click();
+  await page.locator('#co-review').click();
   await expect(page.locator('#co-biz-err')).toHaveText('Enter the TPIN as 10 digits, or leave it empty.');
+  await expect(page.locator('#co-review-dialog')).not.toBeVisible();
   await page.getByLabel('TPIN (optional)').fill('1234567890');
   await expect(send).toHaveAttribute('data-wa-message', /Business: Mwila Farms, TPIN 1234567890/);
   await expect(send).toHaveAttribute('data-wa-message', /Truck delivery needed: Cement, 50 kg bag \(30 bags\)/);
@@ -349,4 +349,120 @@ test('trade buyers order by the bag, sellers set minimums and heavy items get a 
   expect(results).toEqual([]);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
   expect(errors).toEqual([]);
+});
+
+test('checkout prices delivery as choices change, reviews the order, then gives a branded receipt', async ({ page }) => {
+  const errors = []; page.on('pageerror', e => errors.push(e.message));
+  // 09:00 on a Wednesday in Zambia, so the delivery dates are fixed
+  await page.clock.setFixedTime(new Date('2026-11-04T07:00:00Z'));
+  await page.addInitScript(() => {
+    localStorage.setItem('zs-consent', 'denied');
+    localStorage.setItem('zs-loc-tip-seen', '1');
+    localStorage.setItem('zs-location', JSON.stringify({ town: 'Lusaka', area: 'Kabulonga', province: 'lusaka', mode: 'delivery' }));
+    // Paper from a Lusaka store (12.5 kg) and a sprayer from Kitwe: two parcels
+    localStorage.setItem('zs-cart', JSON.stringify([{ id: 'L001', qty: 1 }, { id: 'L012', qty: 1 }]));
+  });
+  await page.goto('/index.html?demo=1&theme=off#/cart');
+  const totals = page.locator('#co-totals');
+  // Standard: K45 + 8 kg over at K5 for the Lusaka parcel, K150 from Kitwe
+  await expect(page.locator('label[for="co-speed-standard"]')).toContainText('K235');
+  await expect(totals).toContainText('Delivery · Standard (2 parcels)K235');
+  await expect(totals).toContainText('Order totalK1,139');
+  await expect(page.locator('#co-free')).toContainText('Add K596 more for FREE standard delivery');
+  // Express adds to the total at once
+  await page.locator('label[for="co-speed-express"]').click();
+  await expect(totals).toContainText('Delivery · Express (2 parcels)K439');
+  await expect(totals).toContainText('Order totalK1,343');
+  // A courier's own price changes its parcel's fee
+  await page.locator('label[for="co-speed-standard"]').click();
+  await page.locator('label[for="co-ship-zampost"]').click();
+  await expect(totals).toContainText('Sample Store B · StandardK125');
+  // Collecting removes the Lusaka parcel's fee; the Kitwe seller doesn't offer collection, so it still delivers
+  await page.getByLabel('I\'ll collect it from the sellers').check();
+  await expect(totals).toContainText('Delivery · StandardK125Order totalK1,029');
+  await page.getByLabel('Deliver it to me').check();
+  await expect(totals).toContainText('Delivery · Standard');
+  // Review: nothing can be placed without a name, and a bad email is caught
+  await page.getByLabel('Email (optional)').fill('not-an-email');
+  await page.locator('#co-review').click();
+  await expect(page.locator('#co-name-err')).toHaveText('Enter your name.');
+  await page.getByLabel('Your name *').fill('Chanda Mwila');
+  await page.locator('#co-review').click();
+  await expect(page.locator('#co-rc-err')).toContainText('Enter an email address');
+  await page.getByLabel('Email (optional)').fill('chanda@example.com');
+  await page.locator('#co-review').click();
+  const dialog = page.getByRole('dialog', { name: 'Review your order' });
+  await expect(dialog).toBeVisible();
+  await expect(dialog).toContainText('Kabulonga, Lusaka');
+  await expect(dialog).toContainText('Sample Store B · Standard · Arrives Mon 9 Nov – Fri 13 Nov · Zampost EMS');
+  await page.evaluate(require('node:fs').readFileSync(axe, 'utf8'));
+  const a11y = await page.evaluate(async () => (await axe.run('#co-review-dialog', { runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa'] } })).violations.map(v => v.id));
+  expect(a11y).toEqual([]);
+  // Placing the order opens WhatsApp with the delivery and total, and the receipt is ready
+  await page.context().route('https://wa.me/**', route => route.fulfill({ body: 'WhatsApp' }));
+  const [wa] = await Promise.all([page.context().waitForEvent('page'), dialog.getByRole('link', { name: 'Place order · K1,114' }).click()]);
+  const message = new URL(wa.url()).searchParams.get('text');
+  expect(message).toContain('Delivery (Standard): K210 [Sample Store A standard K85; Sample Store B standard K125]');
+  expect(message).toContain('Order total: K1,114');
+  await wa.close();
+  await expect(page).toHaveURL(/#\/order\/ZS-[A-Z0-9]{8}\?placed=1$/);
+  await expect(page.getByText('Thank you, your order is placed')).toBeVisible();
+  await expect(page.locator('.parcels')).toContainText('Your 2 parcels');
+  await expect(page.locator('.receipt-actions').getByRole('link', { name: /Send to WhatsApp/ })).toHaveAttribute('href', /^https:\/\/wa\.me\/\?text=Zed%20Supply/);
+  await expect(page.locator('.receipt-actions').getByRole('link', { name: 'Email receipt' })).toHaveAttribute('href', /^mailto:chanda@example\.com\?subject=Zed%20Supply%20receipt%20ZS-/);
+  await page.locator('.receipt-actions').getByRole('link', { name: 'View receipt' }).click();
+  const receipt = page.locator('#receipt');
+  await expect(receipt.getByRole('heading', { name: 'Order receipt' })).toBeVisible();
+  await expect(receipt.locator('.receipt__head img')).toHaveAttribute('alt', 'Zed Supply');
+  await expect(receipt).toContainText('Chanda Mwila');
+  await expect(receipt.locator('tbody tr')).toHaveCount(2);
+  await expect(receipt.locator('.is-total')).toContainText('K1,114');
+  await expect(receipt).toContainText('it is not a tax invoice');
+  await page.evaluate(() => { window.printed = 0; window.print = () => { window.printed++; }; });
+  await page.getByRole('button', { name: 'Download PDF or print' }).click();
+  expect(await page.evaluate(() => window.printed)).toBe(1);
+  // The receipt prints on its own: nothing else on the page is shown on paper
+  await page.emulateMedia({ media: 'print' });
+  await expect(page.locator('.site-header')).toBeHidden();
+  await expect(page.locator('.receipt-actions')).toBeHidden();
+  await expect(receipt).toBeVisible();
+  await page.emulateMedia({ media: 'screen' });
+  const a11yReceipt = await page.evaluate(async () => (await axe.run('main', { runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa'] } })).violations.map(v => v.id + ': ' + v.nodes.map(n => n.target.join(' ')).join(', ')));
+  expect(a11yReceipt).toEqual([]);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
+  expect(errors).toEqual([]);
+});
+
+test('free standard delivery once the items reach the threshold, and same day where the seller offers it', async ({ page }) => {
+  await page.clock.setFixedTime(new Date('2026-11-04T07:00:00Z'));
+  await page.addInitScript(() => {
+    localStorage.setItem('zs-consent', 'denied');
+    localStorage.setItem('zs-loc-tip-seen', '1');
+    localStorage.setItem('zs-location', JSON.stringify({ town: 'Lusaka', area: 'Kabulonga', province: 'lusaka', mode: 'delivery' }));
+    localStorage.setItem('zs-cart', JSON.stringify([{ id: 'L001', qty: 4 }]));
+  });
+  await page.goto('/index.html?demo=1&theme=off#/cart');
+  await expect(page.locator('#co-free')).toContainText('Your order qualifies for FREE standard delivery');
+  await expect(page.locator('label[for="co-speed-standard"]')).toContainText('FREE');
+  await expect(page.locator('#co-totals')).toContainText('Delivery · StandardFREE');
+  // Sample Store A offers same day in Lusaka, and it's before the 11:00 cut-off
+  await expect(page.locator('label[for="co-speed-same_day"]')).toContainText('Arrives today');
+  await page.locator('label[for="co-speed-same_day"]').click();
+  await expect(page.locator('#co-totals')).toContainText('Delivery · Same day');
+  await expect(page.locator('#co-free')).toContainText('if you choose Standard');
+});
+
+test('the demo order shows its courier, tracking number and courier updates', async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem('zs-consent', 'denied'));
+  await page.goto('/index.html?demo=1&theme=off#/order/ZS-DEMO01');
+  const parcel = page.locator('.parcel');
+  await expect(parcel).toContainText('Courier: FedEx');
+  await expect(parcel).toContainText('Tracking number SAMPLE-7712345601');
+  await expect(parcel.locator('.track-events li').first()).toContainText('Out for delivery');
+  await expect(parcel.locator('.track-events li')).toHaveCount(4);
+  await expect(parcel.getByRole('link', { name: /Track with/ })).toHaveCount(0);
+  await expect(page.locator('.summary .totals')).toContainText('Delivery · ExpressK290');
+  await page.goto('/index.html?demo=1&theme=off#/receipt/ZS-DEMO01');
+  await expect(page.locator('#receipt')).toContainText('Paid');
+  await expect(page.locator('#receipt .is-total')).toContainText('K2,140');
 });

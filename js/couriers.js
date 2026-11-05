@@ -10,6 +10,8 @@
              a licence number joins that register entry; one without a licence number is
              shown as "licence not confirmed" and ranked last. Keep each id unchanged once
              sellers use it (sellers' courier choices refer to these ids).
+             track: the courier's public tracking page, with {n} where the tracking number goes.
+             Add one only after checking it on the courier's own website.
 
    Order on the site: most used on Zed Supply first (sellers who ship with it, orders that
    chose it), then couriers with a public profile, then licence reach, then A to Z. */
@@ -21,8 +23,10 @@ window.ZS_COURIERS = {
       about: 'Zambia\'s national postal service. EMS express mail reaches more than 150 branches across Zambia and over 190 countries, and can collect from your premises.',
       note: 'International parcels up to 30 kg. Exports need a customs declaration and a commercial invoice.' },
     { id: 'dhl', licence: 'ZICTA/P/ID/0006', name: 'DHL Express', url: 'https://mydhl.express.dhl/zm/en/help-and-support.html',
+      track: 'https://www.dhl.com/zm-en/home/tracking/tracking-express.html?submit=1&tracking-id={n}',
       about: 'International express courier with an office in Lusaka. Suited to urgent documents and parcels to and from other countries.' },
     { id: 'fedex', licence: 'ZICTA/P/ID/0004', name: 'FedEx', url: 'https://www.fedex.com/en-zm/shipping.html',
+      track: 'https://www.fedex.com/fedextrack/?trknbr={n}',
       about: 'International express, plus local services in Zambia from same-day delivery within a city to 2 to 3 business days.' },
     { id: 'mercury', licence: 'ZICTA/P/ID/0002', name: 'Mercury Express Logistics', url: '',
       about: 'Named by the US Commercial Service, with DHL and FedEx, as offering international delivery to and from Zambia.' },

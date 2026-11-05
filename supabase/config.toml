@@ -428,3 +428,7 @@ verify_jwt = false
 verify_jwt = false
 [functions.daily-jobs]
 verify_jwt = false
+[functions.courier-quote]
+verify_jwt = false
+[functions.courier-webhook]
+verify_jwt = false
