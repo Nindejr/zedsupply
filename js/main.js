@@ -2184,6 +2184,16 @@
   }
   var STATUS = ['Order sent on WhatsApp', 'Confirmed by Zed Supply', 'Packed by the seller', 'Out for delivery', 'Delivered'];
   function orders() { return store.get('orders', []); }
+  /* The buyer's private handover code (migration 024). Read out at the door once the parcel is in
+     hand, it lets the rider record the delivery and confirms receipt for the buyer. */
+  function handoverHTML(ref, code, demo) {
+    var shown = String(code).replace(/^(\d{3})(\d{3})$/, '$1 $2');
+    var share = 'Zed Supply handover code for order ' + ref + ': ' + shown + '. Give it to the rider only once the parcel is in your hands and you have checked it.';
+    return '<div class="handover"><p class="deliver-box__label">Your handover code' + (demo ? ' <span class="tag-sample">Demo</span>' : '') + '</p>' +
+      '<p class="handover__code">' + esc(shown) + '</p>' +
+      '<p class="pmeta">Read it out only when the parcel is in your hands and you\'ve checked it: the code confirms you received it. Zed Supply staff will never ask you for it.</p>' +
+      '<a class="link-btn" href="https://wa.me/?text=' + encodeURIComponent(share) + '" target="_blank" rel="noopener noreferrer">Someone else receiving it? Send them the code</a></div>';
+  }
   var CANCEL_REASONS = ['I ordered by mistake', 'I found a better price', 'Delivery would take too long', 'I need to change the items or address', 'I no longer need it', 'Another reason'];
   // Order page: ask to cancel until the order is packed (settings.orderOptions.cancel); after that,
   // the seller may still stop it, or the buyer can return it under the returns policy
@@ -2912,6 +2922,7 @@
           return '<li class="' + (i < o.status ? 'is-done' : (i === o.status ? 'is-done is-current' : '')) + '">' + s + (i === o.status ? ' <span class="visually-hidden">(current status)</span>' : '') + '</li>';
         }).join('') + '</ol>' +
         (o.sample ? '<p class="pmeta">This is a demo order to show how tracking will look.</p>' : '<p class="pmeta">We update your order once it\'s confirmed on WhatsApp. Prototype: live tracking arrives with full accounts.</p>') +
+        (o.handover && o.status < 4 && !o.cancel ? handoverHTML(o.ref, o.handover, o.sample) : '') +
         // Until we confirm it, the order may not have been sent: WhatsApp opened, but Send wasn't pressed
         (!o.sample && !o.status && !o.cancel && o.message ? '<div class="notice" role="status"><p><strong>Didn\'t press Send?</strong> Your order reaches us only when the WhatsApp message is sent.</p><a class="btn btn--secondary btn--sm" href="' + waUrl(o.message) + '" data-wa-message="' + esc(o.message) + '" target="_blank" rel="noopener noreferrer">Open WhatsApp again</a></div>' : '') +
         cancelHTML(o) + ext('orderActions', o) +
@@ -3785,7 +3796,7 @@
     D: D, S: S, ZP: ZP, store: store, today: today,
     products: function () { return products; }, product: product, seller: seller, dept: dept, user: user, orders: orders,
     cart: cart, addToCart: addToCart, complaints: complaints, listings: listingsApi, loc: function () { return loc; },
-    esc: esc, kwacha: kwacha, niceDate: niceDate, waUrl: waUrl, toast: toast, show: show, crumbs: crumbs, head: head, empty: empty,
+    esc: esc, kwacha: kwacha, niceDate: niceDate, waUrl: waUrl, handoverHTML: handoverHTML, toast: toast, show: show, crumbs: crumbs, head: head, empty: empty,
     cards: cards, ratingOf: ratingOf, priceOf: priceOf, coMode: function () { return coMode(); }, provinceOf: provinceOf,
     route: route, $: $, $$: $$, newRef: newRef, statusClass: statusClass, payByName: payByName, cleanText: cleanText, backendActive: secureMode,
     businessFormHTML: businessFormHTML, bindBusinessForm: bindBusinessForm, qtyLabel: qtyLabel,

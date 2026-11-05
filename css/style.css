@@ -815,6 +815,10 @@ h1[tabindex="-1"]:focus { outline: none; }
 [data-location-label] { display: inline-block; max-width: 15rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: bottom; }
 .deliver-box { padding: 0.75rem 0.9rem; border: 1px solid var(--color-border); border-radius: var(--radius-sm); background: var(--color-bg-alt); }
 .deliver-box p { margin: 0 0 0.2rem; }
+.handover { margin: 0.75rem 0; padding: 0.8rem 0.95rem; border: 1px solid rgb(166 108 16 / 0.45); border-radius: var(--radius-sm);
+  background: linear-gradient(135deg, rgb(246 215 120 / 0.22), rgb(246 215 120 / 0) 65%), var(--color-bg-alt); }
+.handover p { margin: 0 0 0.3rem; }
+.handover__code { font: 700 1.9rem/1.15 ui-monospace, "Cascadia Mono", Consolas, monospace; letter-spacing: 0.12em; color: var(--color-heading); }
 .deliver-box__label { font-size: 0.8rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--color-muted); }
 #location-form .check { align-items: center; }
 

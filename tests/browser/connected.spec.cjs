@@ -42,6 +42,8 @@ async function setup(page, { staff = false, teamRole = 'owner', applications = [
     else if (url.pathname === '/rest/v1/seller_applications') data = applications;
     else if (url.pathname === '/rest/v1/rpc/submit_seller_application') data = 'app-1';
     else if (url.pathname === '/rest/v1/rpc/set_business_details') data = null;
+    else if (url.pathname === '/rest/v1/order_handover_codes') data = [{code:'482913'}];
+    else if (url.pathname === '/rest/v1/rpc/record_handover') data = body.handover_code === '482913' ? {ok:true,status:'delivered'} : {ok:false,attempts_left:4};
     else if (url.pathname === '/rest/v1/rpc/staff_approve_application') data = body.store_id;
     else if (url.pathname === '/rest/v1/rpc/staff_review_application') data = null;
     else if (url.pathname === '/rest/v1/orders') data = [{id:41,ref:'ZS-LIVE0001',status:'placed',created_at:'2026-11-01T00:00:00Z',total_zmw:100,delivery_zmw:null,paid_zmw:0,payment_status:'unpaid',fulfilment:'delivery',order_items:[{id:81,product_id:'LIVE1',quantity:1,unit_price_zmw:100,order_item_addons:[]}]}];
@@ -212,6 +214,31 @@ test('staff review, ask about and approve seller applications', async ({page}) =
   await page.evaluate(fs.readFileSync(require.resolve('axe-core/axe.min.js'),'utf8'));
   expect(await page.evaluate(async () => (await axe.run('main', { runOnly: { type: 'tag', values: ['wcag2a','wcag2aa','wcag21aa','wcag22aa'] } })).violations.map(v => v.id + ' ' + v.nodes.map(n => n.target).join(';')))).toEqual([]);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
+  expect(errors).toEqual([]);
+});
+
+test('the buyer sees a private handover code and the rider records delivery with it', async ({page}) => {
+  const errors = []; page.on('pageerror', e => errors.push(e.message));
+  const calls = await setup(page);
+  await signIn(page);
+  await page.goto('/index.html?demo=0#/order/ZS-LIVE0001');
+  await expect(page.locator('.handover__code')).toHaveText('482 913');
+  await expect(page.getByRole('link',{name:'Someone else receiving it? Send them the code'})).toHaveAttribute('href', /^https:\/\/wa\.me\/\?text=.*482%20913/);
+  expect(calls.some(c => c.path === '/rest/v1/order_handover_codes' && c.query.includes('order_id=eq.41'))).toBe(true);
+  // The rider enters it in Store fulfilment: a wrong code says how many tries are left
+  await page.goto('/index.html?demo=0#/fulfilment');
+  await page.getByLabel('Order reference').fill('ZS-LIVE0001');
+  await page.getByLabel('Event').selectOption('delivered');
+  await page.getByLabel("Buyer's handover code (delivery or collection)").fill('111 111');
+  await page.getByRole('button',{name:'Save event'}).click();
+  await expect(page.locator('#shipment-form [role="status"]')).toHaveText("That code isn't right. 4 tries left.");
+  await page.getByLabel("Buyer's handover code (delivery or collection)").fill('482 913');
+  await page.getByRole('button',{name:'Save event'}).click();
+  await expect(page.locator('#shipment-form [role="status"]')).toHaveText("Delivery confirmed with the buyer's code.");
+  const sent = calls.filter(c => c.path === '/rest/v1/rpc/record_handover').map(c => c.body);
+  expect(sent).toEqual([{order_ref:'ZS-LIVE0001',store_id:'live-store',handover_code:'111111',message:null},{order_ref:'ZS-LIVE0001',store_id:'live-store',handover_code:'482913',message:null}]);
+  // No photo upload was needed
+  expect(calls.some(c => c.path.startsWith('/storage/'))).toBe(false);
   expect(errors).toEqual([]);
 });
 

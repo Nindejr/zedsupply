@@ -127,6 +127,14 @@ test('a seller builds a team with roles in the Seller Centre preview', async ({ 
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
 });
 
+test('the demo order shows a handover code while it is out for delivery', async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem('zs-consent', 'denied'));
+  await page.goto('/index.html?demo=1&theme=off#/order/ZS-DEMO01');
+  await expect(page.locator('.handover__code')).toHaveText('482 913');
+  await expect(page.locator('.handover')).toContainText('Zed Supply staff will never ask you for it');
+  await expect(page.locator('.handover .tag-sample')).toHaveText('Demo');
+});
+
 test('the Kinetic Comet saves products, stays gold after reload and removes them from the wishlist', async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem('zs-consent', 'denied'));
   await page.goto('/index.html?demo=1&theme=off#/product/L041');

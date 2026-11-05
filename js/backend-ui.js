@@ -106,15 +106,17 @@
     if (ticket !== navigation) return;
     if (!ref) { show('<ul class="orders">' + rows.map(function (o) { return '<li><a class="order-row" href="#/order/' + encodeURIComponent(o.ref) + '"><strong>' + esc(o.ref) + '</strong><span>' + esc(o.status) + ' · ' + Z().kwacha(Number(o.total_zmw) + Number(o.delivery_zmw || 0)) + '</span></a></li>'; }).join('') + '</ul>' + (!rows.length ? '<p>No server orders yet.</p>' : ''), 'Your orders'); return; }
     var o = rows[0]; if (!o) throw new Error('No order was found for your account.');
-    var events = await B.read('shipment_events?select=id,status,tracking_ref,note,created_at&order_id=eq.' + o.id + '&order=created_at.asc&limit=100');
+    var events = await B.read('shipment_events?select=id,status,tracking_ref,note,handover,created_at&order_id=eq.' + o.id + '&order=created_at.asc&limit=100');
+    var handover = /^(placed|confirmed|dispatched)$/.test(o.status) ? await B.read('order_handover_codes?select=code&order_id=eq.' + o.id) : [];
     var refunds = await B.read('refund_events?select=amount_zmw,payments!inner(order_id)&payments.order_id=eq.' + o.id + '&limit=100');
     if (ticket !== navigation) return;
     show('<section class="card"><h2>' + esc(o.ref) + '</h2><p>Order: ' + esc(o.status) + ' · Payment: ' + esc(o.payment_status) + '</p><dl class="totals"><div><dt>Items total</dt><dd>' + Z().kwacha(Number(o.total_zmw)) + '</dd></div><div><dt>Delivery</dt><dd>' + (o.delivery_zmw === null ? 'Awaiting confirmation; no final payment total yet' : Z().kwacha(Number(o.delivery_zmw))) + '</dd></div><div><dt>Paid</dt><dd>' + Z().kwacha(Number(o.paid_zmw)) + '</dd></div></dl>' +
       (o.business_name ? '<div class="deliver-box"><p class="deliver-box__label">Billed to</p><p>' + esc(o.business_name) + (o.business_tpin ? '<br>TPIN ' + esc(o.business_tpin) : '') + (o.business_address ? '<br>' + esc(o.business_address) : '') + '</p></div>' : '') +
+      (handover[0] ? Z().handoverHTML(o.ref, handover[0].code) : '') +
       (o.heavy_delivery && o.fulfilment !== 'collection' ? '<p class="notice notice--freight">Truck delivery: the fee for heavy or bulky items is quoted before you pay.</p>' : '') +
       '<ul>' + o.order_items.map(function (i) { return '<li>' + esc(i.product_id) + ' × ' + i.quantity + ' · ' + Z().kwacha((Number(i.unit_price_zmw) + i.order_item_addons.reduce(function (sum, a) { return sum + Number(a.price_zmw); }, 0)) * i.quantity) + '</li>'; }).join('') + '</ul>' +
       '<p>Reconciled refunds: ' + Z().kwacha(refunds.reduce(function (sum, r) { return sum + Number(r.amount_zmw); }, 0)) + '</p>' +
-      '<h2>Delivery updates</h2><ol>' + events.map(function (ev) { return '<li>' + esc(ev.status) + ' · ' + esc(ev.tracking_ref || '') + '<p>' + esc(ev.note || '') + '</p></li>'; }).join('') + '</ol>' + (!events.length ? '<p>No delivery updates have been recorded yet.</p>' : '') +
+      '<h2>Delivery updates</h2><ol>' + events.map(function (ev) { return '<li>' + esc(ev.status) + (ev.handover ? ' · confirmed with your handover code' : '') + ' · ' + esc(ev.tracking_ref || '') + '<p>' + esc(ev.note || '') + '</p></li>'; }).join('') + '</ol>' + (!events.length ? '<p>No delivery updates have been recorded yet.</p>' : '') +
       '<a class="btn btn--secondary" href="#/complaints?order=' + encodeURIComponent(o.ref) + '">Return or report a problem</a>' +
       ((Z().S.payments || {}).prompt && (o.fulfilment === 'collection' || o.delivery_zmw !== null) && o.status !== 'cancelled' && Number(o.total_zmw) + Number(o.delivery_zmw || 0) > Number(o.paid_zmw) ? '<form id="server-pay" class="form"><label for="pay-phone">Mobile number (+260…)</label><input id="pay-phone" type="tel" required pattern="\\+?260[0-9]{9}"><button type="submit" class="btn btn--primary">Request payment prompt</button><p role="status"></p></form>' : '') + '</section>', 'Order ' + o.ref);
     // One key per page view: a retry after a dropped connection replays the same request.
@@ -141,20 +143,29 @@
     var members = await B.read('seller_members?select=seller_id&user_id=eq.' + B.profile().id);
     if (ticket !== navigation) return;
     if (!members.length && !B.profile().is_staff) throw new Error('This account has no store fulfilment role.');
-    show('<form class="form form--card" id="shipment-form"><h2>Record a shipment event</h2><p>Record actual events only. Delivery and collection require private receipt evidence; stock and payout decisions are checked by the server.</p>' +
+    show('<form class="form form--card" id="shipment-form"><h2>Record a shipment event</h2><p>Record actual events only. For delivery or collection, enter the buyer\'s handover code, or add private receipt evidence when the buyer can\'t give it. Stock and payout decisions are checked by the server.</p>' +
       '<label for="shipment-order">Order reference</label><input id="shipment-order" required maxlength="15">' +
       '<label for="shipment-store">Store ID</label><input id="shipment-store" required value="' + esc(members[0] ? members[0].seller_id : '') + '">' +
       '<label for="shipment-state">Event</label><select id="shipment-state"><option value="packed">Packed</option><option value="dispatched">Dispatched</option><option value="delivery_failed">Delivery failed</option><option value="delivered">Delivered</option><option value="collected">Collected</option></select>' +
       '<label for="shipment-tracking">Tracking reference (optional)</label><input id="shipment-tracking" maxlength="120">' +
       '<label for="shipment-note">Buyer-visible note (optional)</label><textarea id="shipment-note" maxlength="500"></textarea>' +
-      '<label for="shipment-proof">Private receipt evidence (required for delivery or collection)</label><input id="shipment-proof" type="file" accept="image/jpeg,image/png,image/webp,application/pdf">' +
+      '<label for="shipment-code">Buyer\'s handover code (delivery or collection)</label><input id="shipment-code" inputmode="numeric" autocomplete="off" maxlength="7" pattern="[0-9]{3} ?[0-9]{3}" aria-describedby="shipment-code-hint">' +
+      '<p class="pmeta" id="shipment-code-hint">Ask for it only once the parcel is in the buyer\'s hands. With the code, no photo is needed. Five wrong codes lock it.</p>' +
+      '<label for="shipment-proof">Private receipt evidence (for delivery or collection without the code)</label><input id="shipment-proof" type="file" accept="image/jpeg,image/png,image/webp,application/pdf">' +
       '<button class="btn btn--primary" type="submit">Save event</button><p class="form-status" role="status"></p></form>', 'Store fulfilment');
     bind('shipment-form', async function (form) {
-      var state = document.getElementById('shipment-state').value, evidence = null;
+      var state = document.getElementById('shipment-state').value, evidence = null, status = form.querySelector('[role="status"]');
+      var code = document.getElementById('shipment-code').value.replace(/\s/g, '');
+      if ((state === 'delivered' || state === 'collected') && code) {
+        var r = await B.rpc('record_handover', { order_ref: document.getElementById('shipment-order').value.trim(), store_id: document.getElementById('shipment-store').value.trim(),
+          handover_code: code, message: document.getElementById('shipment-note').value.trim() || null });
+        if (!r || !r.ok) throw new Error('That code isn\'t right. ' + (r && r.attempts_left > 0 ? r.attempts_left + (r.attempts_left === 1 ? ' try' : ' tries') + ' left.' : 'No tries left: record it with private receipt evidence instead.'));
+        status.classList.remove('is-error'); status.textContent = (r.status === 'collected' ? 'Collection' : 'Delivery') + ' confirmed with the buyer\'s code.'; return;
+      }
       if (state === 'delivered' || state === 'collected') evidence = await B.uploadProof(document.getElementById('shipment-proof').files[0]);
       await B.rpc('record_shipment', { order_ref: document.getElementById('shipment-order').value.trim(), store_id: document.getElementById('shipment-store').value.trim(), new_status: state,
         tracking: document.getElementById('shipment-tracking').value.trim() || null, message: document.getElementById('shipment-note').value.trim() || null, evidence: evidence });
-      form.querySelector('[role="status"]').textContent = 'Shipment event saved.';
+      status.classList.remove('is-error'); status.textContent = 'Shipment event saved.';
     });
   }
   /* ---------- Store teams ---------- */

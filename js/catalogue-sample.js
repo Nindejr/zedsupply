@@ -146,5 +146,5 @@ window.ZS_SAMPLE = {
   ],
 
   // Demo order so customers can try order tracking: type ZS-DEMO01 on the Track order page
-  demoOrder: { ref: 'ZS-DEMO01', sample: true, date: '2026-10-20', items: [{ id: 'L006', qty: 1, price: 1850 }], total: 1850, status: 3 }
+  demoOrder: { ref: 'ZS-DEMO01', sample: true, date: '2026-10-20', items: [{ id: 'L006', qty: 1, price: 1850 }], total: 1850, status: 3, handover: '482913' }
 };

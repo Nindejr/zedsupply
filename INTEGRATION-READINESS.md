@@ -36,7 +36,7 @@ configuration completeness only, not hosted security or operational readiness.
 
 ## Staging setup
 
-1. Apply migrations **016 → 017 → 018 → 019 → 020 → 021 → 022 → 023** in order. Deploy handlers only after
+1. Apply migrations **016 → 017 → 018 → 019 → 020 → 021 → 022 → 023 → 024** in order. Deploy handlers only after
    their supporting migrations. Never edit or rerun a previously applied migration
    in a hosted project; these new migrations have only been applied to an isolated
    local test database during this task.
@@ -158,6 +158,27 @@ applied to the hosted project.
 `db/tests/trade.sql` covers the listing rules, bulk prices, ordering limits, the business details
 and the truck flag. Later phases (quote requests, company accounts with approvals, seasonal
 pre-orders) are not built.
+
+## Delivery handover codes
+
+Migration 024 gives every order a private 6-digit handover code (`order_handover_codes`), issued
+by a trigger when the order is placed. Migration 024 is not yet applied to the hosted project.
+
+- **Only the buyer can read it**, on their order page. Sellers, riders and staff can't, so nobody
+  else can confirm a delivery for the buyer. A share link lets the buyer pass it to whoever is
+  receiving a gift.
+- **The rider or seller enters it** in Store fulfilment once the parcel is in the buyer's hands
+  (`record_handover`). It records the delivery, or the collection for collection and pickup orders,
+  without photo evidence, marks the event `handover`, and once every store on the order has
+  handed over, marks the order delivered, which starts the payout hold.
+- **Wrong codes are counted.** After five the code locks and the delivery needs private photo
+  evidence through `record_shipment`, which stays available when the buyer can't be there.
+- Orders still on their way when 024 is applied get a code too. Codes aren't sent by WhatsApp or
+  SMS yet: buyers without an account (guest orders) can't see theirs, so their deliveries use
+  photo evidence until a notification template is added.
+
+`db/tests/handover.sql` covers issuing, who can read the codes, the handover itself across two
+stores, wrong codes and the lock.
 
 ## Native catalogue pages
 
