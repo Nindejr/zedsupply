@@ -95,7 +95,14 @@ export async function placeOrder(req: Request, deps: Deps): Promise<Response> {
   else if (!order.contact_name || !order.recipient_phone) return reply(400, { error: 'Add your name and phone number' }, h);
   try {
     const rows = await deps.sql('SELECT app.place_order($1::jsonb) AS r', [JSON.stringify(order)]);
-    return reply(200, rows[0].r as Json, h);
+    const placed = rows[0].r as Json;
+    // A guest has no account to read the handover code from, so it comes back with the order
+    // (and on WhatsApp when the parcel is dispatched). A retry needs the same phone number.
+    if (userId === null && placed && placed.order_id) {
+      const code = await deps.sql('SELECT code FROM order_handover_codes WHERE order_id = $1 AND used_at IS NULL', [placed.order_id]);
+      if (code[0] && /^[0-9]{6}$/.test(String(code[0].code))) placed.handover_code = String(code[0].code);
+    }
+    return reply(200, placed, h);
   } catch (e) {
     const m = dbMessage(e);
     return reply(m.status, { error: m.message }, h);
@@ -166,6 +173,8 @@ export const TEMPLATES: Record<string, (p: Json) => string[]> = {
   price_drop: p => [String(p.title), 'K' + Number(p.price).toFixed(2)],
   seller_application_update: p => [String(p.business), ({ info_needed: 'needs more information', approved: 'is approved', rejected: 'was not approved' } as Record<string, string>)[String(p.status)] || 'has been updated'],
   order_receipt: p => [String(p.name || 'there'), String(p.ref), p.hide_prices ? 'Gift receipt: prices are left out' : p.delivery_pending ? 'K' + Number(p.total).toFixed(2) + ' before delivery' : 'K' + Number(p.total).toFixed(2)],
+  handover_code: p => [String(p.ref), String(p.code).replace(/^(\d{3})(\d{3})$/, '$1 $2')],
+  rider_application_update: p => [String(p.name || 'there'), ({ info_needed: 'needs more information', vetting: 'is ready for the in-person checks', approved: 'is approved', rejected: 'was not approved' } as Record<string, string>)[String(p.status)] || 'has been updated'],
   parcel_update: p => [String(p.ref), ({ out_for_delivery: 'is out for delivery', delivered: 'has been delivered by the courier', failed: 'could not be delivered; the courier will try again' } as Record<string, string>)[String(p.status)] || 'has an update']
 };
 

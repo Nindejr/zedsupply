@@ -59,22 +59,14 @@ window.ZS_CATALOGUE = {
     // sameDay: towns where sellers who offer it deliver within their own town on the day, for
     //   orders by the cutoff hour, e.g. { cutoff: 11, towns: ['Lusaka', 'Kitwe'] }. Sellers opt in
     //   under "Your store location" in the Seller Centre. Empty towns = no same-day delivery.
-    // ---- Delivery fees (js/delivery.js) ----
-    // rates: the rate card. Each seller's parcel is priced by zone (town, province, country) and
-    //   speed (standard, express, same_day, or truck for heavy items): fee covers the first kg
-    //   kilograms, perKg each further kilogram, days the working days it takes. Add courier: 'id'
-    //   for a courier's own price. Empty = no fees shown: the fee is confirmed on WhatsApp.
-    //   The server's delivery_rates table must hold the same figures before connected checkout.
-    //   e.g. { zone: 'town', speed: 'standard', fee: 45, kg: 5, perKg: 5, days: [1, 2] }
-    // freeDelivery: standard delivery is free in these zones once the items reach min (kwacha).
-    // defaultKg: the weight assumed for an item without one. origin: where items without a
-    //   seller location are sent from, e.g. { town: 'Lusaka', province: 'lusaka' }.
+    // ---- Delivery fees ----
+    // Delivery prices aren't set here. They have one source: the database's rate card, which
+    // staff edit in the back office (#/staff-delivery once connected). The storefront loads it at
+    // start, so the cart shows exactly what checkout charges. Free delivery, same-day towns and
+    // closed days for pricing come from there too. Without a connection, the delivery fee is
+    // confirmed on WhatsApp. Demo mode uses the sample card in js/catalogue-sample.js.
     delivery: {
       enabled: true,
-      rates: [],
-      freeDelivery: { min: null, zones: ['town', 'province'] },
-      defaultKg: 1,
-      origin: null,
       estimates: { town: null, province: null, country: null, world: null },   // e.g. town: [1, 2]
       sameDay: { cutoff: 11, towns: [] },
       cutoff: 14,
@@ -83,6 +75,25 @@ window.ZS_CATALOGUE = {
         { id: 'morning', label: 'Morning (08:00–12:00)' },
         { id: 'afternoon', label: 'Afternoon (12:00–17:00)' },
         { id: 'evening', label: 'Evening (17:00–19:00)' }
+      ]
+    },
+
+    // ---- Rider sign-up ----
+    // open: true lets riders apply from a signed-in account (migration 028). Staff review each
+    //   application, invite the rider to in-person checks and only then approve. Keep it false
+    //   until the checks below are confirmed and someone is ready to run them.
+    // preview: true shows the sign-up in demo mode. checks: what riders need, shown before they
+    //   apply. These are proposals: confirm them (with legal advice) before opening.
+    riders: {
+      open: false,
+      preview: true,
+      checks: [
+        'Be 18 or over, with a valid Zambian NRC',
+        "For a motorbike, car, van or truck: a valid driving licence for it, and the vehicle's registration and insurance",
+        'A police clearance certificate from the Zambia Police Service',
+        'A smartphone with WhatsApp, to see deliveries and enter handover codes',
+        'Two references we can call',
+        'A short meeting at our office: we check your documents and show you how deliveries and handover codes work'
       ]
     },
 

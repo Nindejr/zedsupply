@@ -164,12 +164,13 @@ test('delivery times by town, same-day delivery and seller deadlines', async ({ 
   await expect(page.getByLabel('I deliver the same day within my town')).toBeChecked();
 });
 
-test('rider sign-up and the services directory are marked coming soon', async ({ page }) => {
+test('until rider sign-up opens, the live site marks it and the services directory coming soon', async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem('zs-consent', 'denied'));
-  await page.goto('/index.html?demo=1&theme=off#/riders');
+  await page.goto('/index.html?demo=0&theme=off#/riders');
   await expect(page.getByRole('heading', { name: 'Deliver with Zed Supply', level: 1 })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Sign-up opens soon' })).toBeDisabled();
   await expect(page.locator('#view form')).toHaveCount(0);
+  await expect(page.locator('main')).toContainText('A police clearance certificate');
   await page.goto('/index.html?demo=1&theme=off#/services');
   await expect(page.getByRole('heading', { name: 'Services', level: 1 })).toBeVisible();
   await expect(page.locator('main')).toContainText('Solar installation and repairs');
@@ -419,7 +420,7 @@ test('checkout prices delivery as choices change, reviews the order, then gives 
   await expect(receipt.locator('.is-total')).toContainText('K1,114');
   await expect(receipt).toContainText('it is not a tax invoice');
   await page.evaluate(() => { window.printed = 0; window.print = () => { window.printed++; }; });
-  await page.getByRole('button', { name: 'Download PDF or print' }).click();
+  await page.getByRole('button', { name: 'Print', exact: true }).click();
   expect(await page.evaluate(() => window.printed)).toBe(1);
   // The receipt prints on its own: nothing else on the page is shown on paper
   await page.emulateMedia({ media: 'print' });
@@ -465,4 +466,102 @@ test('the demo order shows its courier, tracking number and courier updates', as
   await page.goto('/index.html?demo=1&theme=off#/receipt/ZS-DEMO01');
   await expect(page.locator('#receipt')).toContainText('Paid');
   await expect(page.locator('#receipt .is-total')).toContainText('K2,140');
+});
+
+test('staff change delivery prices in the back office and the cart reprices straight away', async ({ page }) => {
+  const errors = []; page.on('pageerror', e => errors.push(e.message));
+  await page.addInitScript(() => {
+    localStorage.setItem('zs-consent', 'denied');
+    localStorage.setItem('zs-loc-tip-seen', '1');
+    localStorage.setItem('zs-location', JSON.stringify({ town: 'Lusaka', area: 'Kabulonga', province: 'lusaka', mode: 'delivery' }));
+    localStorage.setItem('zs-cart', JSON.stringify([{ id: 'L001', qty: 1 }]));
+  });
+  await page.goto('/index.html?demo=1&theme=off#/cart');
+  // Sample: K45 for 5 kg, then K5 for each of the 8 extra kilograms of paper
+  await expect(page.locator('label[for="co-speed-standard"]')).toContainText('K85');
+  await page.goto('/index.html?demo=1&theme=off#/staff/delivery');
+  const editor = page.locator('#delivery-editor');
+  await expect(editor.getByRole('heading', { name: 'Delivery prices' })).toBeVisible();
+  await editor.getByLabel('Rate 1: fee in kwacha').fill('60');
+  // One rate per courier, zone and speed
+  await editor.getByRole('button', { name: 'Add a rate' }).click();
+  const added = editor.locator('[data-rate-row]').last();
+  await added.locator('[data-f="fee"]').fill('70');
+  await editor.getByRole('button', { name: 'Save delivery prices' }).click();
+  await expect(editor.locator('[role="status"]')).toContainText('repeats rate 1');
+  await added.getByRole('button', { name: /Remove/ }).click();
+  await editor.getByLabel('For items worth at least (K)').fill('');
+  await editor.getByRole('button', { name: 'Save delivery prices' }).click();
+  await expect(editor.locator('[role="status"]')).toContainText('Delivery prices saved');
+  await page.evaluate(require('node:fs').readFileSync(axe, 'utf8'));
+  expect(await page.evaluate(async () => (await axe.run('#delivery-editor', { runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa'] } })).violations.map(v => v.id + ': ' + v.nodes.map(n => n.target.join(' ')).slice(0, 3).join(', ')))).toEqual([]);
+  // The cart uses the new price at once, and it survives a reload
+  await page.goto('/index.html?demo=1&theme=off#/cart');
+  await expect(page.locator('label[for="co-speed-standard"]')).toContainText('K100');
+  await expect(page.locator('#co-free')).toBeEmpty();
+  await page.reload();
+  await expect(page.locator('#co-totals')).toContainText('Delivery · StandardK100');
+  // Back to the sample card
+  await page.goto('/index.html?demo=1&theme=off#/staff/delivery');
+  await page.getByRole('button', { name: 'Go back to the sample prices' }).click();
+  await page.goto('/index.html?demo=1&theme=off#/cart');
+  await expect(page.locator('label[for="co-speed-standard"]')).toContainText('K85');
+  expect(errors).toEqual([]);
+});
+
+test('a receipt downloads as a real PDF file with the order on it', async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem('zs-consent', 'denied'));
+  await page.goto('/index.html?demo=1&theme=off#/receipt/ZS-DEMO01');
+  const [download] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: 'Download PDF' }).click()]);
+  expect(download.suggestedFilename()).toBe('Zed-Supply-receipt-ZS-DEMO01.pdf');
+  const pdf = require('node:fs').readFileSync(await download.path()).toString('latin1');
+  expect(pdf.startsWith('%PDF-1.4')).toBe(true);
+  for (const text of ['(Order receipt) Tj', '(No. ZS-DEMO01) Tj', '(K2,140) Tj', '(Solar home lighting kit, 4 bulbs) Tj', '(DEMO ORDER) Tj']) expect(pdf).toContain(text);
+  expect(pdf).toContain('/Subtype /Image');   // the logo
+  // Every object is where the cross-reference table says it is
+  const start = Number(pdf.match(/startxref\n(\d+)/)[1]), count = Number(pdf.slice(start).match(/^xref\n0 (\d+)/)[1]);
+  const offsets = pdf.slice(start).split('\n').slice(3, 2 + count).map(l => Number(l.slice(0, 10)));
+  expect(offsets.every((o, i) => pdf.startsWith((i + 1) + ' 0 obj', o))).toBe(true);
+  await expect(page.locator('#toast')).toContainText('Receipt downloaded as a PDF');
+  // The order page has the same download
+  await page.goto('/index.html?demo=1&theme=off#/order/ZS-DEMO01');
+  const [again] = await Promise.all([page.waitForEvent('download'), page.locator('.receipt-actions').getByRole('button', { name: 'Download PDF' }).click()]);
+  expect(again.suggestedFilename()).toBe('Zed-Supply-receipt-ZS-DEMO01.pdf');
+});
+
+test('riders apply, and staff approve only after the in-person checks', async ({ page }) => {
+  const errors = []; page.on('pageerror', e => errors.push(e.message));
+  await page.addInitScript(() => localStorage.setItem('zs-consent', 'denied'));
+  await page.goto('/index.html?demo=1&theme=off#/riders');
+  await expect(page.getByRole('heading', { name: 'What you need' })).toBeVisible();
+  await expect(page.locator('[aria-labelledby="rd-need-title"]')).toContainText('A police clearance certificate');
+  const form = page.locator('#rider-apply');
+  await form.getByLabel('Full name *').fill('Mutale Phiri');
+  await form.getByLabel('Phone or WhatsApp *').fill('0977 123456');
+  await form.getByLabel('Town *').fill('Lusaka');
+  await form.getByLabel('How would you deliver? *').selectOption('motorbike');
+  await form.getByLabel('Weekdays').check();
+  for (const label of [/18 or over/, /smartphone with WhatsApp/, /police clearance/, /assess my application/]) await form.getByLabel(label).check();
+  await form.getByRole('button', { name: 'Send application' }).click();
+  await expect(form.locator('[role="status"]')).toHaveText('You need a valid driving licence for a motorbike.');
+  await form.getByLabel(/valid driving licence/).check();
+  await page.evaluate(require('node:fs').readFileSync(axe, 'utf8'));
+  expect(await page.evaluate(async () => (await axe.run('main', { runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa'] } })).violations.map(v => v.id))).toEqual([]);
+  await form.getByRole('button', { name: 'Send application' }).click();
+  await expect(page.locator('#rd-status-title')).toBeVisible();
+  await expect(page.locator('.card')).toContainText('Received');
+  // Staff: no approval until the rider has been invited to the checks
+  await page.goto('/index.html?demo=1&theme=off#/staff/riders');
+  const decide = page.locator('#mx-rider-decide');
+  await expect(decide.getByRole('button', { name: /approve/ })).toHaveCount(0);
+  await decide.getByRole('button', { name: 'Invite to in-person checks' }).click();
+  await expect(decide.locator('[role="status"]')).toHaveText('Write a message to the rider.');
+  await page.getByLabel('Message to the rider').fill('Come to our Lusaka office on Monday at 10:00 with your NRC, licence and police clearance.');
+  await decide.getByRole('button', { name: 'Invite to in-person checks' }).click();
+  await expect(page.locator('.card .status')).toContainText('Invited to in-person checks');
+  await page.locator('#mx-rider-decide').getByRole('button', { name: 'Checks passed: approve' }).click();
+  await page.goto('/index.html?demo=1&theme=off#/riders');
+  await expect(page.locator('.card')).toContainText('Approved to deliver');
+  await expect(page.locator('.card')).toContainText('Come to our Lusaka office');
+  expect(errors).toEqual([]);
 });

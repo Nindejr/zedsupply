@@ -35,6 +35,11 @@ async function setup(page, { staff = false, teamRole = 'owner', applications = [
       fulfilment:'delivery',deliver_to:'Test area, Lusaka',subtotal:100,discount:0,vat:0,total:100,delivery:85,delivery_speed:'express',grand_total:185,hide_prices:false,
       items:[{title:'Approved studio lamp',seller:'Live store',quantity:1,unit_price:100}],parcels:[{seller:'Live store',seller_id:'live-store',speed:'express',fee:85,free:false,courier_id:'dhl',tracking:'JD0001'}]};
     else if (url.pathname === '/rest/v1/rpc/send_receipt') data = {queued:true,channel:body.channel};
+    else if (url.pathname === '/rest/v1/rpc/delivery_settings') data = {rates:[{id:1,courier:null,zone:'town',speed:'standard',fee:45,kg:5,perKg:5,days:[1,2],active:true},
+      {id:2,courier:null,zone:'town',speed:'express',fee:85,kg:5,perKg:8,days:[1,1],active:true}],freeDelivery:{min:null,zones:['town']},defaultKg:1,origin:null,sameDay:{cutoff:11,towns:[]},closedDays:[0]};
+    else if (url.pathname === '/functions/v1/courier-quote') data = {quote_id:'quote-live-1',speed:body.delivery_speed,total:60,pending:false,currency:'ZMW',
+      parcels:[{seller_id:'live-store',zone:'town',speed:body.delivery_speed,fee:60,free:false,pending:false,courier_id:body.courier_id,min_days:1,max_days:1,source:'courier_api'}]};
+    else if (url.pathname.startsWith('/rest/v1/rpc/staff_') && url.pathname.includes('delivery')) data = url.pathname.endsWith('save_delivery_rate') ? 9 : null;
     else if (url.pathname === '/functions/v1/place-order') data = {ref:body.ref,total:100,order_id:41};
     else if (url.pathname === '/rest/v1/rpc/my_seller_invites') data = [{id:'invite-1',store:'Live store',role:'dispatch',expires_at:'2026-11-10T00:00:00Z'}];
     else if (url.pathname === '/rest/v1/rpc/seller_respond_invite') data = 'live-store';
@@ -317,5 +322,48 @@ test('the server receipt is drawn in the storefront design and can be sent by em
   await page.getByRole('button',{name:'Send receipt',exact:true}).click();
   await expect(page.locator('#send-receipt [role="status"]')).toContainText('arrives in a few minutes');
   expect(calls.find(c => c.path === '/rest/v1/rpc/send_receipt').body).toEqual({order_ref:'ZS-LIVE0001',channel:'email',destination:'buyer@example.test'});
+  expect(errors).toEqual([]);
+});
+
+test('delivery prices come from the database, and a courier\'s live price is charged as shown', async ({page}) => {
+  const errors = []; page.on('pageerror', e => errors.push(e.message));
+  const calls = await setup(page); await signIn(page);
+  expect(calls.some(c => c.path === '/rest/v1/rpc/delivery_settings')).toBe(true);
+  await page.goto('/index.html?demo=0#/product/LIVE1');
+  await page.getByRole('button',{name:'Add to cart',exact:true}).click();
+  await page.goto('/index.html?demo=0#/cart');
+  // The rate card from the database: K45 standard in town
+  await expect(page.locator('label[for="co-speed-standard"]')).toContainText('K45');
+  await expect(page.locator('#co-totals')).toContainText('Delivery · StandardK45');
+  // Choosing a courier asks the server for its live price, which replaces the rate card
+  await page.locator('input[name="co-ship"]:not([value=""])').first().check();
+  await expect(page.locator('#co-totals')).toContainText('Delivery · StandardK60');
+  await expect(page.locator('#co-totals')).toContainText('Live price from');
+  const quote = calls.find(c => c.path === '/functions/v1/courier-quote');
+  expect([quote.body.buyer_town, quote.body.items]).toEqual(['Lusaka', [{product_id:'LIVE1',variant_id:null,quantity:1}]]);
+  await page.getByRole('link',{name:'Review server total',exact:true}).click();
+  await page.getByRole('button',{name:'Place order for K100 before delivery',exact:true}).click();
+  await expect(page.getByText('Thank you, your order is placed')).toBeVisible();
+  const placed = calls.find(c => c.path.endsWith('/place-order'));
+  expect(placed.body.delivery_quote_id).toBe('quote-live-1');
+  expect(errors).toEqual([]);
+});
+test('staff edit delivery prices on the server, and every change goes through the staff functions', async ({page}) => {
+  const errors = []; page.on('pageerror', e => errors.push(e.message));
+  const calls = await setup(page, {staff:true}); await signIn(page);
+  await page.getByRole('link',{name:'Delivery prices',exact:true}).click();
+  const editor = page.locator('#delivery-editor');
+  await expect(editor.getByLabel('Rate 1: fee in kwacha')).toHaveValue('45');
+  await editor.getByLabel('Rate 2: fee in kwacha').fill('90');
+  await editor.getByRole('button',{name:'Remove Rate 1'}).click();
+  await editor.getByLabel('For items worth at least (K)').fill('1500');
+  await editor.getByLabel('Same province').check();
+  await editor.getByRole('button',{name:'Save delivery prices'}).click();
+  await expect(editor.locator('[role="status"]')).toContainText('Delivery prices saved');
+  expect(calls.find(c => c.path === '/rest/v1/rpc/staff_delete_delivery_rate').body).toEqual({rate_id:1});
+  expect(calls.find(c => c.path === '/rest/v1/rpc/staff_save_delivery_rate').body).toEqual({courier:null,zone:'town',speed:'express',fee:90,included_kg:5,per_kg:8,min_days:1,max_days:1,active:true});
+  expect(calls.find(c => c.path === '/rest/v1/rpc/staff_set_delivery_settings').body).toEqual({free_min:1500,free_zones:['town','province'],default_kg:1,
+    origin_town:null,origin_province:null,same_day_cutoff:11,same_day_towns:[],closed_days:[0]});
+  expect(calls.some(c => c.path.startsWith('/rest/v1/delivery_rates'))).toBe(false);
   expect(errors).toEqual([]);
 });

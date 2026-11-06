@@ -11,7 +11,7 @@
     var p = B.profile();
     if (p) {
       show('<section class="card"><h2>Hello, ' + esc(p.name || p.email || 'shopper') + '</h2><p>Your contact is verified. Orders and support requests below are stored securely for this account.</p>' +
-        '<div class="btn-row"><a class="btn btn--primary" href="#/orders">Your orders</a><a class="btn btn--secondary" href="#/complaints">Support requests</a><a class="btn btn--secondary" href="#/team">Store team</a><a class="btn btn--secondary" href="#/fulfilment">Store fulfilment</a>' + (p.is_staff ? '<a class="btn btn--secondary" href="#/staff-applications">Seller applications</a><a class="btn btn--secondary" href="#/staff-support">Staff support queue</a>' : '') + '<a class="btn btn--secondary" href="#/device">Data on this device</a>' +
+        '<div class="btn-row"><a class="btn btn--primary" href="#/orders">Your orders</a><a class="btn btn--secondary" href="#/complaints">Support requests</a><a class="btn btn--secondary" href="#/team">Store team</a><a class="btn btn--secondary" href="#/fulfilment">Store fulfilment</a>' + (p.is_staff ? '<a class="btn btn--secondary" href="#/staff-applications">Seller applications</a><a class="btn btn--secondary" href="#/staff-riders">Rider applications</a><a class="btn btn--secondary" href="#/staff-delivery">Delivery prices</a><a class="btn btn--secondary" href="#/staff-support">Staff support queue</a>' : '') + '<a class="btn btn--secondary" href="#/device">Data on this device</a>' +
         '<button class="btn btn--secondary" id="secure-signout" type="button">Sign out</button></div><p class="form-status" role="status"></p></section>' +
         Z().businessFormHTML({ name: p.business_name || '', tpin: p.business_tpin || '', address: p.business_address || '' }) + '<div id="team-invites"></div><div id="seller-application"></div>', 'My Account');
       teamInvites(); applicationStatus();
@@ -85,6 +85,25 @@
       };
     }).catch(function (error) { if (quoteId === navigation && box.isConnected) box.innerHTML = errorHTML(error); });
   };
+  // The cart asks courier-quote for the chosen courier's live price; the server saves it for 30
+  // minutes and checkout charges exactly that. Without a connected courier, the rate card stands.
+  var liveTimer = null;
+  ext.hooks.deliveryLive = function (ctx) {
+    if (!active()) return;
+    clearTimeout(liveTimer);
+    liveTimer = setTimeout(function () {
+      var items;
+      try {
+        items = ctx.items.map(function (it) {
+          var row = it.p._server; if (!row) throw new Error('not from the server');
+          var v = (row.variants || []).find(function (x) { return x.sku === it.sku; });
+          return { product_id: row.id, variant_id: v ? v.id : null, quantity: it.qty };
+        });
+      } catch (e) { return; }
+      B.fn('courier-quote', { items: items, buyer_town: ctx.buyer_town, buyer_province_id: ctx.buyer_province_id, fulfilment: ctx.fulfilment,
+        delivery_speed: ctx.delivery_speed, courier_id: ctx.courier_id, items_total_zmw: ctx.items_total_zmw }).then(ctx.apply, function () { /* the rate card stands */ });
+    }, 350);
+  };
   function invalidateQuote(e) {
     if (!active() || !e.target.closest('#checkout-steps')) return;
     var box = document.getElementById('server-checkout-review');
@@ -119,7 +138,7 @@
     m.giftReceipt = !!(r.hide_prices && query && query.get('gift') === '1');
     var p = B.profile() || {};
     Z().show(Z().crumbs([['Orders', '#/orders'], [m.ref, '#/order/' + encodeURIComponent(m.ref)], ['Receipt']]) +
-      '<div class="receipt-actions no-print"><button class="btn btn--primary" type="button" data-print-receipt>Download PDF or print</button>' +
+      '<div class="receipt-actions no-print"><button class="btn btn--primary" type="button" data-receipt-pdf="' + esc(m.ref) + '">Download PDF</button><button class="btn btn--secondary" type="button" data-print-receipt>Print</button>' +
       (r.hide_prices ? '<a class="btn btn--secondary" href="#/receipt/' + encodeURIComponent(m.ref) + (m.giftReceipt ? '' : '?gift=1') + '">' + (m.giftReceipt ? 'Show prices' : 'Gift receipt (no prices)') + '</a>' : '') + '<a class="btn btn--secondary" href="#/order/' + encodeURIComponent(m.ref) + '">Back to order</a></div>' +
       '<form class="form form--card no-print" id="send-receipt"><h2>Send this receipt</h2><div class="field-row"><div class="field"><label for="rc-channel">Send by</label><select id="rc-channel"><option value="whatsapp">WhatsApp</option><option value="email">Email</option></select></div>' +
       '<div class="field"><label for="rc-to">To</label><input id="rc-to" maxlength="200" required value="' + esc(p.phone || '') + '" data-email="' + esc(p.email || '') + '" data-phone="' + esc(p.phone || '') + '"></div></div>' +
@@ -130,7 +149,88 @@
       await B.rpc('send_receipt', { order_ref: m.ref, channel: channel.value, destination: to.value.trim() });
       form.querySelector('[role="status"]').textContent = 'Sent to the queue: it arrives in a few minutes.';
     });
+    Z().rememberReceipt(m);
     if (query && query.get('print') === '1') setTimeout(function () { window.print(); }, 250);
+    if (query && query.get('pdf') === '1') Z().downloadReceiptPdf(m.ref);
+  }
+  /* Staff: delivery prices. The database is their only home: the storefront and checkout both
+     read them from there. Every change goes through a logged staff function. */
+  async function staffDelivery(ticket) {
+    if (!requireUser()) return;
+    if (!B.profile().is_staff) throw new Error('Staff access is required.');
+    var x = await B.rpc('delivery_settings', {});
+    if (ticket !== navigation) return;
+    show('<p>These are the delivery prices buyers see in the cart and pay at checkout. Each change is saved to the database and logged with your name.</p>' + Z().deliveryEditorHTML(x), 'Delivery prices');
+    Z().bindDeliveryEditor(document.getElementById('delivery-editor'), async function (v) {
+      for (var i = 0; i < v.removed.length; i++) await B.rpc('staff_delete_delivery_rate', { rate_id: Number(v.removed[i]) });
+      for (var j = 0; j < v.rates.length; j++) {
+        var r = v.rates[j];
+        await B.rpc('staff_save_delivery_rate', { courier: r.courier, zone: r.zone, speed: r.speed, fee: r.fee, included_kg: r.kg, per_kg: r.perKg,
+          min_days: r.days ? r.days[0] : null, max_days: r.days ? r.days[1] : null, active: r.active });
+      }
+      await B.rpc('staff_set_delivery_settings', { free_min: v.freeDelivery.min, free_zones: v.freeDelivery.zones, default_kg: v.defaultKg,
+        origin_town: v.origin ? v.origin.town : null, origin_province: v.origin ? v.origin.province : null,
+        same_day_cutoff: v.sameDay.cutoff, same_day_towns: v.sameDay.towns, closed_days: v.closedDays });
+      var fresh = await B.rpc('delivery_settings', {});
+      window.ZS_DELIVERY_SETTINGS = fresh; Z().applyDeliverySettings(fresh, false);
+      Z().toast('Delivery prices saved', 'success');
+    });
+  }
+  /* Rider sign-up (settings.riders.open): apply from a verified account, follow the decision */
+  var RIDER_FIELDS = 'id,full_name,phone,email,town,areas,vehicle,owns_vehicle,availability,experience,has_licence,status,staff_note,created_at,updated_at,decided_at';
+  async function riderApply(ticket) {
+    var title = 'Deliver with Zed Supply', p = B.profile();
+    if (!p) { show(Z().riderChecksHTML() + '<p>Sign in with your email to apply. You can follow your application here.</p><a class="btn btn--primary" href="#/account">Sign in to apply</a>', title); return; }
+    var rows = await B.read('rider_applications?select=' + RIDER_FIELDS + '&user_id=eq.' + p.id + '&order=created_at.desc&limit=1');
+    if (ticket !== navigation) return;
+    var a = rows[0], editing = a && a.status === 'info_needed', open = a && ['new', 'review', 'vetting'].indexOf(a.status) !== -1;
+    show('<div class="duo duo--gap">' + Z().riderChecksHTML() + '<div>' + (a ? Z().riderStatusHTML(a) : '') +
+      (open ? '<p><button class="btn btn--secondary btn--danger" type="button" id="rd-withdraw">Withdraw application</button></p>' : Z().riderFormHTML(editing ? a : { full_name: p.name, phone: p.phone }, p.email)) + '</div></div>', title);
+    var wd = document.getElementById('rd-withdraw');
+    if (wd) wd.onclick = function () { if (window.confirm('Withdraw your rider application?')) rpcButton(wd, 'withdraw_rider_application', { application: a.id }, function () { Z().toast('Application withdrawn'); Z().route(); }); };
+    var form = document.getElementById('rider-apply');
+    if (form) form.onsubmit = async function (e) {
+      e.preventDefault();
+      var v = Z().readRiderForm(), st = form.querySelector('[role="status"]'), btn = form.querySelector('button[type="submit"]');
+      st.className = 'form-status' + (v.error ? ' is-error' : ''); st.textContent = v.error || '';
+      if (v.error) return;
+      btn.disabled = true;
+      try {
+        await B.rpc('submit_rider_application', { full_name: v.full_name, phone: v.phone, town: v.town, vehicle: v.vehicle, owns_vehicle: v.owns_vehicle, is_adult: v.is_adult,
+          has_licence: v.has_licence, has_smartphone: v.has_smartphone, can_get_clearance: v.can_get_clearance, areas: v.areas || null, availability: v.availability, experience: v.experience || null });
+        Z().toast('Application sent. We\'ll be in touch.', 'success'); Z().route();
+      } catch (err) { st.className = 'form-status is-error'; st.textContent = err.message; btn.disabled = false; }
+    };
+  }
+  // Staff: the rider queue, oldest first. Approval needs the in-person checks first.
+  async function staffRiders(ticket) {
+    if (!requireUser()) return;
+    if (!B.profile().is_staff) throw new Error('Staff access is required.');
+    var rows = await B.read('rider_applications?select=' + RIDER_FIELDS + '&status=in.(new,review,info_needed,vetting)&order=created_at.asc&limit=50');
+    if (ticket !== navigation) return;
+    var S2 = Z().RIDER_STATUS;
+    show('<p>Approve a rider only after checking, in person, their NRC, driving licence (not needed for a bicycle), police clearance certificate and two references. Invite them to the checks first: approval isn\'t possible before that step.</p>' +
+      (rows.length ? rows.map(function (a) {
+        var k = esc(a.id);
+        return '<article class="card"><h2>' + esc(a.full_name) + ' <span class="' + Z().statusClass(S2[a.status]) + '">' + esc(S2[a.status] || a.status) + '</span></h2>' +
+          '<dl class="totals"><div><dt>Phone</dt><dd><a href="tel:' + esc(a.phone) + '">' + esc(a.phone) + '</a></dd></div><div><dt>Email</dt><dd>' + esc(a.email) + '</dd></div>' +
+          '<div><dt>Town</dt><dd>' + esc(a.town) + (a.areas ? ' · ' + esc(a.areas) : '') + '</dd></div><div><dt>Vehicle</dt><dd>' + esc(Z().VEHICLES[a.vehicle] || a.vehicle) + (a.owns_vehicle ? ', own' : '') + '</dd></div>' +
+          '<div><dt>Available</dt><dd>' + esc((a.availability || []).map(function (x) { return Z().AVAIL[x]; }).join(', ') || 'Not given') + '</dd></div><div><dt>Sent</dt><dd>' + when(a.created_at) + '</dd></div></dl>' +
+          (a.experience ? '<p>' + esc(a.experience) + '</p>' : '') + (a.staff_note ? '<p class="notice"><strong>Last message to the rider:</strong> ' + esc(a.staff_note) + '</p>' : '') +
+          '<form class="form" data-rider-decide="' + k + '"><label for="rdn-' + k + '">Message to the rider</label><textarea id="rdn-' + k + '" maxlength="1000"></textarea><div class="btn-row">' +
+            (a.status === 'new' ? '<button class="btn btn--secondary btn--sm" type="submit" value="review">Mark under review</button>' : '') +
+            '<button class="btn btn--secondary btn--sm" type="submit" value="info_needed">Ask for more information</button>' +
+            (a.status === 'vetting' ? '<button class="btn btn--primary btn--sm" type="submit" value="approved">Checks passed: approve</button>' : '<button class="btn btn--primary btn--sm" type="submit" value="vetting">Invite to in-person checks</button>') +
+            '<button class="btn btn--secondary btn--sm btn--danger" type="submit" value="rejected">Reject</button></div><p class="form-status" role="status"></p></form></article>';
+      }).join('') : '<p>No rider applications waiting.</p>'), 'Rider applications');
+    document.querySelectorAll('[data-rider-decide]').forEach(function (form) {
+      var id = form.dataset.riderDecide; form.id = 'rider-' + id;
+      bind(form.id, async function (f, decision) {
+        if (decision === 'rejected' && !window.confirm('Reject this application? The rider will see your message.')) return;
+        await B.rpc('staff_review_rider_application', { application: id, decision: decision, note: document.getElementById('rdn-' + id).value.trim() || null });
+        Z().toast('Saved', 'success'); Z().route();
+      });
+    });
   }
   async function orders(ref, ticket, query) {
     if (!requireUser()) return;
@@ -145,7 +245,7 @@
     var tracking = parcels.length ? await B.read('courier_tracking_events?select=seller_id,status,description,location,occurred_at&order_id=eq.' + o.id + '&order=occurred_at.desc&limit=100') : [];
     if (ticket !== navigation) return;
     show((query && query.get('placed') ? '<div class="placed" role="status"><p class="placed__title">Thank you, your order is placed</p><p>We\'ll confirm it on WhatsApp. Your receipt is ready to download or send.</p></div>' : '') +
-      '<div class="receipt-actions"><a class="btn btn--primary" href="#/receipt/' + encodeURIComponent(o.ref) + '">View receipt</a><a class="btn btn--secondary" href="#/receipt/' + encodeURIComponent(o.ref) + '?print=1">Download PDF</a></div>' +
+      '<div class="receipt-actions"><a class="btn btn--primary" href="#/receipt/' + encodeURIComponent(o.ref) + '">View receipt</a><a class="btn btn--secondary" href="#/receipt/' + encodeURIComponent(o.ref) + '?pdf=1">Download PDF</a></div>' +
       '<section class="card"><h2>' + esc(o.ref) + '</h2><p>Order: ' + esc(o.status) + ' · Payment: ' + esc(o.payment_status) + '</p><dl class="totals"><div><dt>Items total</dt><dd>' + Z().kwacha(Number(o.total_zmw)) + '</dd></div><div><dt>Delivery</dt><dd>' + (o.delivery_zmw === null ? 'Awaiting confirmation; no final payment total yet' : Z().kwacha(Number(o.delivery_zmw))) + '</dd></div><div><dt>Paid</dt><dd>' + Z().kwacha(Number(o.paid_zmw)) + '</dd></div></dl>' +
       (o.business_name ? '<div class="deliver-box"><p class="deliver-box__label">Billed to</p><p>' + esc(o.business_name) + (o.business_tpin ? '<br>TPIN ' + esc(o.business_tpin) : '') + (o.business_address ? '<br>' + esc(o.business_address) : '') + '</p></div>' : '') +
       (handover[0] ? Z().handoverHTML(o.ref, handover[0].code) : '') +
@@ -430,10 +530,11 @@
     }
     if (path[0] === 'seller') { show('<p>Your store team and shipments use secure server records. Listing, promotion and store-detail tools are awaiting their authenticated integration.</p><div class="btn-row"><a class="btn btn--primary" href="#/team">Store team</a><a class="btn btn--secondary" href="#/fulfilment">Store fulfilment</a><a class="btn btn--secondary" href="#/sell">Apply to sell</a><a class="btn btn--secondary" href="#/account">My Account</a></div>', 'Seller Centre'); return true; }
     if (['staff', 'addresses', 'alerts'].indexOf(path[0]) !== -1) { show('<p>This account uses secure server records. These management tools are awaiting their authenticated integration.</p><a class="btn btn--secondary" href="#/account">My Account</a>', 'Secure account tools'); return true; }
-    if (['search', 'dept', 'orders', 'order', 'receipt', 'complaints', 'product', 'fulfilment', 'staff-support', 'team', 'sell', 'staff-applications'].indexOf(path[0]) === -1) return false;
+    if (path[0] === 'riders' && !(Z().S.riders || {}).open) return false;
+    if (['search', 'dept', 'orders', 'order', 'receipt', 'complaints', 'product', 'fulfilment', 'staff-support', 'team', 'sell', 'staff-applications', 'staff-delivery', 'staff-riders', 'riders'].indexOf(path[0]) === -1) return false;
     if (path[0] === 'product' && ready[path[1]]) return false;
     show('<p role="status">Loading secure marketplace data…</p>', 'Loading');
-    var action = path[0] === 'sell' ? sellApply(ticket) : path[0] === 'staff-applications' ? staffApplications(query, ticket) : path[0] === 'team' ? team(path[1] ? decodeURIComponent(path[1]) : '', ticket) : path[0] === 'fulfilment' ? fulfilment(ticket) : path[0] === 'staff-support' ? staffSupport(ticket) : path[0] === 'search' || path[0] === 'dept' ? catalogue(path, query, ticket) : path[0] === 'receipt' ? receipt(decodeURIComponent(path[1] || ''), query, ticket) : path[0] === 'orders' || path[0] === 'order' ? orders(path[1], ticket, query) : path[0] === 'complaints' ? support(query, ticket) :
+    var action = path[0] === 'staff-delivery' ? staffDelivery(ticket) : path[0] === 'staff-riders' ? staffRiders(ticket) : path[0] === 'riders' ? riderApply(ticket) : path[0] === 'sell' ? sellApply(ticket) : path[0] === 'staff-applications' ? staffApplications(query, ticket) : path[0] === 'team' ? team(path[1] ? decodeURIComponent(path[1]) : '', ticket) : path[0] === 'fulfilment' ? fulfilment(ticket) : path[0] === 'staff-support' ? staffSupport(ticket) : path[0] === 'search' || path[0] === 'dept' ? catalogue(path, query, ticket) : path[0] === 'receipt' ? receipt(decodeURIComponent(path[1] || ''), query, ticket) : path[0] === 'orders' || path[0] === 'order' ? orders(path[1], ticket, query) : path[0] === 'complaints' ? support(query, ticket) :
       B.rpc('catalogue_page', { product_id: path[1], page_size: 1 }).then(function (rows) { if (ticket !== navigation) return; if (!rows.length) throw new Error('This listing is not available.'); Z().ingest(rows); ready[path[1]] = true; Z().route(); });
     Promise.resolve(action).catch(function (error) { if (ticket === navigation) show(errorHTML(error) + '<a class="btn btn--secondary" href="#/account">My Account</a>', 'Request unavailable'); });
     return true;

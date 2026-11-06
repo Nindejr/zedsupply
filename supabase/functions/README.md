@@ -92,6 +92,8 @@ WhatsApp only allows business-started messages from templates that Meta has appr
 | `price_drop` | product title, new price |
 | `seller_application_update` | business name, outcome ("needs more information", "is approved" or "was not approved"); ask them to check My Account |
 | `order_receipt` | name, order reference, total (e.g. "K883.00", or "K500.00 before delivery"); ask them to open the receipt from their order |
+| `handover_code` | order reference, the 6-digit code (e.g. "482 913"); tell them to read it out only once the parcel is in their hands, and that staff never ask for it |
+| `rider_application_update` | rider's name, outcome ("needs more information", "is ready for the in-person checks", "is approved" or "was not approved") |
 | `parcel_update` | order reference, what happened ("is out for delivery", "has been delivered by the courier" or "could not be delivered; the courier will try again") |
 
 ## Costs

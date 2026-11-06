@@ -217,6 +217,35 @@ applied to the hosted project.
   API by default; `EMAIL_API_URL` for another provider with the same format). WhatsApp needs the
   `order_receipt` and `parcel_update` templates approved first.
 
+## Delivery prices in one place, guest handover codes and rider sign-up
+
+Migration 028 is not yet applied to the hosted project.
+
+- **One source for delivery prices.** The database's rate card and delivery settings are the only
+  place prices live. The storefront loads them at start (`delivery_settings()`), so the cart shows
+  exactly what checkout charges; `js/catalogue.js` no longer holds prices. Without a connection
+  the fee is confirmed on WhatsApp, as before. Demo mode uses the sample card.
+- **Staff edit them on the site.** My Account → Delivery prices (`#/staff-delivery`, staff only):
+  rates per courier, zone and speed, free delivery, same-day towns and cut-off, closed days, the
+  default parcel weight and the sending town for items without a seller location. Changes go
+  through `staff_save_delivery_rate`, `staff_delete_delivery_rate` and
+  `staff_set_delivery_settings`, which check them and log each one in `staff_actions`; direct
+  writes to `delivery_rates` are no longer allowed.
+- **Couriers' live prices in the cart.** Choosing a courier asks `courier-quote`; when that
+  courier is connected, its price replaces the rate card, is held for 30 minutes and is charged
+  at checkout (`delivery_quote_id`).
+- **Handover codes for guests.** The code goes on WhatsApp to the order's phone when it's
+  dispatched (template `handover_code`), and `place-order` returns it to a guest straight after
+  ordering. The storefront's connected checkout still asks buyers to sign in, so guest orders come
+  from WhatsApp orders that staff record or from other channels using `place-order`.
+- **Receipts as PDF files.** "Download PDF" builds an A4 PDF in the browser (`js/receipt-pdf.js`),
+  with the same design and logo; Print stays available.
+- **Rider sign-up**, behind `settings.riders.open` (off). Riders apply from a verified account;
+  staff (`#/staff-riders`) review, ask for more, invite them to in-person checks and only then
+  approve: the database refuses an approval that skips the checks. No ID or licence numbers are
+  collected online. The checks listed are proposals: confirm them before opening sign-up.
+  Template `rider_application_update` tells riders each decision.
+
 ## Native catalogue pages
 
 Run `npm run build:storefront` after approved catalogue changes. It currently

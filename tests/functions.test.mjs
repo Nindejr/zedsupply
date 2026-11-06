@@ -265,3 +265,15 @@ test('shared gift receipt notifications omit prices on both channels', () => {
   for (const text of [email.html, email.text, ...TEMPLATES.order_receipt(p)]) assert.doesNotMatch(text, /123\.45|K[0-9]/);
   assert.match(email.text, /prices are left out/);
 });
+
+test('place-order gives a guest their handover code; signed-in buyers read theirs from the account', async () => {
+  const rows = text => text.includes('order_handover_codes') ? [{ code: '482913' }] : [{ r: { order_id: 41, ref: 'ZS-ABCD1234', total: 100 } }];
+  let d = fakeDeps({}, rows);
+  let body = await (await placeOrder(post({ ref: 'ZS-ABCD1234', contact_name: 'Guest', recipient_phone: '+260970000001', items: [{ product_id: 'L001' }] }), d)).json();
+  assert.equal(body.handover_code, '482913');
+  assert.deepEqual(d.calls[1].params, [41]);
+  d = fakeDeps({}, rows);
+  body = await (await placeOrder(post({ ref: 'ZS-ABCD1234', items: [{ product_id: 'L001' }] }, { authorization: 'Bearer good-token' }), d)).json();
+  assert.equal(body.handover_code, undefined);
+  assert.equal(d.calls.length, 1);
+});

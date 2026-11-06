@@ -521,7 +521,9 @@
     var queue = local.filter(function (p) { return !reviewed[p.id]; });
     var cx = Zs.complaints(), open = cx.filter(function (c) { return !/resolved|closed/.test(c.status || ''); });
     var ords = Zs.orders().filter(function (o) { return !o.sample; });
-    var tabs = [['listings', 'Listings to review', queue.length], ['complaints', 'Complaints', open.length], ['orders', 'Orders', ords.filter(function (o) { return o.status < 4 && !o.cancel; }).length], ['sellers', 'Sellers', Zs.D.sellers.length], ['log', 'Log', 0]];
+    var rider = Zs.store.get('rider-application', null), riderOpen = rider && ['new', 'review', 'info_needed', 'vetting'].indexOf(rider.status) !== -1;
+    var tabs = [['listings', 'Listings to review', queue.length], ['complaints', 'Complaints', open.length], ['orders', 'Orders', ords.filter(function (o) { return o.status < 4 && !o.cancel; }).length], ['sellers', 'Sellers', Zs.D.sellers.length],
+      ['delivery', 'Delivery prices', 0], ['riders', 'Riders', riderOpen ? 1 : 0], ['log', 'Log', 0]];
     var body = '';
     if (tab === 'listings') body = queue.length ? '<ul class="orders">' + queue.map(function (p) {
       return '<li class="order-row"><span><a href="#/product/' + esc(p.id) + '"><strong>' + esc(p.title) + '</strong></a><br><span class="pmeta">' + esc(p.id) + ' · ' + esc((Zs.seller(p.seller) || {}).name || p.seller) + ' · ' + kw(p.priceZMW) + ' · ' + esc(Zs.dept(p.category).name) + '</span></span>' +
@@ -540,16 +542,47 @@
       return '<li class="order-row"><span><strong>' + esc(s.name) + '</strong><br><span class="pmeta">' + esc(s.city || '') + (s.verified ? ' · verified' : ' · not verified') + '</span></span>' +
         '<button class="btn btn--secondary btn--sm" type="button" data-mx-verify="' + esc(s.id) + '">' + (s.verified ? 'Remove verification' : 'Verify') + '</button></li>';
     }).join('') + '</ul><p class="pmeta">Verify a seller only after checking their PACRA registration, ID and a physical or online presence.</p>';
+    // Delivery prices: the same editor staff use on the server; here it changes this device's demo
+    if (tab === 'delivery') body = '<p class="notice">Demo: changes stay on this device and reprice the demo cart. On the live site the same screen saves to the database, which is the only place delivery prices are kept.</p>' +
+      Zs.deliveryEditorHTML(Zs.deliverySettingsNow()) + '<p><button class="btn btn--secondary btn--sm" type="button" data-mx-delivery-reset>Go back to the sample prices</button></p>';
+    // Riders: review, ask, invite to the in-person checks, then approve; approval needs the checks first
+    if (tab === 'riders') body = rider ? '<article class="card"><h2>' + esc(rider.full_name) + ' <span class="' + Z().statusClass(Zs.RIDER_STATUS[rider.status] === 'Approved to deliver' ? 'approved' : Zs.RIDER_STATUS[rider.status]) + '">' + esc(Zs.RIDER_STATUS[rider.status] || rider.status) + '</span></h2>' +
+        '<dl class="totals"><div><dt>Phone</dt><dd>' + esc(rider.phone) + '</dd></div><div><dt>Town</dt><dd>' + esc(rider.town) + (rider.areas ? ' · ' + esc(rider.areas) : '') + '</dd></div>' +
+        '<div><dt>Vehicle</dt><dd>' + esc(Zs.VEHICLES[rider.vehicle] || rider.vehicle) + (rider.owns_vehicle ? ', own' : '') + (rider.vehicle !== 'bicycle' ? ' · licence confirmed' : '') + '</dd></div>' +
+        '<div><dt>Available</dt><dd>' + esc((rider.availability || []).map(function (a) { return Zs.AVAIL[a]; }).join(', ') || 'Not given') + '</dd></div></dl>' +
+        (rider.experience ? '<p>' + esc(rider.experience) + '</p>' : '') + (rider.staff_note ? '<p class="notice"><strong>Last message to the rider:</strong> ' + esc(rider.staff_note) + '</p>' : '') +
+        (riderOpen ? '<form class="form" id="mx-rider-decide"><label for="mx-rider-note">Message to the rider</label><textarea id="mx-rider-note" maxlength="1000"></textarea><div class="btn-row">' +
+          (rider.status === 'new' ? '<button class="btn btn--secondary btn--sm" type="submit" value="review">Mark under review</button>' : '') +
+          '<button class="btn btn--secondary btn--sm" type="submit" value="info_needed">Ask for more information</button>' +
+          (rider.status === 'vetting' ? '<button class="btn btn--primary btn--sm" type="submit" value="approved">Checks passed: approve</button>' : '<button class="btn btn--primary btn--sm" type="submit" value="vetting">Invite to in-person checks</button>') +
+          '<button class="btn btn--secondary btn--sm btn--danger" type="submit" value="rejected">Reject</button></div><p class="form-status" role="status"></p></form>' : '') + '</article>' +
+        '<p class="pmeta">Approve only after checking the rider\'s NRC, licence, police clearance and references in person.</p>'
+      : '<p>No rider applications yet. <a href="#/riders">See the rider sign-up</a>.</p>';
     if (tab === 'log') { var log = get('staff-log', []); body = log.length ? '<ul class="orders">' + log.map(function (l) { return '<li class="order-row"><span>' + esc(l.action) + ' · ' + esc(l.target) + '</span><span class="pmeta">' + esc(l.at.slice(0, 16).replace('T', ' ')) + '</span></li>'; }).join('') + '</ul>' : '<p>No staff actions yet.</p>'; }
     Zs.show(Zs.crumbs([['Staff']]) + Zs.head('Staff back office', 'Prototype on this device\'s data. On the server, each decision is checked and logged.') +
       '<nav class="chips mx-tabs" aria-label="Back office sections">' + tabs.map(function (t) {
         return '<a class="chip" href="#/staff/' + t[0] + '"' + (t[0] === tab ? ' aria-current="page"' : '') + '>' + t[1] + (t[2] ? ' <span class="badge">' + t[2] + '</span>' : '') + '</a>';
       }).join('') + '</nav><section class="card">' + body + '</section>', 'Staff back office');
+    if (tab === 'delivery') Zs.bindDeliveryEditor(document.getElementById('delivery-editor'), function (x) {
+      var saved = { rates: x.rates.map(function (r) { return { courier: r.courier, zone: r.zone, speed: r.speed, fee: r.fee, kg: r.kg, perKg: r.perKg, days: r.days, active: r.active }; }),
+        freeDelivery: x.freeDelivery, defaultKg: x.defaultKg, origin: x.origin, sameDay: x.sameDay, closedDays: x.closedDays };
+      set('demo-delivery', saved); Zs.applyDeliverySettings(saved, true); staffLog('Delivery prices saved', saved.rates.length + ' rates');
+    });
+    var decide = document.getElementById('mx-rider-decide');
+    if (decide) decide.addEventListener('submit', function (e) {
+      e.preventDefault();
+      var d = e.submitter ? e.submitter.value : '', note = document.getElementById('mx-rider-note').value.trim(), st = decide.querySelector('[role="status"]');
+      if (d !== 'review' && d !== 'approved' && note.length < 5) { st.className = 'form-status is-error'; st.textContent = 'Write a message to the rider.'; document.getElementById('mx-rider-note').focus(); return; }
+      if (d === 'approved' && rider.status !== 'vetting') return;
+      rider.status = d; if (note) rider.staff_note = note;
+      Zs.store.set('rider-application', rider); staffLog('Rider application: ' + (Zs.RIDER_STATUS[d] || d), rider.full_name); Zs.toast('Saved', 'success'); Zs.route();
+    });
   };
 
   /* ---------- Clicks, forms and file inputs ---------- */
   document.addEventListener('click', function (e) {
     var el;
+    if (e.target.closest('[data-mx-delivery-reset]')) { try { localStorage.removeItem('zs-demo-delivery'); } catch (err) { /* blocked */ } location.reload(); return; }
     if ((el = e.target.closest('[data-mx-export]'))) {
       var data = {};
       deviceKeys.forEach(function (key) { var value = get(key, null); if (value !== null) data[key] = value; });

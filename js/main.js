@@ -50,7 +50,10 @@
   function start() {
   if (!demoOn && !backendInitialized && window.ZSBackend && window.ZSBackend.enabled()) {
     backendInitialized = true;
-    window.ZSBackend.initialize().then(start, start);
+    // Delivery prices have one source, the database: the same figures checkout charges
+    window.ZSBackend.initialize().then(function () {
+      return window.ZSBackend.rpc('delivery_settings', {}).then(function (x) { window.ZS_DELIVERY_SETTINGS = x; }, function () { /* fees stay "confirmed on WhatsApp" */ });
+    }).then(start, start);
     return;
   }
   var root = document.documentElement;
@@ -87,10 +90,10 @@
     }
     if (X.sameDay && S.delivery && !((S.delivery.sameDay || {}).towns || []).length) { S.delivery.sameDay = X.sameDay; S.delivery.sampleSameDay = true; }
     if (X.sellerDeadlines && !(S.sellerDeadlines && S.sellerDeadlines.acceptHours)) S.sellerDeadlines = Object.assign({}, X.sellerDeadlines, { sample: true });
-    // Sample delivery prices, free-delivery threshold and origin, while the real ones are unset
-    if (X.deliveryRates && S.delivery && !(S.delivery.rates || []).length) { S.delivery.rates = X.deliveryRates; S.delivery.sampleRates = true; }
-    if (X.freeDelivery && S.delivery && !(S.delivery.freeDelivery && S.delivery.freeDelivery.min != null)) S.delivery.freeDelivery = X.freeDelivery;
-    if (X.deliveryOrigin && S.delivery && !S.delivery.origin) S.delivery.origin = X.deliveryOrigin;
+    // Sample delivery prices, or the ones changed in the demo back office on this device
+    var demoDelivery = null;
+    try { demoDelivery = JSON.parse(localStorage.getItem('zs-demo-delivery') || 'null'); } catch (e) { /* blocked */ }
+    if (X.deliveryRates) applyDeliverySettings(demoDelivery || { rates: X.deliveryRates, freeDelivery: X.freeDelivery, origin: X.deliveryOrigin }, true);
     S.isSample = true;
     S.vat = Object.assign({}, S.vat, { registered: true, tpin: '[SAMPLE TPIN]' });
     // Sample sales are [this month, last month], so the demo's trending and top picks never go stale
@@ -110,6 +113,28 @@
       }
       pr.starts = relativeDay(pr.demoDays[0]); pr.ends = relativeDay(pr.demoDays[1]);
     });
+  }
+  if (!DEMO && window.ZS_DELIVERY_SETTINGS) applyDeliverySettings(window.ZS_DELIVERY_SETTINGS, false);
+  /* Delivery prices have one source: the database's rate card when connected (staff edit it in the
+     back office), or the sample card in demo mode, which the demo back office can change on this
+     device. Nothing in catalogue.js prices delivery. */
+  function applyDeliverySettings(x, sample) {
+    var dl = S.delivery = S.delivery || {};
+    dl.rates = (x.rates || []).filter(function (r) { return r.active !== false; }).map(function (r) {
+      return { courier: r.courier || undefined, zone: r.zone, speed: r.speed, fee: Number(r.fee), kg: Number(r.kg) || 0, perKg: Number(r.perKg) || 0, days: r.days && r.days.length === 2 ? [Number(r.days[0]), Number(r.days[1])] : undefined };
+    });
+    dl.allRates = (x.rates || []).map(function (r) { return Object.assign({}, r); });
+    dl.freeDelivery = x.freeDelivery && x.freeDelivery.min != null && x.freeDelivery.min !== '' ? { min: Number(x.freeDelivery.min), zones: x.freeDelivery.zones || [] } : { min: null, zones: (x.freeDelivery && x.freeDelivery.zones) || [] };
+    if (x.defaultKg) dl.defaultKg = Number(x.defaultKg);
+    dl.origin = x.origin && x.origin.town ? x.origin : null;
+    if (x.sameDay) { dl.sameDay = { cutoff: Number(x.sameDay.cutoff), towns: x.sameDay.towns || [] }; dl.sampleSameDay = !!sample; }
+    if (x.closedDays) dl.closedDays = x.closedDays.map(Number);
+    dl.sampleRates = !!sample;
+  }
+  function deliverySettingsNow() {
+    var dl = S.delivery || {};
+    return { rates: dl.allRates || dl.rates || [], freeDelivery: dl.freeDelivery || { min: null, zones: [] }, defaultKg: dl.defaultKg || 1,
+      origin: dl.origin || null, sameDay: dl.sameDay || { cutoff: 11, towns: [] }, closedDays: dl.closedDays || [0] };
   }
   var china = !!S.chinaOrdering;
   function secureMode() { return !DEMO && window.ZSBackend && window.ZSBackend.enabled(); }
@@ -1552,6 +1577,8 @@
       return;
     }
     if (e.target.closest('[data-print-order]') || e.target.closest('[data-print-receipt]')) { window.print(); return; }
+    var pdfBtn = e.target.closest('[data-receipt-pdf]');
+    if (pdfBtn) { downloadReceiptPdf(pdfBtn.getAttribute('data-receipt-pdf'), pdfBtn); return; }
     var step = e.target.closest('[data-step]');
     if (step) {
       var input = $(step.getAttribute('data-target')), by = Number(input.step) || 1, lo = Number(input.min) || 1, hi = Number(input.max) || 99;
@@ -2398,13 +2425,191 @@
   }
   function receiptActionsHTML(m, onReceipt) {
     var text = receiptText(m);
+    receiptModels[m.ref] = m;
     return '<div class="receipt-actions no-print">' +
-      (onReceipt ? '<button class="btn btn--primary" type="button" data-print-receipt>Download PDF or print</button>'
-        : '<a class="btn btn--primary" href="#/receipt/' + encodeURIComponent(m.ref) + '">View receipt</a><a class="btn btn--secondary" href="#/receipt/' + encodeURIComponent(m.ref) + '?print=1">Download PDF</a>') +
+      (onReceipt ? '<button class="btn btn--primary" type="button" data-receipt-pdf="' + esc(m.ref) + '">Download PDF</button><button class="btn btn--secondary" type="button" data-print-receipt>Print</button>'
+        : '<a class="btn btn--primary" href="#/receipt/' + encodeURIComponent(m.ref) + '">View receipt</a><button class="btn btn--secondary" type="button" data-receipt-pdf="' + esc(m.ref) + '">Download PDF</button>') +
       '<a class="btn btn--secondary" href="' + esc(waTo(m.whatsapp, text)) + '" target="_blank" rel="noopener noreferrer">Send to WhatsApp<span class="visually-hidden"> (opens WhatsApp)</span></a>' +
       '<a class="btn btn--secondary" href="mailto:' + esc(encodeURIComponent(m.email || '').replace(/%40/g, '@')) + '?subject=' + encodeURIComponent('Zed Supply receipt ' + m.ref) + '&body=' + encodeURIComponent(text) + '">Email receipt</a>' +
       (onReceipt && m.gift && m.gift.noPrice ? '<a class="btn btn--secondary" href="#/receipt/' + encodeURIComponent(m.ref) + (m.giftReceipt ? '' : '?gift=1') + '">' + (m.giftReceipt ? 'Show prices' : 'Gift receipt (no prices)') + '</a>' : '') +
       (onReceipt ? '<a class="btn btn--secondary" href="#/order/' + encodeURIComponent(m.ref) + '">Back to order</a>' : '') + '</div>';
+  }
+  /* The receipt as plain text blocks for js/receipt-pdf.js, which lays it out as a PDF file with
+     the same sections, colours and logo as the receipt page */
+  var receiptModels = {};
+  function parcelText(p) {
+    var c = p.courier ? courier(p.courier) : null;
+    return [p.sellerName || sellerName(p.seller), speedName(p.speed), p.eta || '', c ? c.name : ''].filter(Boolean).join(' · ');
+  }
+  function receiptDoc(m) {
+    var d = m.delivery, ps = (d && d.parcels) || [], hide = !!m.giftReceipt, known = d ? !d.pending && d.fee != null : m.mode === 'collection';
+    var taxRate = m.vatRate != null ? m.vatRate : VAT.rate, taxIncluded = m.vatIncluded != null ? m.vatIncluded : VAT.included;
+    var legal = (S.business || {}).legalName, tpin = vatActive() && VAT.tpin && !/^\[/.test(VAT.tpin) ? VAT.tpin : '';
+    var sellers = m.lines.map(function (l) { return l.seller; }).filter(function (x, i, a) { return x && a.indexOf(x) === i; });
+    var totals = hide ? [] : [['Items', kwacha(m.sub)]].concat(
+      m.save ? [['You saved', kwacha(m.save), 'save']] : [], m.voucher ? [['Voucher ' + m.voucher.code, '-' + kwacha(m.voucher.off), 'save']] : [],
+      [d && ps.length ? ['Delivery · ' + speedName(d.speed), known ? feeText(d.fee) : 'To be quoted', d.fee === 0 ? 'save' : ''] : m.mode === 'collection' ? ['Collection', 'No delivery fee'] : ['Delivery', 'Confirmed on WhatsApp']],
+      m.vat ? [[(taxIncluded === false ? 'VAT (' : 'Includes VAT (') + taxRate + '%)', kwacha(m.vat), 'vat']] : [],
+      [[known ? 'Order total' : 'Total before delivery', kwacha(m.total), 'total']]);
+    return { ref: m.ref, title: hide ? 'Gift receipt' : 'Order receipt', date: niceDate(m.date), sample: !!m.sample, status: m.status || '',
+      payment: m.paid ? 'Paid' : 'Payment: ' + (m.payment || 'to be arranged on WhatsApp'), hide: hide,
+      parties: [['Customer', [m.name || 'Customer'].concat(m.business ? [m.business.name, m.business.tpin ? 'TPIN ' + m.business.tpin : '', m.business.address || ''].filter(Boolean) : [])],
+        [m.mode === 'collection' ? 'Collection' : 'Deliver to', [m.deliverTo || 'Confirmed on WhatsApp']], ['Sold by', [sellers.join(', ') || 'Zed Supply']]],
+      rows: m.lines.map(function (l) { return [l.title, l.label || '', String(l.qty), kwacha(l.each), kwacha(l.total)]; }),
+      parcels: ps.map(function (p) { return [parcelText(p), hide ? '' : (p.pending || p.fee == null ? 'To be quoted' : feeText(p.fee, p.free))]; }),
+      totals: totals, note: hide ? 'Gift receipt: prices are left out.' : '',
+      foot: ['Zed Supply' + (legal ? ' · ' + legal : '') + ' · Lusaka, Zambia' + (tpin ? ' · TPIN ' + tpin : ''), 'WhatsApp ' + shopPhone() + ' · ' + siteAddress(),
+        'Thank you for shopping with Zed Supply. This receipt confirms your order' + (tpin ? '' : '; it is not a tax invoice') + '. Keep it for returns and buyer protection.'] };
+  }
+  function downloadReceiptPdf(ref, btn) {
+    var m = receiptModels[ref];
+    if (!m) return;
+    if (btn) btn.disabled = true;
+    new Promise(function (ok, fail) {
+      if (window.ZS_RECEIPT_PDF) return ok();
+      var tag = document.createElement('script'); tag.src = versioned('js/receipt-pdf.js'); tag.onload = ok; tag.onerror = fail; document.head.appendChild(tag);
+    }).then(function () { return window.ZS_RECEIPT_PDF.build(receiptDoc(m), { logo: 'assets/brand/logo-original-3d-dark.webp' }); }).then(function (bytes) {
+      var url = URL.createObjectURL(new Blob([bytes], { type: 'application/pdf' })), a = document.createElement('a');
+      a.href = url; a.download = 'Zed-Supply-receipt-' + ref + (m.giftReceipt ? '-gift' : '') + '.pdf';
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
+      toast('Receipt downloaded as a PDF', 'success');
+    }).catch(function () { toast('The PDF couldn\'t be made on this device. Use Print and choose Save as PDF.', 'error'); })
+      .then(function () { if (btn) btn.disabled = false; });
+  }
+
+  /* ---------- Delivery price editor (staff back office: demo and connected) ---------- */
+  var ZONE_NAMES = { town: 'Same town', province: 'Same province', country: 'Elsewhere in Zambia' };
+  function deliveryEditorHTML(x) {
+    var f = x.freeDelivery || {}, sd = x.sameDay || {}, closed = (x.closedDays || []).map(Number), o = x.origin || {};
+    var list = COURIERS.filter(function (c) { return c.profile || !c.unlicensed; }).slice().sort(byName);
+    var opts = function (map, cur) { return Object.keys(map).map(function (k) { return '<option value="' + k + '"' + (k === cur ? ' selected' : '') + '>' + esc(map[k]) + '</option>'; }).join(''); };
+    var courierOpts = function (cur) { return '<option value="">Any courier: Zed Supply rate</option>' + list.map(function (c) { return '<option value="' + esc(c.id) + '"' + (c.id === cur ? ' selected' : '') + '>' + esc(c.name) + '</option>'; }).join(''); };
+    var row = function (r, i) {
+      var n = 'Rate ' + (i + 1), d = r.days || [];
+      return '<tr data-rate-row' + (r.id ? ' data-rate-id="' + esc(r.id) + '"' : '') + '>' +
+        '<td><select data-f="courier" aria-label="' + n + ': courier">' + courierOpts(r.courier || '') + '</select></td>' +
+        '<td><select data-f="zone" aria-label="' + n + ': where it goes">' + opts(ZONE_NAMES, r.zone) + '</select></td>' +
+        '<td><select data-f="speed" aria-label="' + n + ': speed">' + opts(ZD ? ZD.NAMES : {}, r.speed) + '</select></td>' +
+        '<td><input data-f="fee" type="number" min="0" max="100000" step="0.01" inputmode="decimal" required aria-label="' + n + ': fee in kwacha" value="' + esc(r.fee != null ? Number(r.fee) : '') + '"></td>' +
+        '<td><input data-f="kg" type="number" min="0" step="0.1" inputmode="decimal" required aria-label="' + n + ': kilograms included" value="' + esc(r.kg != null ? Number(r.kg) : 5) + '"></td>' +
+        '<td><input data-f="perKg" type="number" min="0" step="0.01" inputmode="decimal" required aria-label="' + n + ': kwacha per extra kilogram" value="' + esc(r.perKg != null ? Number(r.perKg) : 0) + '"></td>' +
+        '<td><input data-f="min" type="number" min="0" max="60" step="1" inputmode="numeric" aria-label="' + n + ': fewest working days" value="' + esc(d[0] != null ? d[0] : '') + '"></td>' +
+        '<td><input data-f="max" type="number" min="0" max="60" step="1" inputmode="numeric" aria-label="' + n + ': most working days" value="' + esc(d[1] != null ? d[1] : '') + '"></td>' +
+        '<td><input data-f="active" type="checkbox" aria-label="' + n + ': in use"' + (r.active === false ? '' : ' checked') + '></td>' +
+        '<td><button class="link-btn link-btn--danger" type="button" data-rate-remove>Remove<span class="visually-hidden"> ' + n + '</span></button></td></tr>';
+    };
+    return '<form class="form form--card delivery-editor" id="delivery-editor" novalidate><h2>Delivery prices</h2>' +
+      '<p class="hint">Each seller\'s parcel is priced from this card: the fee covers the first kilograms shown, then each further kilogram is added. A courier\'s own price replaces the Zed Supply rate when buyers choose that courier. Same day needs the seller to offer it, a same-day town and an order before the cut-off.</p>' +
+      '<div class="cmp" role="region" tabindex="0" aria-label="Delivery rates (scrolls sideways)"><table class="rate-table"><thead><tr><th scope="col">Courier</th><th scope="col">Where</th><th scope="col">Speed</th><th scope="col">Fee (K)</th><th scope="col">Kg included</th><th scope="col">K per extra kg</th><th scope="col">Days from</th><th scope="col">Days to</th><th scope="col">In use</th><th scope="col"><span class="visually-hidden">Remove</span></th></tr></thead>' +
+      '<tbody data-rate-body>' + (x.rates || []).map(row).join('') + '</tbody></table></div>' +
+      '<button class="btn btn--secondary btn--sm" type="button" data-rate-add>Add a rate</button>' +
+      '<fieldset class="field"><legend>Free standard delivery</legend><div class="field-row"><div class="field"><label for="de-free">For items worth at least (K)</label><input id="de-free" type="number" min="0" step="1" inputmode="numeric" value="' + esc(f.min != null ? f.min : '') + '" aria-describedby="de-free-hint"><p class="hint" id="de-free-hint">Leave empty for no free delivery.</p></div>' +
+        '<div class="field"><span class="field__label">In these zones</span><div class="checks">' + Object.keys(ZONE_NAMES).map(function (z) { return '<div class="check"><input type="checkbox" id="de-fz-' + z + '" value="' + z + '"' + ((f.zones || []).indexOf(z) !== -1 ? ' checked' : '') + '><label for="de-fz-' + z + '">' + ZONE_NAMES[z] + '</label></div>'; }).join('') + '</div></div></div></fieldset>' +
+      '<fieldset class="field"><legend>Same day</legend><div class="field-row"><div class="field"><label for="de-cut">Order by (hour, Zambia time)</label><input id="de-cut" type="number" min="0" max="23" step="1" required value="' + esc(sd.cutoff != null ? sd.cutoff : 11) + '"></div>' +
+        '<div class="field"><label for="de-towns">Towns, separated by commas</label><input id="de-towns" maxlength="1000" value="' + esc((sd.towns || []).join(', ')) + '"></div></div></fieldset>' +
+      '<fieldset class="field"><legend>Other settings</legend><div class="field-row"><div class="field"><label for="de-kg">Weight to assume for an item without one (kg)</label><input id="de-kg" type="number" min="0.1" max="1000" step="0.1" required value="' + esc(x.defaultKg || 1) + '"></div>' +
+        '<div class="field"><label for="de-otown">Items without a seller location are sent from</label><input id="de-otown" maxlength="60" list="de-town-list" value="' + esc(o.town || '') + '"><datalist id="de-town-list">' + TOWNS.map(function (t) { return '<option value="' + esc(t.name) + '">'; }).join('') + '</datalist></div></div>' +
+        '<div class="field"><span class="field__label">Closed days (no deliveries)</span><div class="checks">' + DAYS.map(function (dn, i) { return '<div class="check"><input type="checkbox" id="de-cd-' + i + '" value="' + i + '"' + (closed.indexOf(i) !== -1 ? ' checked' : '') + '><label for="de-cd-' + i + '">' + dn + '</label></div>'; }).join('') + '</div></div></fieldset>' +
+      '<div class="btn-row"><button class="btn btn--primary" type="submit">Save delivery prices</button></div><p class="form-status" role="status" aria-live="polite"></p>' +
+      '<template data-rate-template>' + row({ zone: 'town', speed: 'standard', kg: 5, perKg: 0 }, (x.rates || []).length) + '</template></form>';
+  }
+  // The editor's values, checked: { rates, removed, freeDelivery, defaultKg, origin, sameDay, closedDays } or { error }
+  function readDeliveryEditor(form) {
+    var num = function (v) { return v === '' || v == null ? null : Number(v); }, seen = {}, error = '';
+    var rates = $$('[data-rate-row]', form).map(function (tr, i) {
+      var g = function (k) { return $('[data-f="' + k + '"]', tr); }, r = { id: tr.getAttribute('data-rate-id') || null, courier: g('courier').value || null, zone: g('zone').value, speed: g('speed').value,
+        fee: num(g('fee').value), kg: num(g('kg').value), perKg: num(g('perKg').value), active: g('active').checked };
+      var lo = num(g('min').value), hi = num(g('max').value), key = [r.courier || '', r.zone, r.speed].join('/');
+      r.days = lo != null && hi != null ? [lo, hi] : null;
+      if (!error && (r.fee == null || !(r.fee >= 0) || Math.round(r.fee * 100) !== r.fee * 100)) error = 'Rate ' + (i + 1) + ': enter a fee in kwacha.';
+      if (!error && (r.kg == null || r.kg < 0 || r.perKg == null || r.perKg < 0)) error = 'Rate ' + (i + 1) + ': enter the kilograms included and the price per extra kilogram.';
+      if (!error && ((lo == null) !== (hi == null) || lo > hi)) error = 'Rate ' + (i + 1) + ': enter the working days as fewest and most, or leave both empty.';
+      if (!error && seen[key]) error = 'Rate ' + (i + 1) + ' repeats rate ' + seen[key] + ': one rate per courier, zone and speed.';
+      seen[key] = i + 1;
+      return r;
+    });
+    var free = num($('#de-free', form).value), cut = num($('#de-cut', form).value), dkg = num($('#de-kg', form).value), town = cleanText($('#de-otown', form).value, 60);
+    if (!error && free != null && !(free >= 0)) error = 'Enter the free-delivery amount, or leave it empty.';
+    if (!error && (cut == null || cut < 0 || cut > 23 || cut % 1)) error = 'Enter the same-day cut-off as an hour from 0 to 23.';
+    if (!error && !(dkg > 0)) error = 'Enter the weight to assume for items without one.';
+    if (!error && town && !townInfo(town)) error = 'Choose the sending town from the list.';
+    if (error) return { error: error };
+    return { rates: rates, removed: (form.getAttribute('data-removed') || '').split(',').filter(Boolean),
+      freeDelivery: { min: free, zones: $$('[id^="de-fz-"]:checked', form).map(function (c) { return c.value; }) }, defaultKg: dkg,
+      origin: town ? { town: townInfo(town).name, province: townInfo(town).province } : null,
+      sameDay: { cutoff: cut, towns: $('#de-towns', form).value.split(',').map(function (t) { return t.trim(); }).filter(Boolean) },
+      closedDays: $$('[id^="de-cd-"]:checked', form).map(function (c) { return Number(c.value); }) };
+  }
+  function bindDeliveryEditor(form, save) {
+    var status = $('[role="status"]', form), body = $('[data-rate-body]', form), tpl = $('[data-rate-template]', form);
+    form.addEventListener('click', function (e) {
+      if (e.target.closest('[data-rate-add]')) { body.insertAdjacentHTML('beforeend', tpl.innerHTML); var last = body.lastElementChild; $('[data-f="fee"]', last).focus(); }
+      var rm = e.target.closest('[data-rate-remove]');
+      if (rm) { var tr = rm.closest('tr'), id = tr.getAttribute('data-rate-id'); if (id) form.setAttribute('data-removed', (form.getAttribute('data-removed') || '') + ',' + id); tr.remove(); status.textContent = 'Rate removed. Save to keep the change.'; }
+    });
+    form.addEventListener('submit', function (e) {
+      e.preventDefault();
+      var x = readDeliveryEditor(form), btn = $('button[type="submit"]', form);
+      status.className = 'form-status' + (x.error ? ' is-error' : '');
+      if (x.error) { status.textContent = x.error; return; }
+      btn.disabled = true; status.textContent = 'Saving…';
+      Promise.resolve(save(x)).then(function () { status.textContent = 'Delivery prices saved. The cart uses them straight away.'; }, function (err) { status.className = 'form-status is-error'; status.textContent = (err && err.message) || 'Couldn\'t save. Try again.'; })
+        .then(function () { btn.disabled = false; });
+    });
+  }
+
+  /* ---------- Rider sign-up (settings.riders) ----------
+     Riders apply from an account; staff review, invite them to in-person checks, then approve.
+     Nothing like ID or licence numbers is collected online: those are checked in person. */
+  var RIDERS = S.riders || {};
+  var VEHICLES = { bicycle: 'Bicycle', motorbike: 'Motorbike', car: 'Car', van: 'Van', truck: 'Truck' };
+  var AVAIL = { weekdays: 'Weekdays', saturdays: 'Saturdays', sundays: 'Sundays', evenings: 'Evenings' };
+  var RIDER_STATUS = { new: 'Received', review: 'Being reviewed', info_needed: 'We need more information', vetting: 'Invited to in-person checks', approved: 'Approved to deliver', rejected: 'Not approved', withdrawn: 'Withdrawn' };
+  function ridersOpen() { return RIDERS.open === true || !!(RIDERS.preview && DEMO); }
+  function riderChecksHTML() {
+    return '<section class="band" aria-labelledby="rd-need-title"><h2 id="rd-need-title">What you need' + (RIDERS.open !== true ? ' <span class="tag-sample">Proposed</span>' : '') + '</h2>' + ticks((RIDERS.checks || []).map(esc)) +
+      '<p class="pmeta">We check your documents in person. We never ask for ID or licence numbers online.</p></section>';
+  }
+  function riderFormHTML(v, email) {
+    v = v || {};
+    var av = v.availability || [];
+    return '<form class="form form--card" id="rider-apply" novalidate><h2>' + (v.status === 'info_needed' ? 'Update your application' : 'Apply to deliver') + '</h2><p class="hint">Fields marked * are required.' + (email ? ' We reply to ' + esc(email) + ' and your phone.' : '') + '</p>' +
+      '<div class="field-row"><div class="field"><label for="rd-name">Full name *</label><input id="rd-name" required minlength="2" maxlength="80" autocomplete="name" value="' + esc(v.full_name || '') + '"></div>' +
+      '<div class="field"><label for="rd-phone">Phone or WhatsApp *</label><input id="rd-phone" type="tel" required maxlength="20" autocomplete="tel" placeholder="0977 123456" value="' + esc(v.phone || '') + '"></div></div>' +
+      '<div class="field-row"><div class="field"><label for="rd-town">Town *</label><input id="rd-town" required maxlength="60" list="rd-town-list" value="' + esc(v.town || '') + '"><datalist id="rd-town-list">' + TOWNS.map(function (t) { return '<option value="' + esc(t.name) + '">'; }).join('') + '</datalist></div>' +
+      '<div class="field"><label for="rd-areas">Areas you can cover</label><input id="rd-areas" maxlength="300" placeholder="e.g. Kabulonga, Woodlands" value="' + esc(v.areas || '') + '"></div></div>' +
+      '<div class="field-row"><div class="field"><label for="rd-vehicle">How would you deliver? *</label><select id="rd-vehicle" required>' + Object.keys(VEHICLES).map(function (k) { return '<option value="' + k + '"' + (v.vehicle === k ? ' selected' : '') + '>' + VEHICLES[k] + '</option>'; }).join('') + '</select></div>' +
+      '<div class="field"><span class="field__label">Vehicle</span><div class="check"><input type="checkbox" id="rd-own"' + (v.owns_vehicle ? ' checked' : '') + '><label for="rd-own">I own it, or can use it for deliveries</label></div></div></div>' +
+      '<fieldset class="field"><legend>When can you work?</legend><div class="checks">' + Object.keys(AVAIL).map(function (k) { return '<div class="check"><input type="checkbox" id="rd-av-' + k + '" value="' + k + '"' + (av.indexOf(k) !== -1 ? ' checked' : '') + '><label for="rd-av-' + k + '">' + AVAIL[k] + '</label></div>'; }).join('') + '</div></fieldset>' +
+      '<div class="field"><label for="rd-exp">Delivery or driving experience</label><textarea id="rd-exp" maxlength="1000">' + esc(v.experience || '') + '</textarea></div>' +
+      '<fieldset class="field"><legend>Please confirm *</legend>' +
+        '<div class="check"><input type="checkbox" id="rd-adult"><label for="rd-adult">I\'m 18 or over and have a valid NRC</label></div>' +
+        '<div class="check"><input type="checkbox" id="rd-licence"' + (v.has_licence ? ' checked' : '') + '><label for="rd-licence">I have a valid driving licence for my vehicle (not needed for a bicycle)</label></div>' +
+        '<div class="check"><input type="checkbox" id="rd-phone-ok"><label for="rd-phone-ok">I have a smartphone with WhatsApp</label></div>' +
+        '<div class="check"><input type="checkbox" id="rd-clear"><label for="rd-clear">I can get a police clearance certificate before my first delivery</label></div>' +
+        '<div class="check"><input type="checkbox" id="rd-consent"><label for="rd-consent">Zed Supply may use these details to assess my application, as set out in the <a href="privacy.html">privacy policy</a></label></div></fieldset>' +
+      '<button class="btn btn--primary" type="submit">' + (v.status === 'info_needed' ? 'Send updated application' : 'Send application') + '</button><p class="form-status" role="status" aria-live="polite"></p></form>';
+  }
+  // The form's answers, or { error } with the first thing to fix
+  function readRiderForm() {
+    var g = function (id) { return $('#' + id); }, v = { full_name: cleanText(g('rd-name').value, 80), phone: g('rd-phone').value.trim(), town: cleanText(g('rd-town').value, 60),
+      areas: cleanText(g('rd-areas').value, 300), vehicle: g('rd-vehicle').value, owns_vehicle: g('rd-own').checked,
+      availability: $$('[id^="rd-av-"]:checked').map(function (c) { return c.value; }), experience: cleanText(g('rd-exp').value, 1000),
+      is_adult: g('rd-adult').checked, has_licence: g('rd-licence').checked, has_smartphone: g('rd-phone-ok').checked, can_get_clearance: g('rd-clear').checked };
+    var digits = v.phone.replace(/[^\d+]/g, '');
+    var bad = v.full_name.length < 2 ? ['rd-name', 'Enter your full name.'] : !/^(0\d{9}|\+?260\d{9})$/.test(digits) ? ['rd-phone', 'Enter a Zambian mobile number, for example 0977 123456.']
+      : v.town.length < 2 ? ['rd-town', 'Enter your town.'] : !v.is_adult ? ['rd-adult', 'Riders must be 18 or over with a valid NRC.']
+      : v.vehicle !== 'bicycle' && !v.has_licence ? ['rd-licence', 'You need a valid driving licence for a ' + VEHICLES[v.vehicle].toLowerCase() + '.']
+      : !v.has_smartphone ? ['rd-phone-ok', 'You need a smartphone with WhatsApp to take deliveries.'] : !v.can_get_clearance ? ['rd-clear', 'You need a police clearance certificate before your first delivery.']
+      : !g('rd-consent').checked ? ['rd-consent', 'Agree to us using your details to assess your application.'] : null;
+    if (bad) { g(bad[0]).focus(); return { error: bad[1] }; }
+    return v;
+  }
+  function riderStatusHTML(a) {
+    return '<section class="card" aria-labelledby="rd-status-title"><h2 id="rd-status-title">Your rider application</h2><p><span class="' + statusClass(RIDER_STATUS[a.status] === 'Approved to deliver' ? 'approved' : RIDER_STATUS[a.status]) + '">' + esc(RIDER_STATUS[a.status] || a.status) + '</span></p>' +
+      (a.staff_note ? '<p class="notice"><strong>From Zed Supply:</strong> ' + esc(a.staff_note) + '</p>' : '') +
+      '<p class="pmeta">' + esc(VEHICLES[a.vehicle] || '') + ' · ' + esc(a.town) + '</p></section>';
   }
   var CANCEL_REASONS = ['I ordered by mistake', 'I found a better price', 'Delivery would take too long', 'I need to change the items or address', 'I no longer need it', 'Another reason'];
   // Order page: ask to cancel until the order is packed (settings.orderOptions.cancel); after that,
@@ -2888,6 +3093,7 @@
       // Delivery: only the parcels that are delivered (a seller without collection still delivers)
       var deliveryGroups = function () { return coMode() === 'collection' ? groups.filter(function (g) { return !collectionAt(g.s); }) : groups; };
       var dq = null;   // the delivery quote for the current choices
+      var liveQuoteId = null, liveFrom = '', liveSeq = 0;   // a courier's live price, saved on the server
       var deliveryKnown = function () { return ratesOn() && (!deliveryGroups().length || !!(dq && !dq.pending)); };
       var grand = function () { return total + (dq && !dq.pending ? dq.total : 0); };
       var deliveryMsg = function () {
@@ -2911,7 +3117,8 @@
           (VAT.included === false ? vatRowHTML(vat) : '') + rows +
           '<div class="is-total"><dt>' + (deliveryKnown() ? 'Order total' : 'Estimated total') + '</dt><dd>' + kwacha(deliveryKnown() ? grand() : total) + '</dd></div>' +
           (VAT.included === false ? '' : vatRowHTML(vat)) + '</dl>' +
-          (dq && dq.parcels.some(function (p) { return p.note === 'fallback'; }) ? '<p class="pmeta">Some parcels can\'t go at that speed, so they go at the next fastest.</p>' : '');
+          (dq && dq.parcels.some(function (p) { return p.note === 'fallback'; }) ? '<p class="pmeta">Some parcels can\'t go at that speed, so they go at the next fastest.</p>' : '') +
+          (liveQuoteId ? '<p class="pmeta live-price">Live price from ' + esc(liveFrom) + ', held for 30 minutes.</p>' : '');
       };
       // Amazon-style nudge: how much more for free standard delivery
       var freeBarHTML = function () {
@@ -2927,8 +3134,20 @@
         var dg = deliveryGroups(), on = ratesOn() && dg.length > 0, sw = $('#speed-wrap');
         if (sw) sw.innerHTML = on ? speedChoiceHTML(ZD.options(deliveryArgs(dg, total))) : '';
         dq = on && loc ? deliveryQuote(dg, total) : null;
+        liveQuoteId = null; liveFrom = '';
+        var seq = ++liveSeq;
         $('#co-totals').innerHTML = totalsHTML();
         $('#co-free').innerHTML = freeBarHTML();
+        // With a courier chosen, the server asks that courier for its live price when it's connected
+        if (dq && !dq.pending && shipChoice) ext('deliveryLive', { items: items, buyer_town: loc.town, buyer_province_id: provinceOf(loc), fulfilment: coMode(),
+          delivery_speed: shipSpeed, courier_id: shipChoice, items_total_zmw: total, apply: function (r) {
+            if (seq !== liveSeq || !r || !r.quote_id || !Array.isArray(r.parcels)) return;
+            dq = { speed: r.speed || shipSpeed, total: r.total == null ? null : Number(r.total), pending: !!r.pending, freeGap: dq ? dq.freeGap : null, free: Number(r.total) === 0,
+              parcels: r.parcels.map(function (p) { return { id: p.seller_id, zone: p.zone, speed: p.speed, fee: p.fee == null ? null : Number(p.fee), free: !!p.free, pending: !!p.pending,
+                days: p.min_days != null && p.max_days != null ? [p.min_days, p.max_days] : null, note: p.note || '', courier: p.courier_id || '' }; }) };
+            liveQuoteId = r.quote_id; liveFrom = (courier(shipChoice) || {}).name || 'the courier';
+            $('#co-totals').innerHTML = totalsHTML(); syncCo();
+          } });
       };
       renderDelivery();
       var speedWrap = $('#speed-wrap');
@@ -3113,7 +3332,7 @@
             payment_method: (payByName(payChoice) || {}).id || '', notes: $('#co-note').value.trim(), voucher_code: voucher,
             preferred_date: when().day, preferred_slot: when().slot, is_gift: gift().on, gift_message: gift().message, hide_prices: gift().noPrice,
             business_name: b ? b.name : '', business_tpin: b ? b.tpin : '', business_address: b ? b.address : '',
-            delivery_scope: shipScope, courier_id: shipChoice, delivery_speed: shipSpeed, receipt_email: receiptTo().email,
+            delivery_scope: shipScope, courier_id: shipChoice, delivery_speed: shipSpeed, receipt_email: receiptTo().email, delivery_quote_id: liveQuoteId || undefined,
             expected_delivery_zmw: deliveryKnown() && deliveryGroups().length ? dq.total : undefined });
           return;
         }
@@ -3293,6 +3512,7 @@
       m.giftReceipt = !!(m.gift && m.gift.noPrice && q && q.get('gift') === '1');
       show(crumbs([['Orders', '#/orders'], [o.ref, '#/order/' + encodeURIComponent(o.ref)], ['Receipt']]) + receiptActionsHTML(m, true) + receiptHTML(m), 'Receipt ' + o.ref);
       if (q && q.get('print') === '1') setTimeout(function () { window.print(); }, 250);
+      if (q && q.get('pdf') === '1') downloadReceiptPdf(m.ref);
     },
 
     track: function (arg, q, missing) {
@@ -3462,12 +3682,34 @@
     },
 
     riders: function () {
+      if (ridersOpen()) {
+        // Demo: the application is kept on this device; connected mode uses js/backend-ui.js
+        var a = store.get('rider-application', null), u = user() || {};
+        var editing = a && a.status === 'info_needed', open = a && ['new', 'review', 'vetting'].indexOf(a.status) !== -1;
+        show(crumbs([['Deliver with Zed Supply']]) +
+          '<div class="store-hero" style="--brand-a:#0A2A66;--brand-b:#0F5E2E"><h1>Deliver with Zed Supply</h1><p>Deliver parcels from Zed Supply sellers to buyers in your town, on the days you choose.</p>' + (DEMO ? '<p><span class="tag-sample">Demo</span> Applications here stay on this device.</p>' : '') + '</div>' +
+          '<ol class="steps"><li class="step"><h2>Apply</h2><p>Tell us about you and how you\'d deliver.</p></li><li class="step"><h2>Meet us</h2><p>We check your documents in person and show you how handover codes work.</p></li><li class="step"><h2>Deliver</h2><p>Take parcels from sellers to buyers, and confirm each with the buyer\'s code.</p></li></ol>' +
+          '<div class="duo duo--gap">' + riderChecksHTML() + '<div>' + (a ? riderStatusHTML(a) : '') + (open ? '<p><button class="btn btn--secondary btn--danger" type="button" id="rd-withdraw">Withdraw application</button></p>' : riderFormHTML(editing ? a : { full_name: u.name, phone: u.phone }, u.email)) + '</div></div>', 'Deliver with Zed Supply');
+        var wd = $('#rd-withdraw');
+        if (wd) wd.addEventListener('click', function () { a.status = 'withdrawn'; store.set('rider-application', a); toast('Application withdrawn'); route(); });
+        var rf = $('#rider-apply');
+        if (rf) rf.addEventListener('submit', function (e) {
+          e.preventDefault();
+          var v = readRiderForm(), st = $('[role="status"]', rf);
+          st.className = 'form-status' + (v.error ? ' is-error' : ''); st.textContent = v.error || '';
+          if (v.error) return;
+          var keep = editing ? { id: a.id, created_at: a.created_at, staff_note: a.staff_note } : { id: newRef('RD'), created_at: new Date().toISOString(), staff_note: '' };
+          store.set('rider-application', Object.assign(keep, v, { status: 'new' }));
+          toast('Application sent. We\'ll be in touch.', 'success'); route();
+        });
+        return;
+      }
       var msg = 'Hi Zed Supply, please tell me when rider sign-up opens. My town is: ';
       show(crumbs([['Deliver with Zed Supply']]) +
         '<div class="store-hero" style="--brand-a:#0A2A66;--brand-b:#0F5E2E"><h1>Deliver with Zed Supply</h1><p>Deliver parcels from Zed Supply sellers to buyers in your town. Rider sign-up is coming soon.</p></div>' +
         '<ol class="steps"><li class="step"><h2>Collect</h2><p>Pick up packed parcels from sellers near you.</p></li><li class="step"><h2>Deliver</h2><p>Take them to buyers in the day and time they chose.</p></li><li class="step"><h2>Confirm</h2><p>Enter the buyer\'s 6-digit handover code once the parcel is in their hands.</p></li></ol>' +
         '<div class="duo duo--gap"><section class="band" aria-labelledby="rd-why-title"><h2 id="rd-why-title">Why sign-up isn\'t open yet</h2>' +
-          '<p>Riders go to people\'s homes and carry their goods, so we\'re settling how we check every rider before they take a parcel. We\'ll publish what you need and how we check it before sign-up opens.</p>' +
+          '<p>Riders go to people\'s homes and carry their goods, so we\'re settling how we check every rider in person before they take a parcel. These are the checks we plan:</p>' + ticks((RIDERS.checks || []).map(esc)) +
           '<p>Courier companies licensed by ZICTA can already be chosen at checkout: see <a href="help.html#couriers">courier options</a>.</p></section>' +
         '<section class="card" aria-labelledby="rd-soon-title"><h2 id="rd-soon-title">Rider sign-up</h2><p class="notice">Coming soon. Nothing is collected here yet.</p>' +
           '<div class="btn-row"><button class="btn btn--primary" type="button" disabled>Sign-up opens soon</button>' +
@@ -4208,7 +4450,10 @@
       }); loadProducts();
     },
     clearCheckout: function () { setCart([]); store.set('voucher', ''); }, refreshCounts: updateCounts,
-    receiptHTML: receiptHTML, receiptText: receiptText, arrivesText: arrivesText, waTo: waTo, speedName: speedName, feeText: feeText, courier: courier, trackUrl: trackUrl, TRACK: TRACK
+    receiptHTML: receiptHTML, receiptText: receiptText, arrivesText: arrivesText, receiptDoc: receiptDoc, downloadReceiptPdf: downloadReceiptPdf,
+    rememberReceipt: function (m) { receiptModels[m.ref] = m; }, applyDeliverySettings: applyDeliverySettings, deliverySettingsNow: deliverySettingsNow,
+    deliveryEditorHTML: deliveryEditorHTML, bindDeliveryEditor: bindDeliveryEditor, riderFormHTML: riderFormHTML, readRiderForm: readRiderForm,
+    riderChecksHTML: riderChecksHTML, riderStatusHTML: riderStatusHTML, ridersOpen: ridersOpen, RIDER_STATUS: RIDER_STATUS, VEHICLES: VEHICLES, AVAIL: AVAIL, waTo: waTo, speedName: speedName, feeText: feeText, courier: courier, trackUrl: trackUrl, TRACK: TRACK
   };
 
   // Support index.html?q=term (from other pages and search engines)

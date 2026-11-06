@@ -43,7 +43,9 @@
       sendCode: function (email, name) { return request('/auth/v1/otp', { email: email, create_user: true, data: { name: name } }, false); },
       verifyCode: async function (email, code) { save(await request('/auth/v1/verify', { email: email, token: code, type: 'email' }, false)); return identity(); },
       signOut: async function () { try { if (session) await request('/auth/v1/logout', {}, true); } finally { save(null); } },
-      rpc: function (name, body) { return request('/rest/v1/rpc/' + name, body, name !== 'catalogue_page'); },
+      // Public reads work without signing in; everything else needs a verified session
+      rpc: function (name, body) { return request('/rest/v1/rpc/' + name, body, ['catalogue_page', 'delivery_settings'].indexOf(name) === -1); },
+      fn: function (name, body) { return request('/functions/v1/' + name, body, false); },
       read: function (query) { return request('/rest/v1/' + query, undefined, true); },
       write: function (table, body) { return request('/rest/v1/' + table, body, true); },
       placeOrder: function (body) { return request('/functions/v1/place-order', body, true); },
