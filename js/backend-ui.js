@@ -80,6 +80,7 @@
         var button = this, status = box.querySelector('[role="status"]'); button.disabled = true;
         try {
           var order = await B.placeOrder(payload);
+          Z().rememberWished(order.ref, Z().wishedIn(checkout.items.map(function (it) { return it.p.id; })));
           Z().clearCheckout(); location.hash = '#/order/' + encodeURIComponent(order.ref) + '?placed=1';
         } catch (e) { status.textContent = e.message + ' Retry uses the same order reference.'; button.disabled = false; }
       };
@@ -260,7 +261,7 @@
     var parcels = await B.read('order_parcels?select=seller_id,speed,fee_zmw,free,courier_id,tracking_ref,courier_status,min_days,max_days&order_id=eq.' + o.id);
     var tracking = parcels.length ? await B.read('courier_tracking_events?select=seller_id,status,description,location,occurred_at&order_id=eq.' + o.id + '&order=occurred_at.desc&limit=100') : [];
     if (ticket !== navigation) return;
-    show((query && query.get('placed') ? '<div class="placed" role="status"><p class="placed__title">Thank you, your order is placed</p><p>We\'ll confirm it on WhatsApp. Your receipt is ready to download or send.</p></div>' : '') +
+    show((query && query.get('placed') ? '<div class="placed" role="status"><p class="placed__title">Thank you, your order is placed</p><p>We\'ll confirm it on WhatsApp. Your receipt is ready to download or send.</p></div>' + Z().wishPromptHTML(o.ref) : '') +
       '<div class="receipt-actions"><a class="btn btn--primary" href="#/receipt/' + encodeURIComponent(o.ref) + '">View receipt</a><a class="btn btn--secondary" href="#/receipt/' + encodeURIComponent(o.ref) + '?pdf=1">Download PDF</a></div>' +
       '<section class="card"><h2>' + esc(o.ref) + '</h2><p>Order: ' + esc(o.status) + ' · Payment: ' + esc(o.payment_status) + '</p><dl class="totals"><div><dt>Items total</dt><dd>' + Z().kwacha(Number(o.total_zmw)) + '</dd></div><div><dt>Delivery</dt><dd>' + (o.delivery_zmw === null ? 'Awaiting confirmation; no final payment total yet' : Z().kwacha(Number(o.delivery_zmw))) + '</dd></div><div><dt>Paid</dt><dd>' + Z().kwacha(Number(o.paid_zmw)) + '</dd></div></dl>' +
       (o.business_name ? '<div class="deliver-box"><p class="deliver-box__label">Billed to</p><p>' + esc(o.business_name) + (o.business_tpin ? '<br>TPIN ' + esc(o.business_tpin) : '') + (o.business_address ? '<br>' + esc(o.business_address) : '') + '</p></div>' : '') +

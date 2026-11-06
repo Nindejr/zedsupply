@@ -2014,3 +2014,15 @@ input[aria-invalid="true"], select[aria-invalid="true"], textarea[aria-invalid="
 .delivery-editor .check input, .rate-table input[type="checkbox"] { width: 24px; height: 24px; }
 .delivery-editor .checks { gap: 0.55rem 1rem; }
 .delivery-editor > .btn-row { margin-top: 0.4rem; }
+
+/* ---------- Wishlist: what was bought, what's in the cart ---------- */
+.wish-prompt { margin: 0 0 1rem; padding: 0.9rem 1.1rem; border-radius: var(--radius); border: 1px solid var(--glass-border); background: linear-gradient(135deg, rgb(245 197 66 / 0.16), rgb(27 204 191 / 0.08)), var(--color-surface); box-shadow: var(--glass-shadow); }
+.wish-prompt p { margin: 0 0 0.35rem; max-width: none; }
+.wish-prompt .btn-row { margin-top: 0.5rem; }
+.wish-tools { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.5rem 1rem; margin: 0 0 1rem; }
+.wish-tools p { margin: 0; }
+.wish-status { display: flex; flex-wrap: wrap; gap: 0.35rem; margin: 0 0 0.35rem; }
+.wish-tag { display: inline-block; padding: 0.1rem 0.5rem; border-radius: 999px; font-size: 0.75rem; font-weight: 700; }
+.wish-tag--cart { background: #E4F0FF; color: #0A2A66; }
+.wish-tag--bought { background: #E6F4DF; color: #1A6B0E; }
+@media (prefers-color-scheme: dark) { .wish-tag--cart { background: #16285A; color: #CFE3FF; } .wish-tag--bought { background: #173A12; color: #B6EFA0; } }

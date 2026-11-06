@@ -602,6 +602,27 @@
     updateCounts();
     return i === -1;
   }
+  /* Wishlist items that get bought. Nothing leaves the wishlist by itself: after an order, the
+     confirmation asks once whether to remove the ones just bought (keeping them is the default,
+     as people often buy again), and the wishlist marks what's in the cart and what was bought. */
+  function noteBought(ids) {
+    var b = store.get('bought', {});
+    ids.forEach(function (id) { b[id] = today; });
+    store.set('bought', b);
+  }
+  var wishPending = {};   // connected orders: { ref: [ids] } for this visit
+  function rememberWished(ref, ids) { wishPending[ref] = ids; noteBought(ids); }
+  function wishedIn(ids) { var w = wish(); return ids.filter(function (id, i) { return w.indexOf(id) !== -1 && ids.indexOf(id) === i; }); }
+  function wishPromptHTML(ref, ids) {
+    ids = wishedIn(ids || []);
+    if (!ids.length || store.get('wish-asked', {})[ref]) return '';
+    var names = ids.map(function (id) { var p = product(id); return p ? p.title : id; });
+    return '<div class="wish-prompt" data-wish-prompt="' + esc(ref) + '" tabindex="-1"><p><strong>' + (ids.length === 1 ? 'You bought something from your wishlist' : 'You bought ' + ids.length + ' things from your wishlist') + ':</strong> ' + esc(names.join(', ')) + '.</p>' +
+      '<p class="pmeta">Keep ' + (ids.length === 1 ? 'it' : 'them') + ' there to buy again, or tidy your list.</p><div class="btn-row">' +
+      '<button class="btn btn--secondary btn--sm" type="button" data-wish-remove="' + esc(ids.join(',')) + '">Remove from wishlist</button>' +
+      '<button class="btn btn--secondary btn--sm" type="button" data-wish-keep>Keep on wishlist</button></div></div>';
+  }
+  function wishAsked(ref, answer) { var a = store.get('wish-asked', {}); if (answer) a[ref] = answer; else delete a[ref]; store.set('wish-asked', a); }
   function addRecent(id) {
     var r = store.get('recent', []).filter(function (x) { return x !== id; });
     r.unshift(id);
@@ -1577,6 +1598,20 @@
       return;
     }
     if (e.target.closest('[data-print-order]') || e.target.closest('[data-print-receipt]')) { window.print(); return; }
+    var wr = e.target.closest('[data-wish-remove]'), wu = e.target.closest('[data-wish-undo]'), wk = e.target.closest('[data-wish-keep]');
+    if (wr || wu || wk) {
+      var box = (wr || wu || wk).closest('[data-wish-prompt]'), ref = box ? box.getAttribute('data-wish-prompt') : '';
+      if (wk) { wishAsked(ref, 'kept'); box.innerHTML = '<p role="status">Kept on your wishlist.</p>'; box.focus(); return; }
+      var ids = (wr || wu).getAttribute(wr ? 'data-wish-remove' : 'data-wish-undo').split(',').filter(Boolean);
+      if (wr) store.set('wish', wish().filter(function (id) { return ids.indexOf(id) === -1; }));
+      else store.set('wish', wish().concat(ids.filter(function (id) { return wish().indexOf(id) === -1; })));
+      updateCounts();
+      if (!box) { toast((wr ? 'Removed ' : 'Put back ') + ids.length + (ids.length === 1 ? ' item' : ' items') + (wr ? ' from' : ' on') + ' your wishlist. ' + (wr ? '<button class="link-btn" type="button" data-wish-undo="' + esc(ids.join(',')) + '">Undo</button>' : ''), 'success'); if (location.hash.indexOf('#/wishlist') === 0) route(); return; }
+      wishAsked(ref, wr ? 'removed' : '');
+      box.innerHTML = wr ? '<p role="status">Removed from your wishlist. <button class="link-btn" type="button" data-wish-undo="' + esc(ids.join(',')) + '">Undo</button></p>' : '<p role="status">Back on your wishlist.</p>';
+      var again = $('[data-wish-undo]', box); (again || box).focus();
+      return;
+    }
     var pdfBtn = e.target.closest('[data-receipt-pdf]');
     if (pdfBtn) { downloadReceiptPdf(pdfBtn.getAttribute('data-receipt-pdf'), pdfBtn); return; }
     var step = e.target.closest('[data-step]');
@@ -3340,7 +3375,8 @@
         list.unshift({ ref: ref, date: today, items: items.map(function (it) { return it.opt ? { id: it.p.id, qty: it.qty, price: it.each, opt: it.opt, label: it.label } : { id: it.p.id, qty: it.qty, price: it.each }; }), total: deliveryKnown() ? grand() : total, status: 0, deliverTo: locFull(), pay: payChoice, ship: COURIERS.length ? shipSummary() : '', shipId: shipChoice, message: co.getAttribute('data-wa-message'), vat: vat, when: when(), gift: gift().on ? gift() : null, addressId: chosenAddress ? chosenAddress.id : '', mode: coMode(), business: b, freight: heavy.length && coMode() !== 'collection' ? heavyText : '',
           name: nameEl.value.trim(), sub: sub, save: save, voucher: vOff ? { code: v.code, off: vOff } : null, itemsTotal: total, vatRate: vat ? VAT.rate : null, vatIncluded: VAT.included,
           delivery: ratesOn() ? { speed: shipSpeed, fee: dq && !dq.pending ? dq.total : null, pending: !deliveryKnown(), parcels: parcelsNow(), sample: !!DELIVERY.sampleRates } : null,
-          receipt: receiptTo() });
+          receipt: receiptTo(), wished: wishedIn(items.map(function (it) { return it.p.id; })) });
+        noteBought(items.map(function (it) { return it.p.id; }));
         store.set('orders', list);
         setCart([]);
         store.set('voucher', '');
@@ -3365,9 +3401,14 @@
     },
 
     wishlist: function () {
-      var list = wish().map(product).filter(Boolean);
+      var list = wish().map(product).filter(Boolean), bought = store.get('bought', {}), inCart = cart().map(function (l) { return l.id; });
+      var boughtIds = list.filter(function (p) { return bought[p.id]; }).map(function (p) { return p.id; });
       show(crumbs([['Wishlist']]) + head('Your wishlist', 'Products you\'ve liked, saved for later.') +
-        (list.length ? '<ul class="grid">' + cards(list) + '</ul>' : empty('Tap the comet on any product to save it here.', '<a class="btn btn--primary" href="#/deals">Browse deals</a>')), 'Wishlist');
+        (boughtIds.length ? '<div class="wish-tools"><p class="pmeta">' + boughtIds.length + (boughtIds.length === 1 ? ' item here was' : ' items here were') + ' bought.</p><button class="btn btn--secondary btn--sm" type="button" data-wish-remove="' + esc(boughtIds.join(',')) + '">Remove bought items</button></div>' : '') +
+        (list.length ? '<ul class="grid">' + list.map(function (p) {
+          var tags = (inCart.indexOf(p.id) !== -1 ? '<span class="wish-tag wish-tag--cart">In your cart</span>' : '') + (bought[p.id] ? '<span class="wish-tag wish-tag--bought">Bought ' + niceDate(bought[p.id]) + '</span>' : '');
+          return tags ? card(p).replace('<div class="pbody">', '<div class="pbody"><p class="wish-status">' + tags + '</p>') : card(p);
+        }).join('') + '</ul>' : empty('Tap the comet on any product to save it here.', '<a class="btn btn--primary" href="#/deals">Browse deals</a>')), 'Wishlist');
     },
 
     account: function () {
@@ -3453,6 +3494,7 @@
       show(crumbs([['Orders', '#/orders'], [o.ref]]) + head('Order ' + esc(o.ref), 'Placed ' + niceDate(o.date) + (o.sample ? ' · <span class="tag-sample">Demo order</span>' : '')) +
         (placed ? '<div class="placed" id="placed" role="status" tabindex="-1"><p class="placed__title">Thank you, your order is placed</p>' +
           '<p>' + (!o.sample && !o.status && o.message ? 'Press Send in WhatsApp so it reaches us; we then confirm it and send payment instructions. ' : '') + 'Your receipt is ready: download it, or send it to your WhatsApp or email.</p></div>' : '') +
+        (placed ? wishPromptHTML(o.ref, o.wished) : '') +
         receiptActionsHTML(receiptModel(o), false) +
         '<div class="cart"><div class="card"><h2>Tracking</h2><ol class="timeline">' + STATUS.map(function (s, i) {
           return '<li class="' + (i < o.status ? 'is-done' : (i === o.status ? 'is-done is-current' : '')) + '">' + s + (i === o.status ? ' <span class="visually-hidden">(current status)</span>' : '') + '</li>';
@@ -4451,7 +4493,8 @@
     },
     clearCheckout: function () { setCart([]); store.set('voucher', ''); }, refreshCounts: updateCounts,
     receiptHTML: receiptHTML, receiptText: receiptText, arrivesText: arrivesText, receiptDoc: receiptDoc, downloadReceiptPdf: downloadReceiptPdf,
-    rememberReceipt: function (m) { receiptModels[m.ref] = m; }, applyDeliverySettings: applyDeliverySettings, deliverySettingsNow: deliverySettingsNow,
+    rememberReceipt: function (m) { receiptModels[m.ref] = m; }, wishedIn: wishedIn, rememberWished: rememberWished,
+    wishPromptHTML: function (ref) { return wishPromptHTML(ref, wishPending[ref] || []); }, applyDeliverySettings: applyDeliverySettings, deliverySettingsNow: deliverySettingsNow,
     deliveryEditorHTML: deliveryEditorHTML, bindDeliveryEditor: bindDeliveryEditor, riderFormHTML: riderFormHTML, readRiderForm: readRiderForm,
     riderChecksHTML: riderChecksHTML, riderStatusHTML: riderStatusHTML, ridersOpen: ridersOpen, RIDER_STATUS: RIDER_STATUS, VEHICLES: VEHICLES, AVAIL: AVAIL, waTo: waTo, speedName: speedName, feeText: feeText, courier: courier, trackUrl: trackUrl, TRACK: TRACK
   };

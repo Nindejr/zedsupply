@@ -565,3 +565,61 @@ test('riders apply, and staff approve only after the in-person checks', async ({
   await expect(page.locator('.card')).toContainText('Come to our Lusaka office');
   expect(errors).toEqual([]);
 });
+
+test('after an order, the buyer chooses whether bought items leave the wishlist, and the wishlist shows what was bought', async ({ page }) => {
+  const errors = []; page.on('pageerror', e => errors.push(e.message));
+  await page.clock.setFixedTime(new Date('2026-11-04T07:00:00Z'));
+  await page.addInitScript(() => {
+    localStorage.setItem('zs-consent', 'denied');
+    localStorage.setItem('zs-loc-tip-seen', '1');
+    localStorage.setItem('zs-location', JSON.stringify({ town: 'Lusaka', area: 'Kabulonga', province: 'lusaka', mode: 'delivery' }));
+    // Only on the first load, so reloads see what the test did
+    if (localStorage.getItem('zs-wish') === null) {
+      localStorage.setItem('zs-wish', JSON.stringify(['L001', 'L012']));
+      localStorage.setItem('zs-cart', JSON.stringify([{ id: 'L001', qty: 1 }]));
+    }
+  });
+  // Adding to the cart doesn't take it off the wishlist; the wishlist says it's in the cart
+  await page.goto('/index.html?demo=1&theme=off#/wishlist');
+  const paper = page.locator('.pcard').filter({ hasText: 'A4 copy paper' });
+  await expect(paper.locator('.wish-tag--cart')).toHaveText('In your cart');
+  await expect(page.locator('.wish-tag--bought')).toHaveCount(0);
+  // Order it
+  await page.goto('/index.html?demo=1&theme=off#/cart');
+  await page.getByLabel('Your name *').fill('Chanda Mwila');
+  await page.locator('#co-review').click();
+  await page.context().route('https://wa.me/**', route => route.fulfill({ body: 'WhatsApp' }));
+  const [wa] = await Promise.all([page.context().waitForEvent('page'), page.getByRole('dialog').getByRole('link', { name: /Place order/ }).click()]);
+  await wa.close();
+  await expect(page).toHaveURL(/\?placed=1$/);
+  // The confirmation asks once, without blocking anything
+  const ask = page.locator('[data-wish-prompt]');
+  await expect(ask).toContainText('You bought something from your wishlist: A4 copy paper, box of 5 reams.');
+  await expect(page.getByText('Thank you, your order is placed')).toBeVisible();
+  await ask.getByRole('button', { name: 'Remove from wishlist' }).click();
+  await expect(ask).toContainText('Removed from your wishlist.');
+  await expect(ask.getByRole('button', { name: 'Undo' })).toBeFocused();
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('zs-wish')))).toEqual(['L012']);
+  await ask.getByRole('button', { name: 'Undo' }).click();
+  await expect(ask).toHaveText('Back on your wishlist.');
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('zs-wish')).sort())).toEqual(['L001', 'L012']);
+  await page.evaluate(require('node:fs').readFileSync(axe, 'utf8'));
+  expect(await page.evaluate(async () => (await axe.run('main', { runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa'] } })).violations.map(v => v.id))).toEqual([]);
+  // Keeping it is remembered: the question isn't asked again for this order
+  await page.reload();
+  await page.locator('[data-wish-prompt]').getByRole('button', { name: 'Keep on wishlist' }).click();
+  await expect(page.locator('[data-wish-prompt]')).toHaveText('Kept on your wishlist.');
+  await page.reload();
+  await expect(page.locator('[data-wish-prompt]')).toHaveCount(0);
+  // The wishlist shows it was bought, and bought items can be cleared in one go, with undo
+  await page.goto('/index.html?demo=1&theme=off#/wishlist');
+  await expect(paper.locator('.wish-tag--bought')).toHaveText('Bought 4 Nov 2026');
+  await expect(paper.locator('.wish-tag--cart')).toHaveCount(0);
+  await expect(paper.getByRole('button', { name: /Add to cart/ })).toBeVisible();
+  await page.getByRole('button', { name: 'Remove bought items' }).click();
+  await expect(page.locator('.pcard')).toHaveCount(1);
+  await expect(page.locator('#toast')).toContainText('Removed 1 item from your wishlist.');
+  await page.locator('#toast').getByRole('button', { name: 'Undo' }).click();
+  await expect(page.locator('.pcard')).toHaveCount(2);
+  expect(errors).toEqual([]);
+});
