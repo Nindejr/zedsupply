@@ -80,7 +80,7 @@
         var button = this, status = box.querySelector('[role="status"]'); button.disabled = true;
         try {
           var order = await B.placeOrder(payload);
-          Z().rememberWished(order.ref, Z().wishedIn(checkout.items.map(function (it) { return it.p.id; })));
+          Z().rememberWished(order.ref, checkout.items.map(function (it) { return it.p.id; }));
           Z().clearCheckout(); location.hash = '#/order/' + encodeURIComponent(order.ref) + '?placed=1';
         } catch (e) { status.textContent = e.message + ' Retry uses the same order reference.'; button.disabled = false; }
       };

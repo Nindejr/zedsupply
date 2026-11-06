@@ -127,7 +127,7 @@
   });
   function newMatches(x) { var known = x.ids || []; return searchIds(x.q, x.dept).filter(function (id) { return known.indexOf(id) === -1; }); }
   // Explicit application keys: never clear another application's data or cookie preferences.
-  var deviceKeys = ['user', 'cart', 'wish', 'bought', 'wish-asked', 'saved', 'recent', 'compare', 'orders', 'reviews', 'addresses',
+  var deviceKeys = ['user', 'cart', 'wish', 'bought', 'wish-asked', 'wish-pending', 'saved', 'recent', 'compare', 'orders', 'reviews', 'addresses',
     'complaints', 'alerts', 'searches', 'questions', 'seller', 'seller-couriers', 'seller-locations',
     'listings', 'promos', 'deals', 'team', 'voucher', 'moderation', 'staff-log', 'stock-data', 'stock-settings', 'location'];
   EXT.views.device = function () {

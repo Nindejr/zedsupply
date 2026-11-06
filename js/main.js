@@ -610,8 +610,15 @@
     ids.forEach(function (id) { b[id] = today; });
     store.set('bought', b);
   }
-  var wishPending = {};   // connected orders: { ref: [ids] } for this visit
-  function rememberWished(ref, ids) { wishPending[ref] = ids; noteBought(ids); }
+  function rememberWished(ref, ids) {
+    // Kept on the device so the question survives a reload; only the latest 20 orders are kept
+    var pending = store.get('wish-pending', {}), refs;
+    pending[ref] = wishedIn(ids);
+    refs = Object.keys(pending);
+    refs.slice(0, Math.max(0, refs.length - 20)).forEach(function (r) { delete pending[r]; });
+    store.set('wish-pending', pending);
+    noteBought(ids);
+  }
   function wishedIn(ids) { var w = wish(); return ids.filter(function (id, i) { return w.indexOf(id) !== -1 && ids.indexOf(id) === i; }); }
   function wishPromptHTML(ref, ids) {
     ids = wishedIn(ids || []);
@@ -4494,7 +4501,7 @@
     clearCheckout: function () { setCart([]); store.set('voucher', ''); }, refreshCounts: updateCounts,
     receiptHTML: receiptHTML, receiptText: receiptText, arrivesText: arrivesText, receiptDoc: receiptDoc, downloadReceiptPdf: downloadReceiptPdf,
     rememberReceipt: function (m) { receiptModels[m.ref] = m; }, wishedIn: wishedIn, rememberWished: rememberWished,
-    wishPromptHTML: function (ref) { return wishPromptHTML(ref, wishPending[ref] || []); }, applyDeliverySettings: applyDeliverySettings, deliverySettingsNow: deliverySettingsNow,
+    wishPromptHTML: function (ref) { return wishPromptHTML(ref, store.get('wish-pending', {})[ref] || []); }, applyDeliverySettings: applyDeliverySettings, deliverySettingsNow: deliverySettingsNow,
     deliveryEditorHTML: deliveryEditorHTML, bindDeliveryEditor: bindDeliveryEditor, riderFormHTML: riderFormHTML, readRiderForm: readRiderForm,
     riderChecksHTML: riderChecksHTML, riderStatusHTML: riderStatusHTML, ridersOpen: ridersOpen, RIDER_STATUS: RIDER_STATUS, VEHICLES: VEHICLES, AVAIL: AVAIL, waTo: waTo, speedName: speedName, feeText: feeText, courier: courier, trackUrl: trackUrl, TRACK: TRACK
   };

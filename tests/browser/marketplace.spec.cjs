@@ -104,6 +104,8 @@ test('device export and deletion preserve preferences and unrelated site data', 
 });
 
 test('a seller builds a team with roles in the Seller Centre preview', async ({ page }) => {
+  // The first-visit location tip and cookie notice would otherwise cover the form on a phone
+  await page.addInitScript(() => { localStorage.setItem('zs-consent', 'denied'); localStorage.setItem('zs-loc-tip-seen', '1'); });
   await page.goto('/index.html?demo=1&theme=off#/seller');
   await page.getByRole('button', { name: 'Enter Seller Centre' }).click();
   const team = page.locator('#sc-team');

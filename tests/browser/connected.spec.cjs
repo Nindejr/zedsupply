@@ -346,6 +346,31 @@ test('the server receipt is drawn in the storefront design and can be sent by em
   expect(errors).toEqual([]);
 });
 
+for (const wished of [false, true]) test('connected wishlist purchase survives refresh (saved first: ' + wished + ')', async ({page}) => {
+  await setup(page); await signIn(page);
+  // Match the order reference returned by the order-read fixture.
+  await page.route('**/functions/v1/place-order', route => route.fulfill({json:{ref:'ZS-LIVE0001',total:100,order_id:41}}));
+  await page.evaluate(saved => localStorage.setItem('zs-wish', JSON.stringify(saved ? ['LIVE1'] : [])), wished);
+  await page.goto('/index.html?demo=0#/product/LIVE1');
+  await page.getByRole('button',{name:'Add to cart',exact:true}).click();
+  await page.goto('/index.html?demo=0#/cart');
+  await page.getByRole('link',{name:'Review server total',exact:true}).click();
+  await page.getByRole('button',{name:/Place order for/}).click();
+  await expect(page.getByText('Thank you, your order is placed')).toBeVisible();
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('zs-bought')).LIVE1)).toBeTruthy();
+  const prompt = page.locator('[data-wish-prompt]');
+  await expect(prompt).toHaveCount(wished ? 1 : 0);
+  await page.reload();
+  await expect(page.getByText('Thank you, your order is placed')).toBeVisible();
+  await expect(prompt).toHaveCount(wished ? 1 : 0);
+  if (wished) {
+    await prompt.getByRole('button',{name:'Keep on wishlist'}).click();
+    await page.reload();
+    await expect(page.getByText('Thank you, your order is placed')).toBeVisible();
+    await expect(prompt).toHaveCount(0);
+  }
+});
+
 test('delivery prices come from the database, and a courier\'s live price is charged as shown', async ({page}) => {
   const errors = []; page.on('pageerror', e => errors.push(e.message));
   const calls = await setup(page); await signIn(page);
