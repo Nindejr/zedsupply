@@ -162,6 +162,11 @@
     if (ticket !== navigation) return;
     show('<p>These are the delivery prices buyers see in the cart and pay at checkout. Each change is saved to the database and logged with your name.</p>' + Z().deliveryEditorHTML(x), 'Delivery prices');
     Z().bindDeliveryEditor(document.getElementById('delivery-editor'), async function (v) {
+      // A rate's route is its database key. Remove the previous route when it changes.
+      v.rates.forEach(function (r) {
+        var old = (x.rates || []).find(function (a) { return String(a.id) === String(r.id); });
+        if (old && ((old.courier || '') !== (r.courier || '') || old.zone !== r.zone || old.speed !== r.speed)) v.removed.push(r.id);
+      });
       for (var i = 0; i < v.removed.length; i++) await B.rpc('staff_delete_delivery_rate', { rate_id: Number(v.removed[i]) });
       for (var j = 0; j < v.rates.length; j++) {
         var r = v.rates[j];
@@ -173,6 +178,17 @@
         same_day_cutoff: v.sameDay.cutoff, same_day_towns: v.sameDay.towns, closed_days: v.closedDays });
       var fresh = await B.rpc('delivery_settings', {});
       window.ZS_DELIVERY_SETTINGS = fresh; Z().applyDeliverySettings(fresh, false);
+      x = fresh;
+      var editor = document.getElementById('delivery-editor');
+      if (ticket === navigation && editor) {
+        editor.removeAttribute('data-removed');
+        editor.querySelectorAll('[data-rate-body] [data-rate-row]').forEach(function (tr, i) {
+          var r = v.rates[i], saved = (fresh.rates || []).find(function (a) {
+            return (a.courier || '') === (r.courier || '') && a.zone === r.zone && a.speed === r.speed;
+          });
+          if (saved) tr.setAttribute('data-rate-id', saved.id);
+        });
+      }
       Z().toast('Delivery prices saved', 'success');
     });
   }

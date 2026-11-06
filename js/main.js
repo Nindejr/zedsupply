@@ -2522,7 +2522,7 @@
         fee: num(g('fee').value), kg: num(g('kg').value), perKg: num(g('perKg').value), active: g('active').checked };
       var lo = num(g('min').value), hi = num(g('max').value), key = [r.courier || '', r.zone, r.speed].join('/');
       r.days = lo != null && hi != null ? [lo, hi] : null;
-      if (!error && (r.fee == null || !(r.fee >= 0) || Math.round(r.fee * 100) !== r.fee * 100)) error = 'Rate ' + (i + 1) + ': enter a fee in kwacha.';
+      if (!error && (r.fee == null || !Number.isFinite(r.fee) || !(r.fee >= 0) || Math.abs(Math.round(r.fee * 100) - r.fee * 100) > 0.000001)) error = 'Rate ' + (i + 1) + ': enter a fee in kwacha.';
       if (!error && (r.kg == null || r.kg < 0 || r.perKg == null || r.perKg < 0)) error = 'Rate ' + (i + 1) + ': enter the kilograms included and the price per extra kilogram.';
       if (!error && ((lo == null) !== (hi == null) || lo > hi)) error = 'Rate ' + (i + 1) + ': enter the working days as fewest and most, or leave both empty.';
       if (!error && seen[key]) error = 'Rate ' + (i + 1) + ' repeats rate ' + seen[key] + ': one rate per courier, zone and speed.';
@@ -3141,7 +3141,7 @@
         // With a courier chosen, the server asks that courier for its live price when it's connected
         if (dq && !dq.pending && shipChoice) ext('deliveryLive', { items: items, buyer_town: loc.town, buyer_province_id: provinceOf(loc), fulfilment: coMode(),
           delivery_speed: shipSpeed, courier_id: shipChoice, items_total_zmw: total, apply: function (r) {
-            if (seq !== liveSeq || !r || !r.quote_id || !Array.isArray(r.parcels)) return;
+            if (seq !== liveSeq || !speedWrap || !speedWrap.isConnected || !r || !r.quote_id || !Array.isArray(r.parcels)) return;
             dq = { speed: r.speed || shipSpeed, total: r.total == null ? null : Number(r.total), pending: !!r.pending, freeGap: dq ? dq.freeGap : null, free: Number(r.total) === 0,
               parcels: r.parcels.map(function (p) { return { id: p.seller_id, zone: p.zone, speed: p.speed, fee: p.fee == null ? null : Number(p.fee), free: !!p.free, pending: !!p.pending,
                 days: p.min_days != null && p.max_days != null ? [p.min_days, p.max_days] : null, note: p.note || '', courier: p.courier_id || '' }; }) };

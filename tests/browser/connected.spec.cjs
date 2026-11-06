@@ -101,6 +101,27 @@ test('verified sign-in, server search and quote-before-order use trusted identit
   expect(calls.find(c => c.path === '/rest/v1/orders').query).toContain('user_id=eq.7');
   expect(errors).toEqual([]);
 });
+
+test('changing a delivery route removes its old price and repeated saves keep current IDs', async ({page}) => {
+  const calls = await setup(page, {staff:true}); await signIn(page);
+  await page.getByRole('link',{name:'Delivery prices',exact:true}).click();
+  const editor = page.locator('#delivery-editor');
+  await expect(editor.getByLabel('Rate 1: fee in kwacha')).toHaveValue('45');
+  await editor.getByLabel('Rate 1: where it goes').selectOption('province');
+  await editor.getByLabel('Rate 1: fee in kwacha').fill('19.90');
+  await editor.getByRole('button',{name:'Remove Rate 2'}).click();
+  await page.route('**/rest/v1/rpc/delivery_settings', route => route.fulfill({json:{
+    rates:[{id:9,courier:null,zone:'province',speed:'standard',fee:19.9,kg:5,perKg:5,days:[1,2],active:true}],
+    freeDelivery:{min:null,zones:['town']},defaultKg:1,origin:null,sameDay:{cutoff:11,towns:[]},closedDays:[0]
+  }}));
+  await editor.getByRole('button',{name:'Save delivery prices'}).click();
+  await expect(editor.locator('[role="status"]')).toContainText('Delivery prices saved');
+  expect(calls.filter(c => c.path.endsWith('/staff_delete_delivery_rate')).map(c => c.body.rate_id)).toEqual([2,1]);
+  await expect(editor.locator('[data-rate-id="9"]')).toHaveCount(1);
+  await editor.getByRole('button',{name:'Save delivery prices'}).click();
+  await expect(editor.getByRole('button',{name:'Save delivery prices'})).toBeEnabled();
+  expect(calls.filter(c => c.path.endsWith('/staff_delete_delivery_rate'))).toHaveLength(2);
+});
 test('a changed checkout field invalidates the reviewed quote', async ({page}) => {
   const calls = await setup(page); await signIn(page);
   await page.goto('/index.html?demo=0#/product/LIVE1');
