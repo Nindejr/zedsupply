@@ -1,0 +1,54 @@
+/* Zed Supply admin panel (/admin/). Builds on css/style.css (colours, buttons, forms, cards,
+   chips, status labels) and adds the admin layout: a top bar with the flag stripe, a section
+   list beside the content on wide screens and above it on phones. */
+.admin-body { background: var(--color-bg); min-height: 100vh; }
+.admin-bar { position: relative; display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; padding: 0.6rem 1rem; background: var(--color-header); color: #FFFFFF; }
+.admin-bar::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 3px; background: var(--zm-stripe); }
+.admin-bar__brand { display: inline-flex; align-items: center; gap: 0.6rem; color: #FFFFFF; text-decoration: none; font-weight: 700; }
+.admin-bar__brand img { height: 34px; width: auto; }
+.admin-bar__brand span { padding: 0.1rem 0.55rem; border-radius: 999px; background: var(--gold-gloss); color: #2A1C00; font-size: 0.8rem; letter-spacing: 0.04em; text-transform: uppercase; }
+.admin-bar__who { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; font-size: 0.9rem; }
+.admin-bar__who .btn { background: rgb(255 255 255 / 0.92); color: #0A2A66; }
+.admin-layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1rem; max-width: 1280px; margin: 0 auto; padding: 1rem; }
+@media (min-width: 900px) { .admin-layout { grid-template-columns: 220px minmax(0, 1fr); align-items: start; } }
+.admin-nav ul { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 0.4rem; }
+@media (min-width: 900px) { .admin-nav { position: sticky; top: 1rem; } .admin-nav ul { flex-direction: column; } }
+.admin-nav li { max-width: none; }
+.admin-nav a { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; min-height: 44px; padding: 0.5rem 0.8rem; border-radius: var(--radius-sm); border: 1px solid var(--color-border); background: var(--color-surface); color: var(--color-text); text-decoration: none; font-weight: 600; }
+.admin-nav a[aria-current="page"] { border-color: var(--color-accent-ink); box-shadow: inset 4px 0 0 var(--color-accent-ink); }
+.admin-nav a:hover { border-color: rgb(245 197 66 / 0.9); }
+.admin-main { min-width: 0; }
+.admin-main:focus { outline: none; }
+.admin-main h1 { margin-top: 0; }
+.admin-sign { max-width: 520px; }
+.admin-steps { padding-left: 1.2rem; }
+.admin-qr { display: block; width: 200px; height: 200px; padding: 8px; border-radius: var(--radius-sm); background: #FFFFFF; border: 1px solid var(--color-border); }
+.admin-key { word-break: break-all; font-size: 0.95rem; }
+.admin-tiles { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(165px, 1fr)); gap: 0.75rem; }
+.admin-tiles li { max-width: none; }
+.admin-tile { position: relative; display: grid; gap: 0.2rem; padding: 0.9rem 1rem; border-radius: var(--radius); border: 1px solid var(--glass-border); background: var(--color-surface); box-shadow: var(--glass-shadow); color: var(--color-text); text-decoration: none; }
+.admin-tile::before { content: ""; position: absolute; top: 0; left: 14px; right: 14px; height: 2px; border-radius: 2px; background: var(--gold-gloss); }
+.admin-tile strong { font-size: 1.6rem; color: var(--color-heading); font-variant-numeric: tabular-nums; }
+.admin-tile span { color: var(--color-muted); font-size: 0.9rem; }
+.admin-tile.is-warn { border-color: rgb(231 174 52 / 0.9); background: linear-gradient(135deg, rgb(245 197 66 / 0.14), transparent), var(--color-surface); }
+.admin-chips { margin: 0 0 0.75rem; }
+.admin-search { display: flex; flex-wrap: wrap; align-items: end; gap: 0.5rem; margin: 0 0 1rem; }
+.admin-search label { flex-basis: 100%; font-weight: 600; }
+.admin-search input { flex: 1 1 220px; }
+.admin-table table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+.admin-table th, .admin-table td { padding: 0.55rem 0.6rem; text-align: left; vertical-align: top; border-bottom: 1px solid var(--color-border); }
+.admin-table thead th { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--color-muted); white-space: nowrap; }
+.admin-table small { color: var(--color-muted); }
+.admin-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1rem; margin-bottom: 1rem; }
+@media (min-width: 1000px) { .admin-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.admin-list { margin: 0; padding-left: 1.1rem; display: grid; gap: 0.35rem; }
+.admin-item { margin-bottom: 0.9rem; }
+.admin-item h2, .admin-item h3 { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; margin-top: 0; }
+.admin-form { margin-top: 0.75rem; display: grid; gap: 0.6rem; }
+.admin-empty { padding: 1rem; border-radius: var(--radius-sm); border: 1px dashed var(--color-border); color: var(--color-muted); }
+.admin-toast { position: fixed; left: 50%; bottom: 1rem; transform: translateX(-50%); max-width: calc(100% - 2rem); padding: 0.7rem 1rem; border-radius: var(--radius-sm); background: var(--color-header); color: #FFFFFF; opacity: 0; pointer-events: none; transition: opacity 0.2s; z-index: 50; }
+.admin-toast.is-on { opacity: 1; }
+.admin-toast--error { background: #8E1B1B; }
+.admin-toast--success { background: #1A6B0E; }
+.admin-form input:not([type="checkbox"]), .admin-form select, .admin-form textarea { max-width: 32rem; }
+.admin-grid > .card, .admin-main > .card { margin-top: 0; }

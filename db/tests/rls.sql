@@ -52,6 +52,9 @@ UPDATE users SET phone = '+260971000002' WHERE auth_id = '00000000-0000-0000-000
 UPDATE auth.users SET email = 'newer@example.com' WHERE id = '00000000-0000-0000-0000-0000000000b2';
 SELECT pg_temp.assert_true((SELECT phone = '+260971000002' AND email = 'newer@example.com' FROM users WHERE auth_id = '00000000-0000-0000-0000-0000000000b2'), 'an email change keeps the phone on file');
 UPDATE users SET is_staff = true WHERE auth_id = '00000000-0000-0000-0000-0000000000f1';
+-- Migration 029: staff need a role, and these tests don't cover the second sign-in step (staff_admin.sql does)
+INSERT INTO staff_roles (user_id, role) SELECT id, 'owner' FROM users WHERE is_staff ON CONFLICT DO NOTHING;
+UPDATE shop_settings SET staff_mfa_required = false;
 INSERT INTO seller_members (seller_id, user_id)
   SELECT 'rs1', id FROM users WHERE auth_id = '00000000-0000-0000-0000-0000000000a1' UNION ALL
   SELECT 'rs2', id FROM users WHERE auth_id = '00000000-0000-0000-0000-0000000000a2';

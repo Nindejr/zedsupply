@@ -21,6 +21,9 @@ INSERT INTO auth.users(id,email,email_confirmed_at,raw_user_meta_data) VALUES
  ('33333333-3333-3333-3333-3333333333e3','apply-staff@test.example',now(),'{"name":"Reviewer"}'),
  ('33333333-3333-3333-3333-3333333333e4','apply-unconfirmed@test.example',NULL,'{"name":"Unconfirmed"}');
 UPDATE users SET is_staff = true WHERE email = 'apply-staff@test.example';
+-- Migration 029: staff need a role, and these tests don't cover the second sign-in step (staff_admin.sql does)
+INSERT INTO staff_roles (user_id, role) SELECT id, 'owner' FROM users WHERE is_staff ON CONFLICT DO NOTHING;
+UPDATE shop_settings SET staff_mfa_required = false;
 INSERT INTO sellers(id,name) VALUES ('taken-store','Already here');
 
 -- Applying

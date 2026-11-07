@@ -75,6 +75,33 @@ configuration completeness only, not hosted security or operational readiness.
    `allowDemo:false` for the real launch and run configuration, browser, database
    and operational checks before enabling production.
 
+## Admin panel and staff roles
+
+The admin panel is at **`/admin/`** (My Account shows staff an "Admin panel" button). It is a
+separate page from the shop: only this site's own scripts, data only to Supabase, no analytics
+or advertising, hidden from search engines and never served from the offline cache. Migration
+029 adds what it relies on; it is not yet applied to the hosted project.
+
+- **Second sign-in step.** Staff sign in with the email code, then an authenticator app code
+  (Supabase's TOTP, `aal2`). Until then the database treats them as an ordinary account: no
+  staff reads and no staff actions (`shop_settings.staff_mfa_required`, on by default). In the
+  Supabase dashboard, check **Authentication → Multi-Factor → TOTP** is enabled before staff
+  first sign in. A staff member who loses their phone has their factor removed by the owner in
+  **Authentication → Users**, then sets it up again.
+- **Roles.** `staff_roles`: `owner` (everything), `operations` (orders, delivery fees and prices,
+  riders, resending messages), `support` (complaints, returns, support cases, hiding content),
+  `catalogue` (listings, sellers, seller applications) and `finance` (closing payment
+  requests). `app.staff_only()` checks the role for every staff action and logs it; an action
+  not yet given a role is owner-only. Existing staff became owners when 029 was applied.
+- **First owner.** In the Supabase SQL editor, for an account that has signed in once:
+  `UPDATE users SET is_staff = true WHERE email = 'you@…';`
+  `INSERT INTO staff_roles (user_id, role) SELECT id, 'owner' FROM users WHERE email = 'you@…';`
+  Add other staff the same way with their role. (A staff screen to manage roles is phase 2.)
+- **Sections.** Dashboard (what needs attention), orders (search, detail, confirm, dispatch,
+  delivery fee, cancellations), payments to check, support, seller and rider applications,
+  listings and seller verification, delivery prices, the message queue (handover codes are
+  never shown to staff) and the audit log (the owner sees everyone's actions, others their own).
+
 ## Staging rehearsal
 
 Accounts: **Buyer A**, **Buyer B**, a **store owner** (approved seller application) and a

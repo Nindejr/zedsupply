@@ -7,12 +7,12 @@
      npm run release            next version: today's date and the next r-number, e.g. 20261107-r24
      npm run release -- 20261107-r30   a version you choose
 
-   It updates index.html, help.html, privacy.html, 404.html and sw.js, refreshes the pages'
+   It updates index.html, help.html, privacy.html, 404.html, admin/index.html and sw.js, refreshes the pages'
    Content-Security-Policy hashes, then rebuilds the shop pages, which copy help.html's head.
    tests/release.test.cjs fails if any page or the service worker disagree. */
 const fs = require('node:fs');
 const { execFileSync } = require('node:child_process');
-const PAGES = ['index.html', 'help.html', 'privacy.html', '404.html'];
+const PAGES = ['index.html', 'help.html', 'privacy.html', '404.html', 'admin/index.html'];
 
 function current() {
   const m = fs.readFileSync('sw.js', 'utf8').match(/var VERSION = 'zs-([\w.-]+)'/);

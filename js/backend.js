@@ -40,9 +40,28 @@
     }
     return {
       enabled: enabled, initialize: initialize, profile: function () { return profile; }, identity: identity,
-      sendCode: function (email, name) { return request('/auth/v1/otp', { email: email, create_user: true, data: { name: name } }, false); },
+      // existingOnly: sign in an account that already exists (the admin page never creates one)
+      sendCode: function (email, name, existingOnly) { return request('/auth/v1/otp', existingOnly ? { email: email, create_user: false } : { email: email, create_user: true, data: { name: name } }, false); },
       verifyCode: async function (email, code) { save(await request('/auth/v1/verify', { email: email, token: code, type: 'email' }, false)); return identity(); },
       signOut: async function () { try { if (session) await request('/auth/v1/logout', {}, true); } finally { save(null); } },
+      // The second sign-in step for staff: an authenticator app (TOTP) through Supabase Auth.
+      // aal() reads the session's assurance level: aal1 after the email code, aal2 after the app code.
+      aal: function () {
+        try {
+          var part = session.access_token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+          return JSON.parse(atob(part + '==='.slice((part.length + 3) % 4))).aal || 'aal1';
+        } catch (e) { return 'aal1'; }
+      },
+      factors: async function () {
+        var u = await request('/auth/v1/user', undefined, true);
+        return (u.factors || []).filter(function (f) { return f.factor_type === 'totp'; });
+      },
+      enrollTotp: function (label) { return request('/auth/v1/factors', { factor_type: 'totp', friendly_name: label }, true); },
+      verifyTotp: async function (factorId, code) {
+        var challenge = await request('/auth/v1/factors/' + encodeURIComponent(factorId) + '/challenge', {}, true);
+        save(await request('/auth/v1/factors/' + encodeURIComponent(factorId) + '/verify', { challenge_id: challenge.id, code: String(code).replace(/\s+/g, '') }, true));
+        return identity();
+      },
       // Public reads work without signing in; everything else needs a verified session
       rpc: function (name, body) { return request('/rest/v1/rpc/' + name, body, ['catalogue_page', 'delivery_settings'].indexOf(name) === -1); },
       fn: function (name, body) { return request('/functions/v1/' + name, body, false); },

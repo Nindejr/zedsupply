@@ -11,7 +11,7 @@
    Run npm run build:storefront afterwards: the shop pages copy help.html's head. */
 const fs = require('node:fs');
 const crypto = require('node:crypto');
-const PAGES = ['index.html', 'help.html', 'privacy.html', '404.html'];
+const PAGES = ['index.html', 'help.html', 'privacy.html', '404.html', 'admin/index.html'];
 
 function inlineHashes(html) {
   const out = [];

@@ -13,7 +13,7 @@ function pages(dir) {
     return d.isDirectory() ? pages(p) : p.endsWith('.html') ? [p] : [];
   });
 }
-const all = ['index.html', 'help.html', 'privacy.html', '404.html'].concat(fs.existsSync('shop') ? pages('shop') : []);
+const all = ['index.html', 'help.html', 'privacy.html', '404.html', 'admin/index.html'].concat(fs.existsSync('shop') ? pages('shop') : []);
 const release = fs.readFileSync('sw.js', 'utf8').match(/var VERSION = 'zs-([\w.-]+)'/)[1];
 
 test('every page loads its scripts and stylesheet at the service worker\'s release', () => {

@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en-ZM" class="admin-html">
+<head>
+  <meta charset="utf-8">
+  <!-- Admin panel. Stricter than the shop: only this site's own scripts and styles, data only to
+       Supabase, no analytics or advertising, no inline scripts, never framed or indexed.
+       The service worker never caches pages under /admin/. -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src https://*.supabase.co; frame-src 'none'; form-action 'self'; base-uri 'self'; object-src 'none'; upgrade-insecure-requests">
+  <meta name="referrer" content="no-referrer">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Admin | Zed Supply</title>
+  <meta name="theme-color" content="#0A2A66">
+  <link rel="icon" type="image/svg+xml" href="../assets/favicon.svg?v=2">
+  <link rel="stylesheet" href="../css/style.css?v=20261107-r26">
+  <link rel="stylesheet" href="../css/admin.css?v=20261107-r26">
+  <script src="../js/catalogue.js?v=20261107-r26" defer></script>
+  <script src="../js/couriers.js?v=20261107-r26" defer></script>
+  <script src="../js/delivery.js?v=20261107-r26" defer></script>
+  <script src="../js/backend.js?v=20261107-r26" defer></script>
+  <script src="../js/delivery-editor.js?v=20261107-r26" defer></script>
+  <script src="../js/admin-sections.js?v=20261107-r26" defer></script>
+  <script src="../js/admin-app.js?v=20261107-r26" defer></script>
+</head>
+<body class="admin-body">
+  <a class="skip-link" href="#admin-main">Skip to content</a>
+  <header class="admin-bar">
+    <a class="admin-bar__brand" href="#/dashboard"><img src="../assets/brand/logo-original-3d-dark.webp" alt="Zed Supply" width="150" height="38"><span>Admin</span></a>
+    <div class="admin-bar__who" id="admin-who" aria-live="polite"></div>
+  </header>
+  <div class="admin-layout">
+    <nav class="admin-nav" id="admin-nav" aria-label="Admin sections" hidden></nav>
+    <main class="admin-main" id="admin-main" tabindex="-1">
+      <noscript><p class="notice">The admin panel needs JavaScript.</p></noscript>
+      <p role="status">Loading…</p>
+    </main>
+  </div>
+  <div class="admin-toast" id="admin-toast" role="status" aria-live="polite"></div>
+</body>
+</html>

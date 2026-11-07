@@ -33,6 +33,9 @@ INSERT INTO auth.users (id, email, email_confirmed_at) VALUES
   ('00000000-0000-0000-0000-00000000a5b1', 'rbuyer@example.com', now()),
   ('00000000-0000-0000-0000-00000000a5b2', 'rrider@example.com', now());
 UPDATE users SET is_staff = true WHERE email = 'rstaff@example.com';
+-- Migration 029: staff need a role, and these tests don't cover the second sign-in step (staff_admin.sql does)
+INSERT INTO staff_roles (user_id, role) SELECT id, 'owner' FROM users WHERE is_staff ON CONFLICT DO NOTHING;
+UPDATE shop_settings SET staff_mfa_required = false;
 
 -- ---------- Delivery prices: staff only, logged, read by everyone from one place ----------
 SELECT pg_temp.signed_in('00000000-0000-0000-0000-00000000a5b1');

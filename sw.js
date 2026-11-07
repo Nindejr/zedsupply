@@ -5,9 +5,9 @@
    downloaded in the background or saved, and at most IMAGE_LIMIT images are kept. Orders,
    payments and anything from another site are never cached. Change VERSION with each release
    (scripts/release.cjs does it with the pages). */
-var VERSION = 'zs-20261107-r25';
+var VERSION = 'zs-20261107-r26';
 var SHELL = ['./', 'index.html', 'help.html', 'privacy.html', '404.html', 'css/style.css', 'js/catalogue.js', 'js/couriers.js', 'js/delivery.js', 'js/receipt-pdf.js',
-  'js/products.js', 'js/product-zoom.js', 'js/backend.js', 'js/marketplace.js', 'js/backend-ui.js', 'js/checkout.js', 'js/listing-form.js', 'js/main.js', 'assets/favicon.svg', 'assets/icon-192.png'];
+  'js/products.js', 'js/product-zoom.js', 'js/backend.js', 'js/marketplace.js', 'js/backend-ui.js', 'js/delivery-editor.js', 'js/checkout.js', 'js/listing-form.js', 'js/main.js', 'assets/favicon.svg', 'assets/icon-192.png'];
 
 var IMAGE_LIMIT = 150, IMAGE_FRESH_MS = 7 * 24 * 60 * 60 * 1000;
 var IMAGE_PATH = /\.(webp|png|jpe?g|svg|avif)$/;
@@ -46,6 +46,8 @@ self.addEventListener('activate', function (e) {
 self.addEventListener('fetch', function (e) {
   var req = e.request, url = new URL(req.url);
   if (req.method !== 'GET' || url.origin !== location.origin || !url.href.startsWith(self.registration.scope)) return;
+  // The admin panel always comes from the network, never from a saved copy
+  if (url.pathname.indexOf('/admin/') !== -1) return;
   // Scripts and pages carry ?v= versions; the saved copy is matched without it when offline
   var isImage = req.destination === 'image' || IMAGE_PATH.test(url.pathname);
   if (isImage) {

@@ -41,6 +41,9 @@ CREATE TEMP TABLE ids AS SELECT
 GRANT SELECT ON ids TO anon, authenticated;
 INSERT INTO seller_members (seller_id, user_id) SELECT 'ms', seller FROM ids;
 UPDATE users SET is_staff = true WHERE id = (SELECT staff FROM ids);
+-- Migration 029: staff need a role, and these tests don't cover the second sign-in step (staff_admin.sql does)
+INSERT INTO staff_roles (user_id, role) SELECT id, 'owner' FROM users WHERE is_staff ON CONFLICT DO NOTHING;
+UPDATE shop_settings SET staff_mfa_required = false;
 INSERT INTO products (id, title, department_id, seller_id, price_zmw, status, stock_qty) VALUES
   ('MA', 'Bale of shirts', 'mt', 'ms', 100, 'active', 50),
   ('MB', 'Hangers, pack of 10', 'mt', 'ms', 40, 'active', 0),

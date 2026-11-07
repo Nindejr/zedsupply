@@ -12,7 +12,7 @@ http.createServer((req, res) => {
   if (name.endsWith('/')) name += 'index.html';
   const file = path.resolve(root, name);
   const relative = path.relative(root, file).split(path.sep).join('/');
-  if (!file.startsWith(root + path.sep) || !/^(assets\/|css\/|js\/|shop\/(?:index\.html|(?:departments|products)\/[a-zA-Z0-9_-]+\/index\.html)$|(?:index|help|privacy|404)\.html$|sw\.js$|manifest\.webmanifest$)/.test(relative)) {
+  if (!file.startsWith(root + path.sep) || !/^(assets\/|css\/|js\/|shop\/(?:index\.html|(?:departments|products)\/[a-zA-Z0-9_-]+\/index\.html)$|(?:index|help|privacy|404)\.html$|admin\/index\.html$|sw\.js$|manifest\.webmanifest$)/.test(relative)) {
     res.writeHead(404).end(); return;
   }
   fs.readFile(file, (err, data) => {
