@@ -1,8 +1,10 @@
 # Connected marketplace implementation and activation
 
-1 November 2026. The owner requested that integrations be built while live
-activation remains disabled. No hosted migration, account message, payment,
-refund, notification or deployment was performed by this implementation.
+Updated 7 November 2026. Integrations were built while live activation stays disabled
+(`settings.api.enabled: false`). The hosted project has migrations **001–028** applied and the
+server functions deployed; the website still orders through WhatsApp until the staging
+rehearsal below passes and the owner approves activation. Follow the `supabase/migrations`
+folder (every file, in name order) and `npm run check:launch`, not a fixed range in this note.
 
 ## Status of the five priorities
 
@@ -36,10 +38,11 @@ configuration completeness only, not hosted security or operational readiness.
 
 ## Staging setup
 
-1. Apply migrations **016 → 017 → 018 → 019 → 020 → 021 → 022 → 023 → 024** in order. Deploy handlers only after
-   their supporting migrations. Never edit or rerun a previously applied migration
-   in a hosted project; these new migrations have only been applied to an isolated
-   local test database during this task.
+1. Create a **separate staging project** and apply every file in `supabase/migrations`, in name
+   order (currently 001–028), then deploy the server functions: `npx.cmd supabase functions
+   deploy place-order start-payment payment-webhook send-notifications daily-jobs courier-quote
+   courier-webhook`. Never edit or rerun a migration that a hosted project has already applied;
+   add a new one instead.
 2. Configure confirmed email sign-in, an approved sender/SMTP service, hosted
    sign-in limits and appropriate abuse protection. Set the email template to
    include the one-time `{{ .Token }}` code expected by the UI. Confirm the allowed
@@ -47,10 +50,9 @@ configuration completeness only, not hosted security or operational readiness.
 3. In staging, set `settings.api` to the hosted project URL and **publishable** key
    and `enabled:true`. Never put a secret/service-role key in website files.
    Review the matching backend tax/business configuration with verified facts.
-4. Exercise two separate buyer accounts and a store operator. Verify token expiry,
-   no cross-account reads, quote changes, unavailable options, duplicate order
-   requests and failures during checkout. Quotes roll back their temporary stock,
-   orders and notification effects; placing an order reserves stock.
+4. Run the **staging rehearsal** below with four real accounts. Don't set `settings.api.enabled`
+   on the production site until every line passes; the code's safety checks are only proven
+   against real hosted Auth, row-level security and functions there.
 5. Test actual private proof uploads as an operator. A completed shipment needs
    an object in the private `delivery-proofs` bucket; a filename alone is not
    accepted. Uploads use fresh, immutable names. Define evidence retention,
@@ -72,6 +74,28 @@ configuration completeness only, not hosted security or operational readiness.
 8. Confirm policy and company facts, configure support owners/response hours, set
    `allowDemo:false` for the real launch and run configuration, browser, database
    and operational checks before enabling production.
+
+## Staging rehearsal
+
+Accounts: **Buyer A**, **Buyer B**, a **store owner** (approved seller application) and a
+**staff** account (`users.is_staff`). Use the staging site with `settings.api` pointing at staging.
+
+| # | Check | Expected |
+| --- | --- | --- |
+| 1 | Buyer A signs in with the email code; Buyer B signs in on another browser | Each sees only their own My Account, orders and receipts |
+| 2 | Buyer B opens Buyer A's order and receipt (`#/order/ZS-…`, `#/receipt/ZS-…`) and calls `order_receipt` / `send_receipt` with A's reference | "No order with that reference on your account"; nothing queued |
+| 3 | Buyer A reviews the server total, then staff change that product's price or a delivery rate, then A places the order | Refused: "The price changed…" or "The delivery fee changed…"; A reviews again |
+| 4 | Buyer A double-clicks Place order, or retries after cutting the network | One order; the retry returns the same reference |
+| 5 | Two buyers order the last unit at once | One order succeeds; the other sees "Only 0 left" |
+| 6 | Leave a session open past the token lifetime, then act | The session refreshes, or the buyer is asked to sign in again; no data from another account |
+| 7 | The store owner records packed → dispatched (with a tracking number) → delivered with Buyer A's handover code; a wrong code five times on a second order | Delivered once every store hands over; the second order locks and needs photo evidence |
+| 8 | The store owner tries another store's orders, and a buyer tries the staff screens | Refused by the database, not just hidden |
+| 9 | Staff edit delivery prices, approve a seller and a rider (rider only after "in-person checks") | Each change appears in `staff_actions` with the staff member's name |
+| 10 | With WhatsApp and email secrets set and the sender scheduled, place an order with a receipt email | `notifications` rows go from queued to sent; failures show `last_error` |
+| 11 | Payment provider sandbox: a prompt, a duplicate webhook, a failed and a refunded payment | One payment recorded per provider reference; refunds reconcile |
+
+Record the date, who ran it and the result of each line. Only then supply the production
+publishable key and set `settings.api.enabled: true` on the live site.
 
 The configured standard rate is consistent with ZRA's published VAT material;
 that does not verify **this business's** registration or which supplies are taxable.
@@ -219,7 +243,7 @@ applied to the hosted project.
 
 ## Delivery prices in one place, guest handover codes and rider sign-up
 
-Migration 028 is not yet applied to the hosted project.
+Migration 028 is applied to the hosted project.
 
 - **One source for delivery prices.** The database's rate card and delivery settings are the only
   place prices live. The storefront loads them at start (`delivery_settings()`), so the cart shows

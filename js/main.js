@@ -1029,11 +1029,17 @@
   }
   var saver = store.get('datasaver', false);
   root.classList.toggle('data-saver', !!saver);
+  // The service worker then stops downloading and saving images in the background (sw.js)
+  function tellWorker(on) {
+    try { if (navigator.serviceWorker) navigator.serviceWorker.ready.then(function (reg) { if (reg.active) reg.active.postMessage({ type: 'datasaver', on: !!on }); }).catch(function () {}); } catch (e) { /* no worker */ }
+  }
+  tellWorker(saver);
   $$('[data-saver-toggle]').forEach(function (cb) {
     cb.checked = !!saver;
     cb.addEventListener('change', function () {
       store.set('datasaver', cb.checked);
       root.classList.toggle('data-saver', cb.checked);
+      tellWorker(cb.checked);
       saverArt(document);
       document.dispatchEvent(new Event('zs:datasaver'));
       toast(cb.checked ? 'Data saver on: photos and banner images hidden' : 'Data saver off');
@@ -1665,7 +1671,8 @@
   }, true);
 
   /* ---------- Google Analytics 4: custom events ----------
-     The gtag.js snippet is in the <head> of every page. These events use one
+     js/ad-tags.js loads gtag.js only after the visitor accepts cookies; until then gtag is
+     undefined and these events go nowhere. These events use one
      document-level listener, so links added later (store views, banners) are
      covered too. Addresses are sent without their ?query part, so customers'
      WhatsApp messages, names or locations never reach Google Analytics.

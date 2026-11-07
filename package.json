@@ -8,6 +8,8 @@
     "test": "node --test tests/*.test.cjs tests/*.test.mjs",
     "brand:artwork": "node scripts/brand-artwork.cjs",
     "build:storefront": "node scripts/build-storefront.cjs",
+    "release": "node scripts/release.cjs",
+    "check:csp": "node scripts/csp-hashes.cjs --check",
     "check:launch": "node scripts/check-launch.cjs",
     "test:browser": "playwright test",
     "test:db": "node db/tests/concurrency.mjs && node db/tests/functions.mjs && node db/tests/notifications.mjs"

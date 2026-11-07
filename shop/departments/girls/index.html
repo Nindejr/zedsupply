@@ -5,8 +5,8 @@
   <base href="../../../">
   <!-- Content Security Policy (PCI DSS 6.4.3). The browser loads only what is listed here and blocks everything else.
        default-src 'self' file:   anything not covered below may come only from this site (file: lets the site work when opened by double-clicking).
-       script-src                 our own scripts, Google Analytics (googletagmanager.com), Microsoft Clarity (clarity.ms) and, once
-                                  cookies are accepted, the Meta Pixel (connect.facebook.net), LinkedIn Insight Tag (snap.licdn.com)
+       script-src                 our own scripts and, once cookies are accepted, Google Analytics (googletagmanager.com),
+                                  Microsoft Clarity (clarity.ms), the Meta Pixel (connect.facebook.net), LinkedIn Insight Tag (snap.licdn.com)
                                   and Google Ads (googleadservices.com, googleads.g.doubleclick.net, google.com), plus the small
                                   inline scripts in this head, each allowed by its sha256 hash.
        style-src                  our own stylesheet. 'unsafe-inline' allows the colours set in style="" attributes.
@@ -20,30 +20,17 @@
        WARNING: anything new from another website (a chat widget, an ad or social pixel, a CDN library, a YouTube video, a payment
        button) is silently blocked until its domain is added here, on all four pages. Editing an inline script in this head changes
        its hash: update the matching sha256 or it stops running (see Business/PCI-DSS.md). -->
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self' file:; script-src 'self' file: https://*.googletagmanager.com https://*.clarity.ms https://connect.facebook.net https://snap.licdn.com https://www.googleadservices.com https://googleads.g.doubleclick.net https://www.google.com 'sha256-yPEuvoV9qB8vQW+Krm8zEqMBI82A1FsRwzy4FyMTeio=' 'sha256-z1r42vw/gINn2mkMLvECiqMoVeq/uaQeIZgLq5quhpk=' 'sha256-HuzeagOWxw72t91+fcLW0a2epg2jV2lvbgvXlvSrhbg=' 'sha256-bMUqGRvrd7Oa5B3isZfKHogU7mYoQRtwns8KYhU30vw=' 'sha256-LObU1tdmcx/heQRtk57MQWwTslHx0RgWSMB828agqtk=' 'sha256-JXvATGpaUOztFQ6cJs+CQjDwUHLmwQQOh5eHJqip73E='; style-src 'self' file: 'unsafe-inline'; img-src 'self' file: data: blob: https://*.supabase.co https://*.google-analytics.com https://*.googletagmanager.com https://*.clarity.ms https://c.bing.com https://www.facebook.com https://*.linkedin.com https://www.googleadservices.com https://googleads.g.doubleclick.net https://www.google.com https://www.google.co.zm https://pagead2.googlesyndication.com; frame-src https://www.google.com https://td.doubleclick.net https://www.googletagmanager.com; connect-src https://formspree.io https://*.supabase.co https://*.google-analytics.com https://*.analytics.google.com https://*.googletagmanager.com https://*.clarity.ms https://c.bing.com https://www.facebook.com https://connect.facebook.net https://*.linkedin.com https://www.google.com https://www.google.co.zm https://googleads.g.doubleclick.net https://www.googleadservices.com https://pagead2.googlesyndication.com; form-action 'self' https://formspree.io; base-uri 'self'; object-src 'none'; upgrade-insecure-requests">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self' file:; script-src 'self' file: https://*.googletagmanager.com https://*.clarity.ms https://connect.facebook.net https://snap.licdn.com https://www.googleadservices.com https://googleads.g.doubleclick.net https://www.google.com 'sha256-yPEuvoV9qB8vQW+Krm8zEqMBI82A1FsRwzy4FyMTeio='; style-src 'self' file: 'unsafe-inline'; img-src 'self' file: data: blob: https://*.supabase.co https://*.google-analytics.com https://*.googletagmanager.com https://*.clarity.ms https://c.bing.com https://www.facebook.com https://*.linkedin.com https://www.googleadservices.com https://googleads.g.doubleclick.net https://www.google.com https://www.google.co.zm https://pagead2.googlesyndication.com; frame-src https://www.google.com https://td.doubleclick.net https://www.googletagmanager.com; connect-src https://formspree.io https://*.supabase.co https://*.google-analytics.com https://*.analytics.google.com https://*.googletagmanager.com https://*.clarity.ms https://c.bing.com https://www.facebook.com https://connect.facebook.net https://*.linkedin.com https://www.google.com https://www.google.co.zm https://googleads.g.doubleclick.net https://www.googleadservices.com https://pagead2.googlesyndication.com; form-action 'self' https://formspree.io; base-uri 'self'; object-src 'none'; upgrade-insecure-requests">
   <meta name="referrer" content="strict-origin-when-cross-origin">
-  <!-- Google tag (gtag.js) for Google Analytics 4, with Consent Mode v2:
-       everything is denied by default; js/main.js updates consent only if the visitor accepts. -->
-  <script async src="https://www.googletagmanager.com/gtag/js?id=G-E2MC1NELGE"></script>
-  <script>window.dataLayer = window.dataLayer || []; function gtag(){dataLayer.push(arguments);} gtag('consent', 'default', { analytics_storage: 'denied', ad_storage: 'denied', ad_user_data: 'denied', ad_personalization: 'denied' }); try { if (localStorage.getItem('zs-consent') === 'granted') gtag('consent', 'update', { analytics_storage: 'granted', ad_storage: 'granted' }); } catch (e) {} gtag('js', new Date()); gtag('config', 'G-E2MC1NELGE');</script>
+  <!-- Google Analytics and Microsoft Clarity load from js/ad-tags.js, only after the visitor accepts cookies
+       (and not while Data saver is on). Before that, and after Decline, nothing is sent to them. -->
   <!-- Advertising tags: Meta Pixel, LinkedIn Insight Tag and Google Ads conversions. js/ad-tags.js loads them only
        after the visitor accepts cookies; Decline keeps them off. Set the IDs and conversion labels at the top of that file. -->
-  <script src="js/ad-tags.js?v=20261106-r23" defer></script>
+  <script src="js/ad-tags.js?v=20261107-r24" defer></script>
   <!-- Meta Pixel noscript fallback, switched off on purpose: it is a plain image that would track visitors who have
        JavaScript turned off before they could answer the cookie banner. To use it anyway, put your Pixel ID in the
        line below and delete the comment markers around it. -->
   <!-- <noscript><img height="1" width="1" style="display:none" alt="" src="https://www.facebook.com/tr?id=META_PIXEL_ID_HERE&amp;ev=PageView&amp;noscript=1"></noscript> -->
-  <!-- Microsoft Clarity. Runs cookie-free until the visitor accepts cookies (the line after this
-       snippet sets that; js/main.js applies later choices). Personal details are masked (data-clarity-mask). -->
-  <script type="text/javascript">
-      (function(c,l,a,r,i,t,y){
-          c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
-          t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
-          y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
-      })(window, document, "clarity", "script", "z47hop4420");
-  </script>
-  <!-- Clarity starts cookie-free; only a saved "Accept" switches its cookies on (before Clarity loads). -->
-  <script>window.clarity('consentv2', (function () { try { return localStorage.getItem('zs-consent') === 'granted'; } catch (e) { return false; } })() ? { ad_Storage: 'granted', analytics_Storage: 'granted' } : { ad_Storage: 'denied', analytics_Storage: 'denied' });</script>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <script>document.documentElement.className = 'js'; try { if (localStorage.getItem('zs-datasaver') === 'true') document.documentElement.className += ' data-saver'; } catch (e) {} var zq = location.search; if ((new Date().getMonth() === 9 && !/[?&]theme=off/.test(zq)) || /[?&]theme=(zambia|independence)\b/.test(zq)) document.documentElement.className += ' theme-zambia';</script>
   <title>Girls&#39; Fashion | Zed Supply</title>
@@ -71,15 +58,15 @@
   <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon.png?v=2">
   <link rel="icon" type="image/svg+xml" sizes="any" href="assets/favicon.svg?v=2">
   <link rel="apple-touch-icon" href="assets/apple-touch-icon.png?v=2">
-  <link rel="stylesheet" href="css/style.css?v=20261106-r23">
-  <script src="js/catalogue.js?v=20261106-r23" defer></script>
-  <script src="js/couriers.js?v=20261106-r23" defer></script>
-  <script src="js/delivery.js?v=20261106-r23" defer></script>
-  <script src="js/products.js?v=20261106-r23" defer></script>
-  <script src="js/backend.js?v=20261106-r23" defer></script>
-  <script src="js/marketplace.js?v=20261106-r23" defer></script>
-  <script src="js/backend-ui.js?v=20261106-r23" defer></script>
-  <script src="js/main.js?v=20261106-r23" defer></script>
+  <link rel="stylesheet" href="css/style.css?v=20261107-r24">
+  <script src="js/catalogue.js?v=20261107-r24" defer></script>
+  <script src="js/couriers.js?v=20261107-r24" defer></script>
+  <script src="js/delivery.js?v=20261107-r24" defer></script>
+  <script src="js/products.js?v=20261107-r24" defer></script>
+  <script src="js/backend.js?v=20261107-r24" defer></script>
+  <script src="js/marketplace.js?v=20261107-r24" defer></script>
+  <script src="js/backend-ui.js?v=20261107-r24" defer></script>
+  <script src="js/main.js?v=20261107-r24" defer></script>
 
   <script type="application/ld+json">
   {

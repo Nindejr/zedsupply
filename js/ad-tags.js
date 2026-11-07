@@ -1,9 +1,12 @@
-/* Zed Supply advertising tags: Meta Pixel, LinkedIn Insight Tag and Google Ads.
-   Loaded from the <head> of every page, after the Google Analytics tag.
+/* Zed Supply measurement and advertising tags: Google Analytics 4, Microsoft
+   Clarity, Meta Pixel, LinkedIn Insight Tag and Google Ads. Loaded from the
+   <head> of every page.
    None of them loads, sets a cookie or sends anything until the visitor clicks
    Accept on the cookie banner (saved as 'zs-consent' = 'granted'). Decline, or
-   not answering yet, keeps them off. js/main.js calls ZSAds.consent() when the
-   choice changes, and ZSAds.track() for the same events it sends to GA4.
+   not answering yet, keeps them off, so nothing is downloaded from Google or
+   Microsoft either. With Data saver on, Analytics and Clarity stay off too.
+   js/main.js calls ZSAds.consent() when the choice changes, and ZSAds.track()
+   for the same events it sends to GA4.
 
    SETUP: replace each value ending in _HERE with your own. Anything still ending
    in _HERE is skipped, so nothing loads while these are placeholders. A new
@@ -11,6 +14,8 @@
 (function () {
   'use strict';
 
+  var GA_ID = 'G-E2MC1NELGE';                          // Google Analytics 4 measurement ID
+  var CLARITY_ID = 'z47hop4420';                         // Microsoft Clarity project ID
   var META_PIXEL_ID = 'META_PIXEL_ID_HERE';             // Meta Events Manager > Data sources (a 15–16 digit number)
   var LINKEDIN_PARTNER_ID = 'LINKEDIN_PARTNER_ID_HERE'; // LinkedIn Campaign Manager > Analyze > Insight Tag (digits only)
   var GOOGLE_ADS_ID = 'GOOGLE_ADS_ID_HERE';             // Google Ads > Goals > Conversions > Tag setup (looks like AW-123456789)
@@ -28,10 +33,42 @@
 
   function isSet(v) { return !!v && !/_HERE$/.test(v); }
   function accepted() { try { return localStorage.getItem('zs-consent') === 'granted'; } catch (e) { return false; } }
-  var on = false, loaded = false;
+  var on = false, loaded = false, measured = false;
+  function dataSaver() {
+    try { if (localStorage.getItem('zs-datasaver') === 'true') return true; } catch (e) { /* storage blocked */ }
+    return !!(navigator.connection && navigator.connection.saveData);
+  }
+
+  // Google Analytics 4 (with Consent Mode v2) and Microsoft Clarity, after Accept only
+  function measure() {
+    if (measured) {
+      if (typeof window.gtag === 'function') window.gtag('consent', 'update', { analytics_storage: 'granted', ad_storage: 'granted' });
+      if (typeof window.clarity === 'function') window.clarity('consentv2', { ad_Storage: 'granted', analytics_Storage: 'granted' });
+      return;
+    }
+    if (dataSaver()) return;
+    measured = true;
+    if (isSet(GA_ID)) {
+      window.dataLayer = window.dataLayer || [];
+      window.gtag = window.gtag || function () { window.dataLayer.push(arguments); };
+      window.gtag('consent', 'default', { analytics_storage: 'denied', ad_storage: 'denied', ad_user_data: 'denied', ad_personalization: 'denied' });
+      window.gtag('consent', 'update', { analytics_storage: 'granted', ad_storage: 'granted' });
+      window.gtag('js', new Date());
+      window.gtag('config', GA_ID);
+      var g = document.createElement('script'); g.async = true; g.src = 'https://www.googletagmanager.com/gtag/js?id=' + encodeURIComponent(GA_ID);
+      document.head.appendChild(g);
+    }
+    if (isSet(CLARITY_ID)) {
+      window.clarity = window.clarity || function () { (window.clarity.q = window.clarity.q || []).push(arguments); };
+      window.clarity('consentv2', { ad_Storage: 'granted', analytics_Storage: 'granted' });
+      var c = document.createElement('script'); c.async = true; c.src = 'https://www.clarity.ms/tag/' + encodeURIComponent(CLARITY_ID);
+      document.head.appendChild(c);
+    }
+  }
 
   function load() {
     on = true;
+    measure();
     if (loaded) {
       // Accepted again after declining on this page: resume what already loaded
       if (window.fbq) window.fbq('consent', 'grant');
@@ -71,7 +108,7 @@
     }
 
     if (isSet(GOOGLE_ADS_ID) && typeof window.gtag === 'function') {
-      // Google Ads shares the Google tag already loaded for GA4 in the <head>
+      // Google Ads shares the Google tag loaded for GA4 above
       window.gtag('consent', 'update', { ad_storage: 'granted', ad_user_data: 'granted', ad_personalization: 'granted' });
       window.gtag('config', GOOGLE_ADS_ID);
     }

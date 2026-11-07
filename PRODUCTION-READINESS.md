@@ -1,20 +1,24 @@
 # Production readiness
 
-Latest implementation status: [integration readiness](INTEGRATION-READINESS.md).
-Migrations 017–019 and the disabled frontend integration add verified accounts,
-server quote/checkout, payment-attempt and refund controls, private shipment
-evidence, support escalation, and indexed catalogue reads. Native department pages
-are generated in `shop/`. Provider, business and hosted acceptance remain pending.
+**Status, 7 November 2026.** The website orders through WhatsApp; connected mode is built but
+off (`settings.api.enabled: false`). The hosted Supabase project has migrations 001–028 applied
+(accounts, server quotes and checkout, stock, payment attempts and refunds, shipments and
+handover codes, priced delivery, receipts, seller teams and applications, rider applications)
+and the server functions deployed. Every push runs the unit, database (all migrations and SQL
+suites on PostgreSQL) and browser tests in GitHub Actions.
 
-Current assessment: [marketplace review, 1 November 2026](MARKETPLACE-REVIEW.md).
-The implementation history below includes earlier snapshots. Server checkout and
-payment foundations now exist in migrations 014–015 and Edge Functions, but the
-website still uses browser-only accounts and WhatsApp checkout (`settings.api`
-is empty). Migration 016 adds durable notification claims; apply it before
-deploying the updated sender. CI and browser/artwork checks are now configured.
-Hosted state and deployment have not been verified by this review.
+Before going further:
+1. **Staging rehearsal**: the checklist in [integration readiness](INTEGRATION-READINESS.md#staging-rehearsal).
+2. **Business facts**: `npm run check:launch` lists them (legal name, street address, support
+   hours, delivery and returns approval, verified VAT position, PACRA and TPIN in the footer,
+   delivery estimates, `allowDemo: false`). The code won't invent them.
+3. **Releases**: `npm run release` moves every page and the service worker to the next version
+   and rebuilds the shop pages; `tests/release.test.cjs` fails if any page is out of step or an
+   inline script's CSP hash is missing or stale.
 
-Reviewed 29 October 2026. Leaves out the business and legal steps (PACRA registration, TPIN and VAT registration, street address, hosting and domain), and lists only the technical work.
+The sections below are the review of 29 October 2026, kept for its history: some of the "needs a
+server" items have since been built (see integration readiness). It leaves out the business and
+legal steps and lists only the technical work.
 
 ## Where things stand
 
@@ -55,10 +59,10 @@ So there are two possible launches:
 | Returns policy | help centre, `orderOptions.returns` | Interim; review with legal advice |
 | Card payments | `paymentMethods` (`provider`, `enabled`) | Off until a licensed payment provider account is open |
 | Form service | `FORMSPREE_ENDPOINT_HERE` in `help.html` and `js/main.js` | Optional now that forms fall back to WhatsApp |
-| Advertising and analytics IDs | `js/ad-tags.js` | Placeholders are skipped safely; fill in or leave |
+| Advertising and analytics IDs | `js/ad-tags.js` | Google Analytics and Clarity are set; they load only after Accept (and not with Data saver on). Advertising placeholders are skipped safely |
 | Real products, photos and sellers | `js/catalogue.js` | 600 × 600 photos of the real items; then set `allowDemo: false` |
 | Demo image L041 | `assets/products/demo/L041-shapes.webp` | Corrected to a six-shape puzzle, with matching sample listing details |
-| Release routine | every page | Bump `?v=` and run the tests: `node --test tests/*.test.cjs` |
+| Release routine | every page | `npm run release`, then `npm test` and the browser tests |
 
 ## Self-service marketplace (needs a server)
 

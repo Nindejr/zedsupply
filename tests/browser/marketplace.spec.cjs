@@ -625,3 +625,28 @@ test('after an order, the buyer chooses whether bought items leave the wishlist,
   await expect(page.locator('.pcard')).toHaveCount(2);
   expect(errors).toEqual([]);
 });
+
+test('Google Analytics and Clarity download only after Accept, and never with Data saver on', async ({ page, context }) => {
+  // Every request the page makes is seen here, whichever handler answers it
+  const seen = [];
+  page.on('request', r => { if (/googletagmanager\.com|clarity\.ms|google-analytics\.com/.test(r.url())) seen.push(r.url()); });
+  await context.route(/googletagmanager\.com|clarity\.ms|google-analytics\.com/, route => route.fulfill({ body: '', contentType: 'application/javascript' }));
+  await page.goto('/index.html?theme=off');
+  await expect(page.locator('.consent')).toBeVisible();
+  await page.waitForTimeout(500);
+  expect(seen).toEqual([]);   // nothing before a choice
+  await page.locator('.consent').getByRole('button', { name: 'Decline' }).click();
+  await page.reload();
+  await page.waitForTimeout(500);
+  expect(seen).toEqual([]);   // nothing after Decline
+  await page.evaluate(() => { localStorage.removeItem('zs-consent'); });
+  await page.reload();
+  await page.locator('.consent').getByRole('button', { name: 'Accept' }).click();
+  await expect.poll(() => seen.some(u => u.includes('gtag/js?id=G-E2MC1NELGE')) && seen.some(u => u.includes('clarity.ms/tag/z47hop4420'))).toBe(true);
+  // Accepted, but with Data saver on: still nothing
+  seen.length = 0;
+  await page.evaluate(() => localStorage.setItem('zs-datasaver', 'true'));
+  await page.reload();
+  await page.waitForTimeout(500);
+  expect(seen).toEqual([]);
+});
