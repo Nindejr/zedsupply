@@ -35,7 +35,7 @@
   };
   A.status = function (text) {
     var t = String(text || '').toLowerCase();
-    var tone = /cancel|fail|reject|declin|not approved|unknown|removed/.test(t) ? 'bad' : /deliver|approved|resolved|paid|sent|active|confirmed|refunded|closed/.test(t) ? 'ok' : 'wait';
+    var tone = /cancel|fail|reject|declin|not approved|unknown|removed/.test(t) ? 'bad' : /^(delivered|approved|resolved|paid|sent|active|confirmed|refunded|closed|verified)$/.test(t) ? 'ok' : 'wait';
     return '<span class="status status--' + tone + '">' + A.esc(text) + '</span>';
   };
   A.show = function (title, html) { main.innerHTML = '<h1>' + A.esc(title) + '</h1>' + html; document.title = title + ' | Admin | Zed Supply'; };
@@ -84,6 +84,7 @@
   }
   var email = '';
   function askEmail() {
+    ++ticket; A.me = null; A.counts = null;
     nav.hidden = true; who.innerHTML = '';
     main.innerHTML = signInHTML('email');
     bindForm('ad-email', function () {
@@ -93,9 +94,11 @@
   }
   // The second step: enrol an authenticator app once, then enter its code each time
   function secondStep() {
+    var mine = ticket;
     nav.hidden = true; whoHTML();
     main.innerHTML = '<p role="status">Checking your authenticator app…</p>';
     return B.factors().then(function (factors) {
+      if (mine !== ticket) return;
       var ready = factors.filter(function (f) { return f.status === 'verified'; })[0];
       if (ready) {
         main.innerHTML = '<div class="admin-sign"><h1>Confirm it\'s you</h1><form class="form form--card" id="ad-totp"><div class="field"><label for="ad-totp-code">6-digit code from your authenticator app</label><input id="ad-totp-code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9 ]{6,7}" maxlength="7" required></div><button class="btn btn--primary" type="submit">Confirm</button><p class="form-status" role="status"></p></form>' +
@@ -105,6 +108,7 @@
         return;
       }
       return B.enrollTotp('Zed Supply admin ' + new Date().toISOString().slice(0, 16)).then(function (f) {
+        if (mine !== ticket) return;
         var qr = f.totp && /^data:image\/svg\+xml/.test(f.totp.qr_code) ? f.totp.qr_code : '';
         main.innerHTML = '<div class="admin-sign"><h1>Set up your authenticator app</h1><ol class="admin-steps"><li>Open an authenticator app on your phone, such as Google Authenticator or Microsoft Authenticator.</li>' +
           '<li>Scan this code' + (qr ? '' : '') + ', or type the key into the app.</li><li>Enter the 6-digit code the app shows.</li></ol>' +
@@ -119,7 +123,12 @@
     var me = A.me || {}, p = B.profile() || {};
     who.innerHTML = '<span>' + A.esc(me.name || p.name || p.email || '') + (me.roles && me.roles.length ? ' · ' + me.roles.map(function (r) { return ROLE_NAMES[r] || r; }).join(', ') : '') + '</span>' +
       '<button class="btn btn--secondary btn--sm" type="button" id="ad-signout">Sign out</button>';
-    document.getElementById('ad-signout').onclick = function () { B.signOut().then(function () { A.me = null; askEmail(); }, function () { A.me = null; askEmail(); }); };
+    document.getElementById('ad-signout').onclick = function () {
+      // Invalidate pending reads before signing out; their responses must not redraw staff data.
+      ++ticket; A.me = null; A.counts = null; nav.hidden = true; who.innerHTML = '';
+      main.innerHTML = '<p role="status">Signing out…</p>';
+      B.signOut().then(askEmail, askEmail);
+    };
   }
 
   // ---------- Navigation ----------
@@ -148,12 +157,15 @@
 
   // ---------- Start ----------
   function boot() {
+    var mine = ++ticket;
+    A.me = null; nav.hidden = true;
     if (!B || !B.enabled()) {
       main.innerHTML = '<h1>Admin panel</h1><p class="notice">The admin panel works once the shop is connected to its database (<code>settings.api</code> in js/catalogue.js). Until then, use the demo back office in the shop with <code>?demo=1</code>.</p>';
       return Promise.resolve();
     }
     if (!B.profile()) { askEmail(); return Promise.resolve(); }
     return A.rpc('staff_me').then(function (me) {
+      if (mine !== ticket) return;
       A.me = me;
       if (!me.staff) {
         main.innerHTML = '<h1>Staff only</h1><p>This account isn\'t a Zed Supply staff account. <a href="../index.html">Back to the shop</a></p>';
@@ -162,7 +174,7 @@
       if (!me.ready) return secondStep();
       if (!me.roles.length) { whoHTML(); main.innerHTML = '<h1>No staff role yet</h1><p>Ask the owner to give your account a role: operations, support, catalogue or finance.</p>'; return; }
       whoHTML();
-      return A.rpc('staff_dashboard').then(function (c) { A.counts = c; }, function () { A.counts = null; }).then(route);
+      return A.rpc('staff_dashboard').then(function (c) { if (mine === ticket) A.counts = c; }, function () { if (mine === ticket) A.counts = null; }).then(function () { if (mine === ticket) route(); });
     });
   }
   window.addEventListener('hashchange', route);

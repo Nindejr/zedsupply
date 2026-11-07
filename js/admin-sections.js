@@ -226,6 +226,15 @@
   } });
 
   // ---------- Listings and sellers ----------
+  function listingPhoto(p) {
+    var src = '', base = new URL('../', location.href), api = ((window.ZS_CATALOGUE || {}).settings || {}).api || {};
+    try {
+      var url = new URL(p.image || '', base);
+      if (p.image && (url.origin === base.origin || (url.protocol === 'https:' && api.url && url.origin === new URL(api.url).origin))) src = url.href;
+    } catch (err) { /* Invalid image URLs use the same visible fallback as missing photos. */ }
+    return '<div class="admin-listing-photo">' + (src ? '<a href="' + e(src) + '" target="_blank" rel="noopener noreferrer" aria-label="Open photo of ' + e(p.title) + ' (opens in a new tab)"><img src="' + e(src) + '" alt="' + e(p.title) + '" width="96" height="96" loading="lazy" decoding="async" referrerpolicy="no-referrer"></a>' : '') +
+      '<span' + (src ? ' hidden' : '') + '>Photo unavailable</span></div>';
+  }
   section('listings', { title: 'Listings', roles: ['catalogue'], badge: function (c) { return c.listings_to_review; }, render: function (arg, q, mine) {
     return Promise.all([
       A.read('products?select=id,title,price_zmw,status,seller_id,department_id,updated_at,image&status=eq.pending&order=updated_at.asc&limit=100'),
@@ -234,13 +243,18 @@
       if (stale(mine)) return;
       var can = A.can('catalogue');
       A.show('Listings', '<h2>Waiting for review</h2>' + (r[0].length ? table(['Listing', 'Seller', 'Price', ''], r[0].map(function (p) {
-          return '<tr><th scope="row">' + e(p.title) + '<br><small>' + e(p.id) + ' · ' + e(p.department_id) + '</small></th><td>' + e(p.seller_id) + '</td><td>' + A.kwacha(p.price_zmw) + '</td><td>' +
+          return '<tr><th scope="row"><div class="admin-listing">' + listingPhoto(p) + '<div>' + e(p.title) + '<br><small>' + e(p.id) + ' · ' + e(p.department_id) + '</small></div></div></th><td>' + e(p.seller_id) + '</td><td>' + A.kwacha(p.price_zmw) + '</td><td>' +
             (can ? '<div class="btn-row"><button class="btn btn--primary btn--sm" type="button" data-moderate="active|' + e(p.id) + '">Approve</button><button class="btn btn--secondary btn--sm btn--danger" type="button" data-moderate="removed|' + e(p.id) + '">Reject</button></div>' : '') + '</td></tr>';
         })) : empty('Nothing waiting. New and changed listings appear here.')) +
         '<h2>Sellers</h2>' + table(['Seller', 'Town', 'Verified', ''], r[1].map(function (s) {
           return '<tr><th scope="row">' + e(s.name) + '<br><small>' + e(s.id) + '</small></th><td>' + e(s.city || '') + '</td><td>' + (s.verified ? A.status('verified') : 'No') + '</td><td>' +
             (can ? '<button class="btn btn--secondary btn--sm" type="button" data-verify="' + (s.verified ? 'no' : 'yes') + '|' + e(s.id) + '">' + (s.verified ? 'Remove verification' : 'Verify') + '</button>' : '') + '</td></tr>';
         })) + '<p class="pmeta">Verify a seller only after checking their PACRA registration, ID and a physical or online presence.</p>');
+      A.$$('.admin-listing-photo img').forEach(function (img) {
+        var failed = function () { img.parentNode.hidden = true; img.parentNode.nextElementSibling.hidden = false; };
+        img.addEventListener('error', failed);
+        if (img.complete && !img.naturalWidth) failed();
+      });
       bindAll('[data-moderate]', 'data-moderate', function (b, v) { var x = v.split('|'); A.act(b, function () { return A.rpc('staff_moderate_listing', { pid: x[1], new_status: x[0], note: null }); }, function () { A.toast(x[0] === 'active' ? 'Listing approved' : 'Listing rejected', 'success'); }); });
       bindAll('[data-verify]', 'data-verify', function (b, v) { var x = v.split('|'); A.act(b, function () { return A.rpc('staff_verify_seller', { sid: x[1], is_verified: x[0] === 'yes' }); }, function () { A.toast('Saved', 'success'); }); });
     });

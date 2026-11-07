@@ -1,7 +1,7 @@
 # Connected marketplace implementation and activation
 
 Updated 7 November 2026. Integrations were built while live activation stays disabled
-(`settings.api.enabled: false`). The hosted project has migrations **001–028** applied and the
+(`settings.api.enabled: false`). The hosted project has migrations **001–031** applied and the
 server functions deployed; the website still orders through WhatsApp until the staging
 rehearsal below passes and the owner approves activation. Follow the `supabase/migrations`
 folder (every file, in name order) and `npm run check:launch`, not a fixed range in this note.
@@ -39,7 +39,7 @@ configuration completeness only, not hosted security or operational readiness.
 ## Staging setup
 
 1. Create a **separate staging project** and apply every file in `supabase/migrations`, in name
-   order (currently 001–028), then deploy the server functions: `npx.cmd supabase functions
+   order (currently 001–031), then deploy the server functions: `npx.cmd supabase functions
    deploy place-order start-payment payment-webhook send-notifications daily-jobs courier-quote
    courier-webhook`. Never edit or rerun a migration that a hosted project has already applied;
    add a new one instead.
@@ -82,6 +82,11 @@ separate page from the shop: only this site's own scripts, data only to Supabase
 or advertising, hidden from search engines and never served from the offline cache. Migrations
 029 and 030 add what it relies on; both are applied to the hosted project. The
 shop's older staff screens are retired: their addresses open the matching admin section.
+
+Migration **031** is applied to the hosted project. It serializes staff-role changes so two owners cannot both step down at the same time
+and leave the shop without an owner. The regression fails on 030 and passes on 031. Listing
+moderation now shows the product photo with a link to its original, and explains missing or
+broken photos. Pending admin reads are invalidated when staff sign out.
 
 - **Second sign-in step.** Staff sign in with the email code, then an authenticator app code
   (Supabase's TOTP, `aal2`). Until then the database treats them as an ordinary account: no

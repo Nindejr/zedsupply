@@ -51,4 +51,8 @@
 .admin-toast--error { background: #8E1B1B; }
 .admin-toast--success { background: #1A6B0E; }
 .admin-form input:not([type="checkbox"]), .admin-form select, .admin-form textarea { max-width: 32rem; }
+.admin-listing { display: flex; align-items: center; gap: 0.75rem; min-width: 230px; }
+.admin-listing-photo { flex: 0 0 96px; width: 96px; }
+.admin-listing-photo img { display: block; width: 96px; height: 96px; object-fit: contain; background: #FFFFFF; border: 1px solid var(--color-border); border-radius: var(--radius-sm); }
+.admin-listing-photo span { font-size: 0.8rem; color: var(--color-muted); font-weight: 400; }
 .admin-grid > .card, .admin-main > .card { margin-top: 0; }

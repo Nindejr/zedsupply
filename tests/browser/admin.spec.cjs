@@ -165,6 +165,62 @@ async function confirmApp(page) {
 }
 const navTo = (page, name) => page.getByRole('navigation', { name: 'Admin sections' }).getByRole('link', { name: new RegExp('^' + name) }).click();
 
+test('listing moderation shows real photos, opens the original, and explains missing or broken images', async ({ page }) => {
+  await setup(page, { enrolled: true });
+  await page.route('**/rest/v1/products?**', route => route.fulfill({ json: [
+    { id: 'photo-1', title: 'Studio product', price_zmw: 150, seller_id: 'store', department_id: 'tech', image: 'assets/products/C001.webp' },
+    { id: 'photo-2', title: 'Missing photo', price_zmw: 150, seller_id: 'store', department_id: 'tech', image: '' },
+    { id: 'photo-3', title: 'Broken photo', price_zmw: 150, seller_id: 'store', department_id: 'tech', image: 'assets/products/missing-review-photo.webp' },
+    { id: 'photo-4', title: 'Unsafe photo', price_zmw: 150, seller_id: 'store', department_id: 'tech', image: 'javascript:alert(1)' },
+    { id: 'photo-5', title: 'Hosted photo', price_zmw: 150, seller_id: 'store', department_id: 'tech', image: 'https://test-project.supabase.co/storage/v1/object/public/products/photo.webp' }
+  ] }));
+  await page.route('**/storage/v1/object/public/products/photo.webp', route => route.fulfill({ contentType: 'image/webp', body: fs.readFileSync('assets/products/C001.webp') }));
+  await signIn(page); await confirmApp(page); await navTo(page, 'Listings');
+  const image = page.getByRole('img', { name: 'Studio product', exact: true });
+  await expect(image).toBeVisible();
+  await expect.poll(() => image.evaluate(img => img.naturalWidth)).toBe(600);
+  await expect(page.getByRole('link', { name: 'Open photo of Studio product (opens in a new tab)', exact: true })).toHaveAttribute('href', /\/assets\/products\/C001.webp$/);
+  await expect.poll(() => page.getByRole('img', { name: 'Hosted photo', exact: true }).evaluate(img => img.naturalWidth)).toBe(600);
+  for (const title of ['Missing photo', 'Broken photo', 'Unsafe photo']) {
+    await expect(page.locator('tr', { has: page.getByRole('rowheader').filter({ hasText: title }) }).getByText('Photo unavailable')).toBeVisible();
+  }
+  await page.evaluate(fs.readFileSync(axe, 'utf8'));
+  expect(await page.evaluate(async () => (await axe.run('main', { runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa'] } })).violations.map(v => v.id))).toEqual([]);
+});
+
+test('pending admin reads cannot redraw private content after sign-out', async ({ page }) => {
+  await setup(page, { enrolled: true });
+  await signIn(page); await confirmApp(page);
+  let release;
+  const pending = new Promise(resolve => { release = resolve; });
+  let requested = false;
+  await page.route('**/rest/v1/orders?**', async route => {
+    requested = true;
+    await pending;
+    await route.fulfill({ json: [{ id: 41, ref: 'PRIVATE-ORDER', contact_name: 'Private buyer', status: 'placed' }] });
+  });
+  await navTo(page, 'Orders');
+  await expect.poll(() => requested).toBe(true);
+  await page.getByRole('button', { name: 'Sign out', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Staff sign-in' })).toBeVisible();
+  await Promise.all([page.waitForResponse(response => response.url().includes('/rest/v1/orders?')), Promise.resolve().then(release)]);
+  await expect(page.getByRole('heading', { name: 'Staff sign-in' })).toBeVisible();
+  await expect(page.locator('#admin-nav')).toBeHidden();
+  await expect(page.locator('main')).not.toContainText('PRIVATE-ORDER');
+});
+
+test('status colours distinguish completed work from unpaid and in-progress work', async ({ page }) => {
+  await setup(page, { enrolled: true });
+  await signIn(page); await confirmApp(page);
+  const classes = await page.evaluate(() => Object.fromEntries(['paid', 'unpaid', 'active', 'inactive', 'delivered', 'delivery pending', 'verified', 'failed'].map(status => {
+    const node = document.createElement('div'); node.innerHTML = window.ZSAdmin.status(status);
+    return [status, node.firstChild.className];
+  })));
+  for (const status of ['paid', 'active', 'delivered', 'verified']) expect(classes[status]).toContain('status--ok');
+  for (const status of ['unpaid', 'inactive', 'delivery pending']) expect(classes[status]).toContain('status--wait');
+  expect(classes.failed).toContain('status--bad');
+});
+
 test('applications page through, filter by status and search, as the old staff screen did', async ({ page }) => {
   const many = Array.from({ length: 26 }, (_, i) => ({ ...application, id: 'app-' + i, business: 'Shop number ' + i }));
   const { calls } = await setup(page, { enrolled: true, applications: many });

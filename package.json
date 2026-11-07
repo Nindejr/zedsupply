@@ -12,7 +12,7 @@
     "check:csp": "node scripts/csp-hashes.cjs --check",
     "check:launch": "node scripts/check-launch.cjs",
     "test:browser": "playwright test",
-    "test:db": "node db/tests/concurrency.mjs && node db/tests/functions.mjs && node db/tests/notifications.mjs"
+    "test:db": "node db/tests/concurrency.mjs && node db/tests/staff-concurrency.mjs && node db/tests/functions.mjs && node db/tests/notifications.mjs"
   },
   "engines": {
     "node": ">=24"
