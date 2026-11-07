@@ -19,7 +19,9 @@ test('checkout preserves collection when choosing an address and requires delive
   // Run the actual saved-address operation from the checkout handler.
   context.chosenAddress = { town: 'Lusaka', area: 'Woodlands', landmark: 'School' };
   context.coMode = () => context.loc.mode;
-  const handler = src.match(/saveLoc\(\{ town: chosenAddress\.town,[\s\S]*?\}\);/)[0];
+  // The handler is in js/checkout.js, where the location is read through K.loc
+  context.K = { get loc() { return context.loc; } };
+  const handler = fs.readFileSync('js/checkout.js', 'utf8').match(/saveLoc\(\{ town: chosenAddress\.town,[\s\S]*?\}\);/)[0];
   vm.runInNewContext(handler, context);
   assert.equal(context.loc.mode, 'collection');
   assert.equal(context.loc.province, 'lusaka');

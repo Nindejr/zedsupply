@@ -1138,7 +1138,6 @@
      Mobile money, bank transfer, cards (a secure link from a payment provider) and cash on
      delivery, as set in catalogue.js. Only switched-on methods show; demo mode also shows those
      marked preview. Nothing here takes payment details: instructions follow on WhatsApp. */
-  var payChoice = '';   // the customer's preferred method for this cart; kept in memory only
   var PAY_KINDS = { mobile: 'Mobile money', bank: 'Bank transfer', card: 'Card payments', cash: 'Cash on delivery' };
   // What the WhatsApp order asks for, by kind
   var PAY_ASK = { bank: 'please send your bank details', card: 'please send me a secure card payment link', cash: 'please confirm cash on delivery to my area' };
@@ -1258,7 +1257,6 @@
     });
     return out;
   })();
-  var shipScope = 'town', shipChoice = '';   // this cart's choice; kept in memory only
   function courier(id) { return byId(COURIERS, id); }
   // A seller's couriers: ticked in the Seller Centre (this browser) or couriers: [...] on the seller in catalogue.js
   function sellerCouriers(s) {
@@ -1320,65 +1318,11 @@
       qIn.addEventListener('input', filter); sc.addEventListener('change', filter);
     });
   }
-  // Checkout: the six top-ranked couriers for the route, and every other one in a list
-  function shipChoiceHTML() {
-    if (!COURIERS.length) return '';
-    var list = rankedCouriers(shipScope), top = list.slice(0, 6), rest = list.slice(6).sort(byName);
-    if (shipChoice && list.every(function (c) { return c.id !== shipChoice; })) shipChoice = '';
-    var opt = function (value, label, sub) {
-      var id = 'co-ship-' + (value || 'zs');
-      return '<div class="pay-option"><input type="radio" name="co-ship" id="' + id + '" value="' + esc(value) + '"' + (shipChoice === value ? ' checked' : '') + '><label for="' + id + '">' + esc(label) + (sub ? '<small>' + esc(sub) + '</small>' : '') + '</label></div>';
-    };
-    return '<fieldset class="field pay-choice" id="ship-choice"><legend>Courier</legend>' +
-      '<div class="ship-scope" role="radiogroup" aria-label="Where is it going?">' + Object.keys(SCOPES).map(function (s) {
-        return '<label class="chip ship-scope__opt"><input type="radio" name="co-scope" value="' + s + '"' + (s === shipScope ? ' checked' : '') + '> ' + esc(SCOPES[s]) + '</label>';
-      }).join('') + '</div>' +
-      (function () {
-        var e = (DELIVERY.estimates || {})[shipScope];
-        return e && e.length === 2 ? '<p class="pmeta ship-estimate">Usually delivered in ' + (e[0] === e[1] ? e[0] : e[0] + '–' + e[1]) + ' working day' + (e[1] === 1 ? '' : 's') + (DELIVERY.sampleEstimates ? ' (sample times)' : '') + '.</p>' : '';
-      })() +
-      opt('', 'Zed Supply arranges it', 'We confirm the courier and fee on WhatsApp') +
-      top.map(function (c) { return opt(c.id, c.name, c.unlicensed ? 'Licence not confirmed' : ''); }).join('') +
-      (rest.length ? '<div class="field"><label for="co-ship-more">Or choose another courier (' + rest.length + ')</label><select id="co-ship-more"><option value="">Choose a courier…</option>' +
-        rest.map(function (c) { return '<option value="' + esc(c.id) + '"' + (shipChoice === c.id ? ' selected' : '') + '>' + esc(c.name) + (c.unlicensed ? ' (licence not confirmed)' : c.type === 'L' ? ' (local)' : '') + '</option>'; }).join('') + '</select></div>' : '') +
-      '<p class="hint"><a href="help.html#couriers" target="_blank" rel="noopener noreferrer">Compare couriers<span class="visually-hidden"> (opens in a new tab)</span></a>. You pay the delivery fee we confirm on WhatsApp.</p></fieldset>';
-  }
-  function shipSummary() {
-    var c = courier(shipChoice);
-    // With priced delivery each parcel has its own route, so name the courier only
-    return (ratesOn() ? 'Courier' : SCOPES[shipScope]) + ': ' + (c ? c.name + (c.licence ? ' (' + c.licence + ')' : ' (licence not confirmed)') : 'Zed Supply arranges the courier');
-  }
 
   /* ---------- Delivery fees (js/delivery.js, settings.delivery.rates) ----------
      Each seller's parcel is priced by how far it travels and how fast; the buyer picks the speed
      for the order. Without a rate card, fees stay "confirmed on WhatsApp" as before. */
   var ZD = window.ZS_DELIVERY || null;
-  var shipSpeed = 'standard';   // this cart's delivery speed; kept in memory only
-  function ratesOn() { return !!(ZD && DELIVERY.enabled !== false && (DELIVERY.rates || []).length); }
-  // How far a parcel travels: from the seller's location, or from settings.delivery.origin
-  function parcelZone(s) {
-    if (!loc) return '';
-    if (sellerLoc(s)) return zoneFor(s);
-    var o = DELIVERY.origin;
-    if (!o || !o.town) return '';
-    if (String(o.town).trim().toLowerCase() === String(loc.town).trim().toLowerCase()) return 'town';
-    var bp = provinceOf(loc);
-    return bp && bp === (o.province || (townInfo(o.town) || {}).province) ? 'province' : 'country';
-  }
-  // One parcel per seller: its zone, weight (settings.delivery.defaultKg for items without one),
-  // whether it needs a truck and whether same day is possible
-  function parcelsFor(groups) {
-    var dkg = Number(DELIVERY.defaultKg) || 1;
-    return groups.map(function (g) {
-      return { id: g.sid, zone: parcelZone(g.s), sameDay: !!sameDayFor(g.s),
-        heavy: g.list.some(function (x) { return ZP.orderRules(x.it.p).heavy; }),
-        kg: g.list.reduce(function (n, x) { return n + (ZP.orderRules(x.it.p).weight || dkg) * x.it.qty; }, 0) };
-    });
-  }
-  function deliveryArgs(groups, itemsTotal, speed) {
-    return { rates: DELIVERY.rates, parcels: parcelsFor(groups), speed: speed || shipSpeed, courier: shipChoice, itemsTotal: itemsTotal, free: DELIVERY.freeDelivery || {} };
-  }
-  function deliveryQuote(groups, itemsTotal, speed) { return ZD.quote(deliveryArgs(groups, itemsTotal, speed)); }
   function speedName(sp) { return (ZD && ZD.NAMES[sp]) || 'Delivery'; }
   // "Arrives Thu 6 Nov – Fri 7 Nov", or "Arrives today"
   function arrivesText(days) {
@@ -1395,38 +1339,12 @@
   }
   function feeText(fee, free) { return free || fee === 0 ? 'FREE' : kwacha(fee); }
   function sellerName(id) { var s = seller(id); return s ? s.name : 'Zed Supply'; }
-  // Checkout: one card per speed, with its price for this cart and when it arrives
-  function speedChoiceHTML(opts) {
-    if (!opts.length) return '';
-    if (!opts.some(function (x) { return x.speed === shipSpeed; })) shipSpeed = opts[0].speed;
-    return '<fieldset class="field speed-choice" id="speed-choice"><legend>Delivery speed</legend>' + opts.map(function (x) {
-      var q = x.quote, id = 'co-speed-' + x.speed, when = quoteArrives(q);
-      var price = q.pending ? (q.parcels.some(function (p) { return p.note === 'location'; }) ? 'Set your location' : 'Quoted before you pay') : feeText(q.total);
-      return '<div class="speed-option"><input type="radio" name="co-speed" id="' + id + '" value="' + x.speed + '"' + (x.speed === shipSpeed ? ' checked' : '') + '>' +
-        '<label for="' + id + '"><span class="speed-option__name">' + esc(x.name) + '</span>' +
-        '<span class="speed-option__fee' + (q.total === 0 ? ' is-free' : '') + '">' + esc(price) + '</span>' +
-        (when ? '<small>' + esc(when) + '</small>' : '') + '</label></div>';
-    }).join('') + (DELIVERY.sampleRates ? '<p class="hint"><span class="tag-sample">Sample prices</span> Demo delivery prices to show how fees work, not real courier rates.</p>' : '') + '</fieldset>';
-  }
   // A short line about a parcel, for the review, receipt and order page
   function parcelLine(p) {
     var c = p.courier ? courier(p.courier) : null;
     return esc(p.sellerName || sellerName(p.seller)) + ' · ' + esc(speedName(p.speed)) + (p.eta ? ' · ' + esc(p.eta) : '') + (c ? ' · ' + esc(c.name) : '');
   }
 
-  function payChoiceHTML() {
-    var list = payMethods();
-    if (!list.length) return '';
-    var opt = function (value, label, sub, colour, note) {
-      return '<div class="pay-option"><input type="radio" name="co-pay" id="co-pay-' + (value ? esc(value).replace(/\W+/g, '-').toLowerCase() : 'later') + '" value="' + esc(value) + '"' + (payChoice === value ? ' checked' : '') + '>' +
-        '<label for="co-pay-' + (value ? esc(value).replace(/\W+/g, '-').toLowerCase() : 'later') + '">' + (colour ? '<span class="paychip__dot" style="--pay:' + esc(colour) + '" aria-hidden="true"></span>' : '') + esc(label) + (sub ? '<small' + (note ? ' class="pay-note"' : '') + '>' + esc(sub) + '</small>' : '') + '</label></div>';
-    };
-    // Mobile money shows its kind beside the name; bank, card and cash show their note underneath
-    return '<fieldset class="field pay-choice"><legend>How would you like to pay?</legend>' +
-      list.map(function (m) { return opt(m.name, m.name, m.note || PAY_KINDS[payKind(m)], m.colour, !!m.note); }).join('') +
-      opt('', 'Decide on WhatsApp', '', '') +
-      '</fieldset>';
-  }
   // Fill every "we accept" spot on the page (footer, help centre)
   // data-pay-methods="guide" (help centre) lists each method with its note; otherwise chips.
   // data-pay-heading follows what's on offer: "Pay with mobile money" or "Ways to pay".
@@ -3014,406 +2932,6 @@
       if (q && q.get('review') && rf) setTimeout(function () { $('#reviews').scrollIntoView(); var first = $('input[name="rev-rating"]', rf); if (first) first.focus({ preventScroll: true }); }, 50);
     },
 
-    cart: function () {
-      var lines = cart().filter(function (l) { return product(l.id); });
-      var saved = store.get('saved', []).map(product).filter(Boolean);
-      var u = user() || {};
-      var savedHTML = saved.length ? '<h2 class="cart__saved">Saved for later</h2><ul class="grid">' + cards(saved) + '</ul>' : '';
-      if (!lines.length) {
-        show(crumbs([['Cart']]) + head('Your cart is empty') + empty('Find something you like, or tell us what you need and we\'ll source it.', '<div class="btn-row btn-row--center"><a class="btn btn--primary" href="#/deals">Shop today\'s deals</a><a class="btn btn--secondary" href="#/wishlist">View wishlist</a></div>') + savedHTML, 'Cart');
-        bindSaved();
-        return;
-      }
-      var voucher = store.get('voucher', '');
-      var sub = 0, save = 0, items = [];
-      lines.forEach(function (l) { var p = product(l.id), qty = ZP.fitQty(p, l.qty), lq = lineQuote(p, l.opt, qty), pr = lq.pr; sub += lq.q.each * qty; if (pr.was && !lq.q.commit) save += (pr.was - pr.now) * qty; items.push({ p: p, pr: pr, qty: qty, each: lq.q.each, commit: lq.q.commit, bulk: lq.q.bulk, key: lineKey(l), label: ZP.describe(p, l.opt), sku: lq.v ? lq.v.sku : "", opt: l.opt }); });
-      var v = voucher ? (D.vouchers || []).filter(function (x) { return x.code === voucher; })[0] : null;
-      var vOff = v && sub >= v.minSpend ? Math.round(sub * v.percent / 100) : 0;
-      var total = sub - vOff;
-      // VAT is usually inside the price (shown as "Includes VAT"); if settings add it on top, the total grows
-      var vat = vatFor(items, total);
-      if (VAT.included === false) total += vat;
-      var book = addressesOn() ? addresses() : [];
-      var days = DELIVERY.enabled ? deliveryDays() : [];
-      var units = items.reduce(function (n, it) { return n + it.qty; }, 0), unitsText = units + (units === 1 ? ' item' : ' items');
-      // Price changes since each item was added, as Amazon flags them. Shown once, then the new price is remembered.
-      var changes = lines.map(function (l, i) { var it = items[i]; return l.seen != null && Math.abs(l.seen - it.each) >= 0.01 ? { it: it, was: l.seen } : null; }).filter(Boolean);
-      if (changes.length) setCart(lines.map(function (l, i) { l.seen = items[i].each; return l; }));
-      // Items grouped by seller: each seller packs and sends its own parcel
-      var groups = [];
-      items.forEach(function (it, i) {
-        var sid = it.p.seller || '', g = groups.filter(function (x) { return x.sid === sid; })[0];
-        if (!g) { g = { sid: sid, s: seller(sid), list: [] }; groups.push(g); }
-        g.list.push({ it: it, i: i });
-      });
-      var lineHTML = function (it, i) {
-        var v = variantOf(it.p, it.opt);
-        return '<li class="line"><a class="pmedia" href="#/product/' + it.p.id + '" tabindex="-1" aria-hidden="true">' + media(it.p) + '</a><div>' +
-          '<a class="line__title" href="#/product/' + it.p.id + '">' + esc(it.p.title) + '</a>' +
-          (it.pr.promo && !it.commit ? '<p class="pmeta"><span class="badge">' + esc(it.pr.promo.title) + '</span></p>' : '') +
-          (it.bulk ? '<p class="pmeta"><span class="badge">Bulk price</span></p>' : '') +
-          (ZP.qtyRuleText(it.p) || ZP.orderRules(it.p).heavy ? '<p class="pmeta">' + esc(ZP.qtyRuleText(it.p)) + (ZP.orderRules(it.p).heavy ? (ZP.qtyRuleText(it.p) ? ' · ' : '') + '<span class="badge badge--trade">Truck delivery</span>' : '') + '</p>' : '') +
-          (it.label ? '<p class="pmeta line__opts">' + esc(it.label) + (it.commit ? ' <span class="badge">Pending seller</span>' : '') + '</p>' : '') +
-          stockHTML(it.p, v) +
-          '<p class="line__price">' + kwacha(it.each * it.qty) + (it.qty > 1 || ZP.sellUnit(it.p) ? ' <small class="pmeta">(' + (ZP.sellUnit(it.p) ? esc(ZP.qtyText(it.p, it.qty)) + ', ' : '') + kwacha(it.each) + ' ' + perUnit(it.p) + ')</small>' : '') + '</p>' +
-          '<div class="line__actions"><div class="qty"><button type="button" data-step="-1" data-target="#cq' + i + '" aria-label="Decrease quantity of ' + esc(it.p.title) + '">−</button>' +
-          '<input id="cq' + i + '" ' + qtyAttrs(it.p, it.qty) + ' data-cart-qty="' + esc(it.key) + '" aria-label="Quantity of ' + esc(it.p.title) + '"><button type="button" data-step="1" data-target="#cq' + i + '" aria-label="Increase quantity of ' + esc(it.p.title) + '">+</button></div>' +
-          '<button class="link-btn link-btn--danger" type="button" data-remove="' + esc(it.key) + '">Remove<span class="visually-hidden"> ' + esc(it.p.title) + '</span></button><button class="link-btn" type="button" data-save="' + esc(it.key) + '">Save for later<span class="visually-hidden">: ' + esc(it.p.title) + '</span></button></div>' +
-        '</div></li>';
-      };
-      // Heavy or bulky items go by truck: the fee is quoted for this order, with the weight when known
-      var heavy = items.filter(function (it) { return ZP.orderRules(it.p).heavy; });
-      var heavyKg = heavy.reduce(function (kg, it) { return kg + ZP.orderRules(it.p).weight * it.qty; }, 0);
-      var heavyText = heavy.map(function (it) { return it.p.title + ' (' + ZP.qtyText(it.p, it.qty) + ')'; }).join(', ') + (heavyKg ? ', about ' + weightText(heavyKg) + (heavy.every(function (it) { return ZP.orderRules(it.p).weight; }) ? '' : ' plus items without a listed weight') : '');
-      var biz = savedBusiness();
-      var step = function (n, title, body) { return '<section class="co-step" aria-labelledby="co-step-' + n + '"><h3 id="co-step-' + n + '"><span class="co-step__n" aria-hidden="true">' + n + '</span>' + title + '</h3>' + body + '</section>'; };
-      var html = crumbs([['Cart']]) + head('Your cart') +
-        // Subtotal and the way to checkout first, so phones don't have to scroll past every item
-        '<div class="cart-top"><p><span>Subtotal (' + unitsText + '):</span> <strong>' + kwacha(sub) + '</strong></p><a class="btn btn--primary" href="#checkout-steps" data-jump="checkout-steps">Proceed to checkout</a></div>' +
-        '<div id="co-free" aria-live="polite"></div>' +
-        (changes.length ? '<div class="notice" role="status"><p><strong>Prices have changed since you added ' + (changes.length === 1 ? 'this item' : 'these items') + ':</strong></p><ul>' + changes.map(function (c) {
-          return '<li>' + esc(c.it.p.title) + (c.it.label ? ' (' + esc(c.it.label) + ')' : '') + ': ' + (c.it.each < c.was ? 'down' : 'up') + ' from ' + kwacha(c.was) + ' to ' + kwacha(c.it.each) + ' each.</li>';
-        }).join('') + '</ul></div>' : '') +
-        '<div class="cart"><div>' +
-          (groups.length > 1 ? '<p class="pmeta cart__split">Your items come from ' + groups.length + ' sellers, so they may arrive in separate parcels. We confirm delivery for each on WhatsApp.</p>' : '') +
-          groups.map(function (g) {
-            return '<section class="cart-group" aria-label="' + esc(g.s ? 'Sold by ' + g.s.name : 'Zed Supply') + '"><p class="cart-group__head">' + (g.s ? 'Sold and sent by <a href="#/store/' + esc(g.s.id) + '">' + esc(g.s.name) + '</a>' + verifiedHTML(g.s) : 'Sourced by Zed Supply') + (g.s ? '<span class="cart-group__fulfil" data-group-seller="' + esc(g.s.id) + '">' + esc(fulfilLine(g.s)) + '</span>' : '') + '</p>'+
-              '<ul class="lines">' + g.list.map(function (x) { return lineHTML(x.it, x.i); }).join('') + '</ul></section>';
-          }).join('') + savedHTML +
-        '</div><aside class="summary" id="checkout-steps" aria-labelledby="sum-title" tabindex="-1"><h2 id="sum-title">Checkout</h2>' +
-          step(1, 'Delivery or collection',
-            '<fieldset class="field co-mode"><legend>How do you want this order?</legend>' +
-              '<div class="check"><input type="radio" name="co-mode" id="co-mode-delivery" value="delivery"' + (coMode() === 'delivery' ? ' checked' : '') + '><label for="co-mode-delivery">Deliver it to me</label></div>' +
-              '<div class="check"><input type="radio" name="co-mode" id="co-mode-collection" value="collection"' + (coMode() === 'collection' ? ' checked' : '') + '><label for="co-mode-collection">I\'ll collect it from the seller' + (groups.length > 1 ? 's' : '') + '</label></div>' +
-              '<p class="form-status is-error" id="co-mode-warn" hidden></p></fieldset>' +
-            '<div class="field"><label for="co-name">Your name *</label><input id="co-name" autocomplete="name" required aria-describedby="co-name-err" value="' + esc(u.name || '') + '"><p class="form-status is-error" id="co-name-err" hidden></p></div>' +
-            (book.length ? '<div class="field"><label for="co-address">Saved address</label><select id="co-address"><option value="">Choose a saved address…</option>' + book.map(function (a) { return '<option value="' + esc(a.id) + '">' + esc(a.label + ': ' + addressLine(a)) + '</option>'; }).join('') + '</select><p class="hint"><a href="#/addresses">Manage addresses</a></p></div>' : '') +
-            '<div class="deliver-box" id="co-loc-box"><p class="deliver-box__label">Deliver to *</p><p data-loc-summary>' + locSummaryHTML() + '</p><button class="link-btn" type="button" data-open-location aria-haspopup="dialog">Set or change delivery location</button>' +
-              (addressesOn() ? ' · <button class="link-btn" type="button" id="co-save-address">Save to my addresses</button>' : '') + '<p class="form-status is-error" id="co-loc-err" hidden></p></div>' +
-            ext('checkoutCollect') +
-            '<div id="speed-wrap"></div>' +
-            '<div id="ship-wrap">' + shipChoiceHTML() + '</div>' +
-            (heavy.length ? '<div class="notice notice--freight" id="co-freight"><p><strong>Truck delivery:</strong> ' + esc(heavyText) + '.</p><p class="pmeta">We quote the delivery fee for these before you pay, or you can collect.' + (COURIERS.length && heavy.length < items.length ? ' The courier choice above is for your other items.' : '') + '</p></div>' : '') +
-            (days.length ? '<fieldset class="field co-when"><legend>Preferred delivery day and time</legend><div class="field-row">' +
-              '<div class="field"><label for="co-day">Day</label><select id="co-day"><option value="">Any day</option>' + days.map(function (d) { return '<option value="' + d.iso + '">' + esc(d.label) + '</option>'; }).join('') + '</select></div>' +
-              '<div class="field"><label for="co-slot">Time</label><select id="co-slot"><option value="">Any time</option>' + (DELIVERY.slots || []).map(function (s) { return '<option value="' + esc(s.id) + '">' + esc(s.label) + '</option>'; }).join('') + '</select></div></div>' +
-              '<p class="hint">A preference, not a booking: we confirm the day and time with you and the seller on WhatsApp.</p></fieldset>' : '') +
-            (OPTS.gifts ? '<div class="check"><input type="checkbox" id="co-gift"><label for="co-gift">This order is a gift</label></div>' +
-              '<div class="co-gift" id="co-gift-box" hidden><div class="field"><label for="co-gift-msg">Gift message (optional)</label><textarea id="co-gift-msg" maxlength="250" rows="3" placeholder="e.g. Happy birthday, Mum!"></textarea></div>' +
-              '<div class="check"><input type="checkbox" id="co-gift-noprice" checked><label for="co-gift-noprice">Leave prices out of the parcel</label></div></div>' : '') +
-            '<div class="field"><label for="co-note">Notes for your order (optional)</label><input id="co-note" placeholder="e.g. Call when you reach the gate"></div>' +
-            '<div class="check"><input type="checkbox" id="co-biz"' + (biz.name ? ' checked' : '') + '><label for="co-biz">I\'m buying for a business</label></div>' +
-            '<fieldset class="co-biz" id="co-biz-box"' + (biz.name ? '' : ' hidden') + '><legend class="visually-hidden">Business details</legend>' +
-              '<div class="field"><label for="co-biz-name">Business name *</label><input id="co-biz-name" autocomplete="organization" maxlength="120" value="' + esc(biz.name || '') + '" aria-describedby="co-biz-err"></div>' +
-              '<div class="field"><label for="co-biz-tpin">TPIN (optional)</label><input id="co-biz-tpin" inputmode="numeric" maxlength="10" value="' + esc(biz.tpin || '') + '" aria-describedby="co-biz-tpin-hint co-biz-err"><p class="hint" id="co-biz-tpin-hint">Your 10-digit ZRA taxpayer number, shown on your order summary.</p></div>' +
-              '<div class="field"><label for="co-biz-addr">Billing address (optional)</label><input id="co-biz-addr" autocomplete="street-address" maxlength="200" value="' + esc(biz.address || '') + '"></div>' +
-              '<p class="form-status is-error" id="co-biz-err" hidden></p><p class="hint"><a href="#/account">Save business details in My Account</a></p></fieldset>') +
-          step(2, 'Payment',
-            payChoiceHTML() + ext('checkoutPayment', total) +
-            '<form class="voucher" id="voucher-form"><label for="voucher" class="visually-hidden">Voucher code</label><input id="voucher" placeholder="Voucher code" value="' + esc(voucher) + '" autocapitalize="characters"><button class="btn btn--secondary btn--sm" type="submit">Apply</button></form>' +
-            (voucher && !v ? '<p class="form-status is-error">That voucher code isn\'t valid.</p>' : '') +
-            (v && !vOff ? '<p class="form-status is-error">' + esc(v.code) + ' needs a minimum spend of ' + kwacha(v.minSpend) + '.</p>' : '')) +
-          step(3, 'Review and place your order',
-            '<div id="co-totals" aria-live="polite"></div>' +
-            (secureMode() ? '<div class="field"><label for="co-phone">Recipient phone (+260…)</label><input id="co-phone" type="tel" autocomplete="tel" required value="' + esc(u.phone || '') + '"></div>' : '') +
-            '<fieldset class="field co-receipt"><legend>Send my receipt to</legend>' +
-              (secureMode() ? '' : '<div class="field"><label for="co-rc-wa">WhatsApp number (optional)</label><input id="co-rc-wa" type="tel" autocomplete="tel" inputmode="tel" maxlength="20" placeholder="+260 97…" value="' + esc(u.phone || '') + '"></div>') +
-              '<div class="field"><label for="co-rc-email">Email (optional)</label><input id="co-rc-email" type="email" autocomplete="email" maxlength="200" value="' + esc(u.email || '') + '" aria-describedby="co-rc-err"><p class="form-status is-error" id="co-rc-err" hidden></p></div>' +
-              '<p class="hint">Your receipt is ready to download as soon as you place the order, and you can send it again from the order page.</p></fieldset>' +
-            (secureMode() ? '<a class="btn btn--primary btn--block" id="checkout" href="#" target="_blank" rel="noopener noreferrer">Review server total</a>'
-              : '<button class="btn btn--primary btn--block" type="button" id="co-review" aria-haspopup="dialog">Review and place order</button>') +
-            '<div id="server-checkout-review" aria-live="polite"></div>' +
-            '<p class="pmeta">' + (ratesOn() ? 'Check everything in the next step before you place the order. ' : '') + 'Your order reaches us when you press Send in WhatsApp. We confirm it there, then send payment instructions. We never ask for your PIN.</p>' +
-            '<p class="pmeta">By placing your order you agree to our <a href="privacy.html">privacy policy</a> and <a href="help.html#returns">returns and buyer protection</a>.</p>') +
-          '<button class="link-btn link-btn--danger" type="button" id="clear-cart">Empty cart</button>' +
-        '</aside></div>' +
-        // Review before buying: everything in one window, then the button that places the order
-        (secureMode() ? '' : '<dialog class="co-review" id="co-review-dialog" aria-labelledby="co-review-title">' +
-          '<div class="co-review__head"><p id="co-review-title">Review your order</p><button class="icon-btn" type="button" data-close-dialog aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>' +
-          '<div class="co-review__body" id="co-review-body"></div>' +
-          '<div class="co-review__foot"><a class="btn btn--primary btn--block" id="checkout" href="#" target="_blank" rel="noopener noreferrer">Place order and send on WhatsApp</a>' +
-          '<button class="btn btn--secondary btn--block" type="button" data-close-dialog>Keep editing</button>' +
-          '<p class="pmeta">WhatsApp opens with your order: press Send so it reaches us. Your receipt opens here straight away.</p></div></dialog>');
-      show(html, 'Cart');
-
-      var ref = newRef('ZS');
-      var co = $('#checkout');
-      var chosenAddress = null;
-      // Delivery: only the parcels that are delivered (a seller without collection still delivers)
-      var deliveryGroups = function () { return coMode() === 'collection' ? groups.filter(function (g) { return !collectionAt(g.s); }) : groups; };
-      var dq = null;   // the delivery quote for the current choices
-      var liveQuoteId = null, liveFrom = '', liveSeq = 0;   // a courier's live price, saved on the server
-      var deliveryKnown = function () { return ratesOn() && (!deliveryGroups().length || !!(dq && !dq.pending)); };
-      var grand = function () { return total + (dq && !dq.pending ? dq.total : 0); };
-      var deliveryMsg = function () {
-        if (!dq || dq.pending) return '';
-        return '\nDelivery (' + speedName(dq.speed) + '): ' + feeText(dq.total) + (dq.parcels.length > 1 ? ' [' + dq.parcels.map(function (p) { return sellerName(p.id) + ' ' + speedName(p.speed).toLowerCase() + ' ' + feeText(p.fee); }).join('; ') + ']' : '');
-      };
-      var totalsHTML = function () {
-        var dg = deliveryGroups(), rows;
-        if (!dg.length) rows = '<div><dt>Collection</dt><dd>No delivery fee</dd></div>';
-        else if (!ratesOn()) rows = '<div><dt>Delivery</dt><dd>' + (heavy.length ? 'Truck delivery quoted' : 'Confirmed on WhatsApp') + '</dd></div>';
-        else if (!loc) rows = '<div><dt>Delivery</dt><dd>Set your location</dd></div>';
-        else if (!dq || dq.pending) rows = '<div><dt>Delivery</dt><dd>Quoted before you pay</dd></div>';
-        else {
-          rows = '<div' + (dq.total === 0 ? ' class="is-save"' : '') + '><dt>Delivery · ' + esc(speedName(dq.speed)) + (dq.parcels.length > 1 ? ' (' + dq.parcels.length + ' parcels)' : '') + '</dt><dd>' + feeText(dq.total) + '</dd></div>';
-          if (dq.parcels.length > 1 || dq.parcels.some(function (p) { return p.speed !== dq.speed; }))
-            rows += dq.parcels.map(function (p) { return '<div class="totals__sub"><dt>' + esc(sellerName(p.id)) + ' · ' + esc(speedName(p.speed)) + '</dt><dd>' + feeText(p.fee, p.free) + '</dd></div>'; }).join('');
-        }
-        return '<dl class="totals"><div><dt>Items (' + units + ')</dt><dd>' + kwacha(sub) + '</dd></div>' +
-          (save ? '<div class="is-save"><dt>You save</dt><dd>' + kwacha(save) + '</dd></div>' : '') +
-          (vOff ? '<div class="is-save"><dt>Voucher ' + esc(v.code) + '</dt><dd>−' + kwacha(vOff) + '</dd></div>' : '') +
-          (VAT.included === false ? vatRowHTML(vat) : '') + rows +
-          '<div class="is-total"><dt>' + (deliveryKnown() ? 'Order total' : 'Estimated total') + '</dt><dd>' + kwacha(deliveryKnown() ? grand() : total) + '</dd></div>' +
-          (VAT.included === false ? '' : vatRowHTML(vat)) + '</dl>' +
-          (dq && dq.parcels.some(function (p) { return p.note === 'fallback'; }) ? '<p class="pmeta">Some parcels can\'t go at that speed, so they go at the next fastest.</p>' : '') +
-          (liveQuoteId ? '<p class="pmeta live-price">Live price from ' + esc(liveFrom) + ', held for 30 minutes.</p>' : '');
-      };
-      // Amazon-style nudge: how much more for free standard delivery
-      var freeBarHTML = function () {
-        var f = DELIVERY.freeDelivery || {}, dg = deliveryGroups();
-        if (!ratesOn() || !loc || !dg.length || f.min == null) return '';
-        var sq = deliveryQuote(dg, total, 'standard');
-        if (sq.freeGap) return '<div class="free-bar"><p>Add <strong>' + kwacha(sq.freeGap) + '</strong> more for <strong>FREE standard delivery</strong>.</p>' +
-          '<div class="free-bar__track" aria-hidden="true"><span style="width:' + Math.max(4, Math.min(100, Math.round(total / f.min * 100))) + '%"></span></div></div>';
-        if (sq.parcels.some(function (p) { return p.free; })) return '<p class="free-bar is-done">Your order qualifies for <strong>FREE standard delivery</strong>' + (shipSpeed !== 'standard' ? ' if you choose Standard' : '') + '.</p>';
-        return '';
-      };
-      var renderDelivery = function () {
-        var dg = deliveryGroups(), on = ratesOn() && dg.length > 0, sw = $('#speed-wrap');
-        if (sw) sw.innerHTML = on ? speedChoiceHTML(ZD.options(deliveryArgs(dg, total))) : '';
-        dq = on && loc ? deliveryQuote(dg, total) : null;
-        liveQuoteId = null; liveFrom = '';
-        var seq = ++liveSeq;
-        $('#co-totals').innerHTML = totalsHTML();
-        $('#co-free').innerHTML = freeBarHTML();
-        // With a courier chosen, the server asks that courier for its live price when it's connected
-        if (dq && !dq.pending && shipChoice) ext('deliveryLive', { items: items, buyer_town: loc.town, buyer_province_id: provinceOf(loc), fulfilment: coMode(),
-          delivery_speed: shipSpeed, courier_id: shipChoice, items_total_zmw: total, apply: function (r) {
-            if (seq !== liveSeq || !speedWrap || !speedWrap.isConnected || !r || !r.quote_id || !Array.isArray(r.parcels)) return;
-            dq = { speed: r.speed || shipSpeed, total: r.total == null ? null : Number(r.total), pending: !!r.pending, freeGap: dq ? dq.freeGap : null, free: Number(r.total) === 0,
-              parcels: r.parcels.map(function (p) { return { id: p.seller_id, zone: p.zone, speed: p.speed, fee: p.fee == null ? null : Number(p.fee), free: !!p.free, pending: !!p.pending,
-                days: p.min_days != null && p.max_days != null ? [p.min_days, p.max_days] : null, note: p.note || '', courier: p.courier_id || '' }; }) };
-            liveQuoteId = r.quote_id; liveFrom = (courier(shipChoice) || {}).name || 'the courier';
-            $('#co-totals').innerHTML = totalsHTML(); syncCo();
-          } });
-      };
-      renderDelivery();
-      var speedWrap = $('#speed-wrap');
-      if (speedWrap) speedWrap.addEventListener('change', function (e) {
-        if (e.target.name !== 'co-speed') return;
-        shipSpeed = e.target.value; renderDelivery(); syncCo();
-        var again = $('input[name="co-speed"][value="' + shipSpeed + '"]', speedWrap); if (again) again.focus();
-      });
-      var receiptTo = function () { var w = $('#co-rc-wa'), m = $('#co-rc-email'); return { whatsapp: w ? cleanText(w.value, 20) : '', email: m ? m.value.trim() : '' }; };
-      // The parcels as they stand now, kept with the order for the receipt and tracking
-      var parcelsNow = function () {
-        return dq ? dq.parcels.map(function (p) { return { seller: p.id, zone: p.zone, speed: p.speed, fee: p.fee, free: p.free, pending: p.pending, days: p.days, eta: arrivesText(p.days), courier: p.courier || shipChoice || '' }; }) : [];
-      };
-      var reviewHTML = function () {
-        var col = coMode() === 'collection', g = gift(), pm = payChoice ? payByName(payChoice) : null;
-        return '<section class="review-block"><h3>' + (col ? 'Collecting' : 'Delivering to') + '</h3><p><strong>' + esc($('#co-name').value.trim()) + '</strong><br>' + esc(locFull() || 'Location to be confirmed') + '</p>' +
-            (chosenAddress && chosenAddress.instructions ? '<p class="pmeta">' + esc(chosenAddress.instructions) + '</p>' : '') + '</section>' +
-          '<section class="review-block"><h3>Items</h3><ul class="review-items">' + items.map(function (it) {
-            return '<li><span class="review-items__name">' + esc(it.p.title) + (it.label ? '<small>' + esc(it.label) + '</small>' : '') + '<small>' + esc(qtyLabel(it.p, it.qty)) + ' × ' + kwacha(it.each) + ' · sold by ' + esc(sellerName(it.p.seller)) + '</small></span><strong>' + kwacha(it.each * it.qty) + '</strong></li>';
-          }).join('') + '</ul></section>' +
-          (dq && !dq.pending && deliveryGroups().length ? '<section class="review-block"><h3>Delivery</h3><ul class="review-parcels">' + parcelsNow().map(function (p) {
-            return '<li><span>' + parcelLine(p) + '</span><strong>' + feeText(p.fee, p.free) + '</strong></li>'; }).join('') + '</ul></section>'
-            : heavy.length && !col ? '<section class="review-block"><h3>Truck delivery</h3><p>' + esc(heavyText) + '. We quote this before you pay.</p></section>' : '') +
-          '<section class="review-block"><h3>Payment</h3><p>' + esc(payChoice || 'Decide on WhatsApp') + (pm && pm.note ? '<br><span class="pmeta">' + esc(pm.note) + '</span>' : '') + '</p></section>' +
-          (g.on ? '<section class="review-block"><h3>Gift</h3><p>' + (g.message ? '“' + esc(g.message) + '”' : 'Yes') + (g.noPrice ? '<br><span class="pmeta">Prices left out of the parcel</span>' : '') + '</p></section>' : '') +
-          '<section class="review-block review-block--totals">' + totalsHTML() + '</section>';
-      };
-      var when = function () { return { day: $('#co-day') ? $('#co-day').value : '', slot: $('#co-slot') ? $('#co-slot').value : '' }; };
-      var business = function () {
-        return $('#co-biz').checked ? { name: cleanText($('#co-biz-name').value, 120), tpin: $('#co-biz-tpin').value.replace(/\s+/g, ''), address: cleanText($('#co-biz-addr').value, 200) } : null;
-      };
-      var gift = function () {
-        var on = !!($('#co-gift') && $('#co-gift').checked);
-        return { on: on, message: on ? cleanText($('#co-gift-msg').value, 250) : '', noPrice: on && $('#co-gift-noprice').checked };
-      };
-      var buildMsg = function () {
-        var m = 'Hi Zed Supply, I\'d like to place an order (ref ' + ref + '):\n' +
-          items.map(function (it, i) { return (i + 1) + '. ' + it.p.title + ' (' + it.p.id + (it.sku ? ', SKU ' + it.sku : '') + ')' + (it.label ? ' [' + it.label + ']' : '') + ' x ' + qtyLabel(it.p, it.qty) + ' = ' + kwacha(it.each * it.qty) + (it.commit ? ' (my offer, pending the seller)' : ''); }).join('\n') +
-          (vOff ? '\nVoucher ' + v.code + ': -' + kwacha(vOff) : '') + deliveryMsg() + (deliveryKnown() ? '\nOrder total: ' + kwacha(grand()) : '\nEstimated total: ' + kwacha(total)) +
-          (vat ? (VAT.included === false ? ' (with VAT ' + VAT.rate + '%: ' + kwacha(vat) + ')' : ' (includes VAT ' + VAT.rate + '%: ' + kwacha(vat) + ')') : '');
-        var nm = $('#co-name').value.trim(), note = $('#co-note').value.trim(), w = when();
-        if (nm) m += '\nName: ' + nm;
-        var b = business();
-        if (b && b.name) m += '\nBusiness: ' + b.name + (b.tpin ? ', TPIN ' + b.tpin : '') + (b.address ? '\nBilling address: ' + b.address : '');
-        if (chosenAddress && chosenAddress.phone) m += '\nRecipient phone: ' + chosenAddress.phone;
-        if (chosenAddress && chosenAddress.instructions) m += '\nDelivery instructions: ' + chosenAddress.instructions;
-        if (note) m += '\nNotes: ' + note;
-        if (coMode() === 'collection') {
-          // Where to collect each seller's parcel; a seller without collection delivers instead
-          m += '\nCollection: I\'ll collect' + groups.map(function (g) {
-            var c = collectionAt(g.s);
-            return '\n- ' + (g.s ? g.s.name : 'Zed Supply') + ': ' + (c ? [c.collection.address, c.town].filter(Boolean).join(', ') + (c.collection.hours ? ' (' + c.collection.hours + ')' : '') : 'no collection, please deliver');
-          }).join('');
-        } else if (COURIERS.length) m += '\nDelivery: ' + shipSummary();
-        if (heavy.length && coMode() !== 'collection') m += '\nTruck delivery needed: ' + heavyText;
-        if (w.day || w.slot) m += '\nPreferred delivery: ' + [w.day ? dayLabel(w.day) : 'any day', w.slot ? slotLabel(w.slot) : 'any time'].join(', ');
-        var g = gift();
-        if (g.on) m += '\nGift: yes' + (g.noPrice ? ', leave prices out of the parcel' : '') + (g.message ? '\nGift message: ' + g.message : '');
-        if (payChoice) { var pm = payByName(payChoice); m += '\nPayment: ' + payChoice + (pm && PAY_ASK[payKind(pm)] ? ' (' + PAY_ASK[payKind(pm)] + ')' : ''); }
-        return m + ext('checkoutMessage', total);
-      };
-      // data-wa-message lets refreshLoc() update the link when the delivery location changes
-      var syncCo = function () { var m = buildMsg(); co.setAttribute('data-wa-message', m); co.href = waUrl(m); };
-      ext('checkoutReady', { sync: function () { syncCo(); }, total: total, payChoice: function () { return payChoice; }, ref: ref });
-      ['co-name', 'co-note', 'co-biz-name', 'co-biz-tpin', 'co-biz-addr'].forEach(function (id) { $('#' + id).addEventListener('input', syncCo); });
-      $('#co-biz').addEventListener('change', function () { $('#co-biz-box').hidden = !this.checked; if (this.checked) $('#co-biz-name').focus(); syncCo(); });
-      $('#co-name').addEventListener('input', function () { if (this.value.trim()) { $('#co-name-err').hidden = true; this.removeAttribute('aria-invalid'); } });
-      ['co-day', 'co-slot', 'co-gift-noprice'].forEach(function (id) { var el = $('#' + id); if (el) el.addEventListener('change', syncCo); });
-      var giftMsg = $('#co-gift-msg'); if (giftMsg) giftMsg.addEventListener('input', syncCo);
-      var giftBox = $('#co-gift');
-      if (giftBox) giftBox.addEventListener('change', function () { $('#co-gift-box').hidden = !giftBox.checked; if (giftBox.checked) $('#co-gift-msg').focus(); syncCo(); });
-      // A saved address fills in where to deliver (and the name, if empty)
-      var addrSel = $('#co-address');
-      if (addrSel) addrSel.addEventListener('change', function () {
-        chosenAddress = addresses().filter(function (a) { return a.id === addrSel.value; })[0] || null;
-        if (chosenAddress) {
-          saveLoc({ town: chosenAddress.town, area: chosenAddress.area, landmark: chosenAddress.landmark,
-            province: chosenAddress.province, mode: coMode(), remember: !!(loc && loc.remember) });
-          if (!$('#co-name').value.trim() && chosenAddress.recipient) { $('#co-name').value = chosenAddress.recipient; $('#co-name').dispatchEvent(new Event('input')); }
-        }
-        syncCo();
-      });
-      if (addrSel) {
-        // Show which saved address is in use; with no location yet, start from the default one
-        var book2 = addresses(), match = loc && book2.filter(function (a) { return a.town === loc.town && a.area === loc.area && a.landmark === loc.landmark; })[0];
-        var start = match || (!loc && book2.filter(function (a) { return a.isDefault; })[0]);
-        if (start) { addrSel.value = start.id; if (match) { chosenAddress = match; } else addrSel.dispatchEvent(new Event('change')); }
-      }
-      // Delivery or collection for this order: courier choice only applies to delivery, and the
-      // seller lines and the WhatsApp message follow the choice
-      var syncMode = function () {
-        var col = coMode() === 'collection', shipBox = $('#ship-wrap'), warn = $('#co-mode-warn');
-        if (shipBox) shipBox.hidden = col;
-        $$('[data-group-seller]').forEach(function (el) { el.textContent = fulfilLine(seller(el.getAttribute('data-group-seller'))); });
-        var noCollect = groups.filter(function (g) { return g.s && !collectionAt(g.s); }).map(function (g) { return g.s.name; });
-        warn.hidden = !(col && noCollect.length);
-        warn.textContent = col && noCollect.length ? noCollect.join(' and ') + (noCollect.length === 1 ? ' doesn\'t' : ' don\'t') + ' offer collection, so ' + (noCollect.length === 1 ? 'that parcel' : 'those parcels') + ' will be delivered.' : '';
-        $('#co-loc-box .deliver-box__label').textContent = col ? 'Your location (to find collection points near you)' : 'Deliver to *';
-        renderDelivery();
-        syncCo();
-      };
-      $$('input[name="co-mode"]', view).forEach(function (r) { r.addEventListener('change', function () { setMode(r.value); syncMode(); }); });
-      syncMode();
-      var saveAddr = $('#co-save-address');
-      if (saveAddr) saveAddr.addEventListener('click', function () {
-        if (!loc) { openLocation(); return; }
-        var list = addresses(), max = (OPTS.addresses && OPTS.addresses.max) || 10;
-        if (list.some(function (a) { return a.town === loc.town && a.area === loc.area && a.landmark === loc.landmark; })) { toast('That address is already saved. <a href="#/addresses">Manage addresses</a>'); return; }
-        if (list.length >= max) { toast('You have ' + max + ' saved addresses. Remove one first. <a href="#/addresses">Manage addresses</a>', 'warn'); return; }
-        list.push({ id: newRef('A'), label: list.length ? 'Address ' + (list.length + 1) : 'Home', recipient: $('#co-name').value.trim(), phone: '', town: loc.town, area: loc.area, landmark: loc.landmark, instructions: '', isDefault: !list.length });
-        store.set('addresses', list);
-        toast('Address saved. <a href="#/addresses">Name or edit it</a>', 'success');
-      });
-      $$('input[name="co-pay"]', view).forEach(function (r) { r.addEventListener('change', function () { payChoice = r.value; syncCo(); }); });
-      // Delivery: changing "where is it going?" redraws the courier list for that distance
-      var shipWrap = $('#ship-wrap');
-      if (shipWrap) shipWrap.addEventListener('change', function (e) {
-        if (e.target.name === 'co-scope') {
-          shipScope = e.target.value;
-          shipWrap.innerHTML = shipChoiceHTML();
-          var again = $('input[name="co-scope"][value="' + shipScope + '"]', shipWrap);
-          if (again) again.focus();
-        } else if (e.target.name === 'co-ship') {
-          shipChoice = e.target.value;
-          var more = $('#co-ship-more', shipWrap); if (more) more.value = '';
-        } else if (e.target.id === 'co-ship-more') {
-          shipChoice = e.target.value;
-          $$('input[name="co-ship"]', shipWrap).forEach(function (r) { r.checked = !shipChoice && r.value === ''; });
-        }
-        renderDelivery();
-        syncCo();
-      });
-      syncCo();
-      var checkReady = function () {
-        var reserved = {}, unavailable = items.some(function (it) {
-          if (!ZP.hasOptions(it.p)) return false;
-          var current = variantOf(it.p, it.opt);
-          if (!current) return true;
-          var key = JSON.stringify([it.p.id, current.sku]);
-          reserved[key] = (reserved[key] || 0) + it.qty;
-          return reserved[key] > current.stock;
-        });
-        if (unavailable) { toast('A variation is unavailable or its quantity exceeds stock. Update your cart before checkout.', 'error'); return false; }
-        if (hasCardNumber($('#co-name').value + ' ' + $('#co-note').value + ' ' + gift().message + ' ' + $('#co-biz-addr').value)) { toast(esc(CARD_WARNING), 'error'); $('#co-note').focus(); return false; }
-        // Like an address on Amazon: a name and a delivery location are needed before the order goes
-        var nameEl = $('#co-name'), nameErr = $('#co-name-err'), locErr = $('#co-loc-err');
-        // A location is needed to deliver; collecting needs only a name
-        var noName = !nameEl.value.trim(), noLoc = !loc && checkoutNeedsDelivery(groups, coMode());
-        nameErr.hidden = !noName; nameErr.textContent = noName ? 'Enter your name.' : '';
-        nameEl.setAttribute('aria-invalid', String(noName));
-        locErr.hidden = !noLoc; locErr.textContent = noLoc ? 'Set where to deliver, so we can quote the delivery fee.' : '';
-        var b = business(), bizErr = $('#co-biz-err'), bizMsg = b && !b.name ? 'Enter the business name, or untick "I\'m buying for a business".' : b && !tpinOK(b.tpin) ? 'Enter the TPIN as 10 digits, or leave it empty.' : '';
-        bizErr.hidden = !bizMsg; bizErr.textContent = bizMsg;
-        $('#co-biz-name').setAttribute('aria-invalid', String(!!(b && !b.name)));
-        $('#co-biz-tpin').setAttribute('aria-invalid', String(!!(b && b.name && !tpinOK(b.tpin))));
-        var rc = receiptTo(), rcErr = $('#co-rc-err'), badMail = !!rc.email && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(rc.email);
-        rcErr.hidden = !badMail; rcErr.textContent = badMail ? 'Enter an email address like name@example.com, or leave it empty.' : '';
-        $('#co-rc-email').setAttribute('aria-invalid', String(badMail));
-        if (noName || noLoc || bizMsg || badMail) {
-          if (noName) nameEl.focus(); else if (noLoc) $('#co-loc-box [data-open-location]').focus(); else if (bizMsg) $(b.name ? '#co-biz-tpin' : '#co-biz-name').focus(); else $('#co-rc-email').focus();
-          return false;
-        }
-        return true;
-      };
-      var reviewBtn = $('#co-review'), reviewDlg = $('#co-review-dialog');
-      if (reviewBtn) reviewBtn.addEventListener('click', function () {
-        if (!checkReady()) return;
-        syncCo();
-        $('#co-review-body').innerHTML = reviewHTML();
-        co.textContent = deliveryKnown() ? 'Place order · ' + kwacha(grand()) : 'Place order and send on WhatsApp';
-        openDialog(reviewDlg);
-      });
-      co.addEventListener('click', function (e) {
-        // A second click on the same order (double click) sends nothing more
-        if (orders().some(function (o) { return o.ref === ref; })) { e.preventDefault(); return; }
-        if (!checkReady()) { e.preventDefault(); if (reviewDlg && reviewDlg.open) closeDialog(reviewDlg); return; }
-        var nameEl = $('#co-name'), b = business();
-        if (secureMode()) {
-          e.preventDefault();
-          ext('serverCheckout', { ref: ref, items: items, contact_name: nameEl.value.trim(), recipient_phone: $('#co-phone').value.trim(),
-            fulfilment: coMode(), buyer_town: loc ? loc.town : '', buyer_province_id: loc ? provinceOf(loc) : '', deliver_to: locFull(),
-            payment_method: (payByName(payChoice) || {}).id || '', notes: $('#co-note').value.trim(), voucher_code: voucher,
-            preferred_date: when().day, preferred_slot: when().slot, is_gift: gift().on, gift_message: gift().message, hide_prices: gift().noPrice,
-            business_name: b ? b.name : '', business_tpin: b ? b.tpin : '', business_address: b ? b.address : '',
-            delivery_scope: shipScope, courier_id: shipChoice, delivery_speed: shipSpeed, receipt_email: receiptTo().email, delivery_quote_id: liveQuoteId || undefined,
-            expected_delivery_zmw: deliveryKnown() && deliveryGroups().length ? dq.total : undefined });
-          return;
-        }
-        var list = orders();
-        list.unshift({ ref: ref, date: today, items: items.map(function (it) { return it.opt ? { id: it.p.id, qty: it.qty, price: it.each, opt: it.opt, label: it.label } : { id: it.p.id, qty: it.qty, price: it.each }; }), total: deliveryKnown() ? grand() : total, status: 0, deliverTo: locFull(), pay: payChoice, ship: COURIERS.length ? shipSummary() : '', shipId: shipChoice, message: co.getAttribute('data-wa-message'), vat: vat, when: when(), gift: gift().on ? gift() : null, addressId: chosenAddress ? chosenAddress.id : '', mode: coMode(), business: b, freight: heavy.length && coMode() !== 'collection' ? heavyText : '',
-          name: nameEl.value.trim(), sub: sub, save: save, voucher: vOff ? { code: v.code, off: vOff } : null, itemsTotal: total, vatRate: vat ? VAT.rate : null, vatIncluded: VAT.included,
-          delivery: ratesOn() ? { speed: shipSpeed, fee: dq && !dq.pending ? dq.total : null, pending: !deliveryKnown(), parcels: parcelsNow(), sample: !!DELIVERY.sampleRates } : null,
-          receipt: receiptTo(), wished: wishedIn(items.map(function (it) { return it.p.id; })) });
-        noteBought(items.map(function (it) { return it.p.id; }));
-        store.set('orders', list);
-        setCart([]);
-        store.set('voucher', '');
-        setTimeout(function () { location.hash = '#/order/' + ref + '?placed=1'; }, 400);
-      });
-      $$('[data-cart-qty]', view).forEach(function (inp) {
-        inp.addEventListener('change', function () {
-          var c = cart();
-          var fixed = null;
-          c.forEach(function (l) {
-            if (lineKey(l) !== inp.getAttribute('data-cart-qty')) return;
-            var lp = product(l.id); l.qty = ZP.fitQty(lp, inp.value);
-            if (String(l.qty) !== String(inp.value).trim()) fixed = 'Quantity set to ' + esc(qtyLabel(lp, l.qty)) + ': choose ' + esc(qtyRange(lp)) + '.';
-          });
-          setCart(c); views.cart();
-          if (fixed) toast(fixed, 'warn');
-        });
-        inp.addEventListener('input', function (e) { if (e.isTrusted === false) inp.dispatchEvent(new Event('change')); });
-      });
-      $('#voucher-form').addEventListener('submit', function (e) { e.preventDefault(); store.set('voucher', $('#voucher').value.trim().toUpperCase()); views.cart(); });
-      bindSaved();
-    },
-
     wishlist: function () {
       var list = wish().map(product).filter(Boolean), bought = store.get('bought', {}), inCart = cart().map(function (l) { return l.id; });
       var boughtIds = list.filter(function (p) { return bought[p.id]; }).map(function (p) { return p.id; });
@@ -4030,334 +3548,6 @@
        fields show. A field the template leaves out still shows if the product already uses it,
        so switching department never hides data. Everything is kept in `dr` (the draft); each
        redraw reads the form into it first, so nothing typed is lost. */
-    listing: function (id, q) {
-      var sess = store.get('seller', null), s = sess ? seller(sess.id) : null;
-      if (!s) { location.hash = '#/seller'; return; }
-      var editing = id && id !== 'new' ? product(id) : null;
-      if (id && id !== 'new' && (!editing || editing.seller !== s.id)) return views.notfound();
-      var dr = editing ? JSON.parse(JSON.stringify(editing)) : { title: '', category: '', brand: '', priceZMW: '', wasZMW: '', stock: 'in', description: '', tags: '', image: '', alt: '' };
-      dr.seller = s.id;
-      dr.attributes = dr.attributes || {}; dr.options = dr.options || {}; dr.variants = dr.variants || []; dr.inBox = dr.inBox || [];
-      dr.priceTiers = dr.priceTiers || [];
-      var enabledFields = {};
-      var fieldNames = { colour: 'Colour choices', size: 'Size / volume / weight', ageRange: 'Age suitability', inBox: 'Included items / add-ons', manufacturer: 'Manufacturer / brand name', specs: 'Custom specifications', condition: 'Item condition', features: 'Key features' };
-      var specRows = Object.keys(dr.attributes.specs || {}).map(function (k) { return [k, dr.attributes.specs[k]]; });
-      var ctx = { departments: D.departments, brands: D.brands, products: BASE_PRODUCTS };
-      var tpl = function () { return (D.attributeTemplates || {})[dr.category] || { fields: dr.category ? ZP.FIELDS : [] }; };
-      var used = {
-        colour: function () { return (dr.options.colour || []).length; }, size: function () { return (dr.options.size || []).length || dr.attributes.size; },
-        ageRange: function () { return (dr.attributes.ageRange || []).length; }, inBox: function () { return dr.inBox.length; },
-        manufacturer: function () { return dr.attributes.manufacturer; }, specs: function () { return specRows.length; },
-        condition: function () { return dr.attributes.condition || dr.attributes.conditionNotes; }, features: function () { return (dr.attributes.features || []).length; }
-      };
-      var has = function (f) { return enabledFields[f] || tpl().fields.indexOf(f) !== -1 || !!used[f](); };
-      var units = function () { var suggested = tpl().sizeUnits || [], selected = dr.attributes.size ? [dr.attributes.size.unit] : []; if (!suggested.length && !selected.length && !enabledFields.measured && Array.isArray(tpl().sizeUnits)) return []; return suggested.concat(selected, Object.keys(ZP.UNITS)).filter(function (u, i, all) { return all.indexOf(u) === i; }); };
-      var fieldsHTML = function () { return '<details class="lf-optional"><summary>Add other relevant product details</summary><p class="hint">Category suggestions are a starting point. Add only fields that describe this product; existing values are preserved.</p><div class="checks">' + ZP.FIELDS.filter(function (f) { return tpl().fields.indexOf(f) === -1; }).map(function (f) { return '<div class="check"><input type="checkbox" id="lf-enable-' + f + '" data-enable-field="' + f + '"' + (has(f) ? ' checked' : '') + (used[f]() ? ' disabled' : '') + '><label for="lf-enable-' + f + '">' + esc(fieldNames[f]) + '</label></div>'; }).join('') + '</div></details>'; };
-      var addSuggestedSpecs = function () {
-        (tpl().specs || []).forEach(function (k) { if (!specRows.some(function (r) { return r[0].toLowerCase() === k.toLowerCase(); })) specRows.push([k, '']); });
-      };
-      addSuggestedSpecs();
-
-      var fieldHTML = function (fid, label, input, hint) { return '<div class="field" id="lf-f-' + fid + '"><label for="lf-' + fid + '">' + label + '</label>' + input + (hint ? '<p class="hint">' + hint + '</p>' : '') + '</div>'; };
-      // Subcategories of the chosen department (catalogue.js departments[].subs)
-      var subHTML = function () {
-        var subs = dr.category ? dept(dr.category).subs : [], note = dr.category ? dept(dr.category).note : '';
-        return (note ? '<p class="notice">' + esc(note) + ' See <a href="help.html#not-sold" target="_blank" rel="noopener noreferrer">what can\'t be sold</a>.</p>' : '') + (subs.length ? fieldHTML('sub', 'Subcategory', '<select id="lf-sub"><option value="">Choose a subcategory…</option>' + subs.map(function (s) { return '<option value="' + esc(s.id) + '"' + (s.id === dr.sub ? ' selected' : '') + '>' + esc(s.name) + '</option>'; }).join('') + '</select>', 'Helps buyers find it when they browse, e.g. Electronics › Headphones & Earbuds.') : '');
-      };
-      var photosHTML = function () {
-        var list = dr.images || [];
-        return list.length ? '<ul class="lf-photos">' + list.map(function (im, i) {
-          return '<li><img src="' + esc(im.src) + '" alt="" width="72" height="72"><div class="field"><label for="lf-pa-' + i + '">Photo ' + (i + 2) + ' shows *</label><input id="lf-pa-' + i + '" data-photo-alt="' + i + '" maxlength="160" placeholder="e.g. Side view showing the USB-C port" value="' + esc(im.alt) + '"></div>' +
-            '<button class="link-btn link-btn--danger" type="button" data-del-photo="' + i + '">Remove<span class="visually-hidden"> photo ' + (i + 2) + '</span></button></li>';
-        }).join('') + '</ul>' : '';
-      };
-      var attrsHTML = function () {
-        var t = tpl(), out = '';
-        if (!dr.category) return '<p class="pmeta">Choose a department to see the details buyers look for in it.</p>';
-        if (has('size') && Array.isArray(t.sizeUnits) && !t.sizeUnits.length) out += '<div class="check"><input id="lf-measured" type="checkbox" data-measured' + (enabledFields.measured || dr.attributes.size ? ' checked' : '') + '><label for="lf-measured">Also specify a measured size, such as cm or ml</label></div>';
-        if (has('size') && units().length) out += '<div class="field-row lf-size" id="lf-f-size"><div class="field"><label for="lf-size">Size, capacity or weight (one value only)</label><input id="lf-size" type="number" min="0" step="any" inputmode="decimal" value="' + esc(dr.attributes.size ? dr.attributes.size.value : '') + '"><p class="hint">Leave empty if buyers choose a size below.</p></div>' +
-          '<div class="field"><label for="lf-unit">Unit</label><select id="lf-unit">' + units().map(function (u) { return '<option value="' + u + '"' + (dr.attributes.size && dr.attributes.size.unit === u ? ' selected' : '') + '>' + esc(ZP.UNITS[u].name) + '</option>'; }).join('') + '</select></div></div>';
-        if (has('ageRange')) out += '<fieldset class="field" id="lf-f-ageRange"><legend>Age range</legend><div class="checks checks--ages">' + ZP.AGES.map(function (a) {
-          return '<div class="check"><input type="checkbox" id="lf-age-' + a[0] + '" value="' + a[0] + '" data-age' + ((dr.attributes.ageRange || []).indexOf(a[0]) !== -1 ? ' checked' : '') + '><label for="lf-age-' + a[0] + '">' + a[1] + '</label></div>';
-        }).join('') + '</div></fieldset>';
-        if (has('manufacturer')) out += fieldHTML('manufacturer', 'Manufacturer / brand name', '<input id="lf-manufacturer" maxlength="80" value="' + esc(dr.attributes.manufacturer || '') + '">', 'Enter the actual brand or manufacturer. Choose a brand store above only when one exists.');
-        if (has('condition')) out += fieldHTML('condition', 'Item condition', '<select id="lf-condition"><option value="">Not specified</option>' + ZP.CONDITIONS.map(function (c) { return '<option value="' + c[0] + '"' + (dr.attributes.condition === c[0] ? ' selected' : '') + '>' + c[1] + '</option>'; }).join('') + '</select><label for="lf-conditionNotes">Condition details</label><textarea id="lf-conditionNotes" maxlength="1000" placeholder="For used or refurbished items, describe wear, repairs and missing packaging.">' + esc(dr.attributes.conditionNotes || '') + '</textarea>');
-        if (has('features')) out += fieldHTML('features', 'Key features', '<textarea id="lf-features" rows="5" placeholder="One feature per line">' + esc((dr.attributes.features || []).join('\n')) + '</textarea>', 'Up to eight checked facts, 160 characters each. Put warranty, compatibility, material and model details under Specifications.');
-        if (has('specs')) out += '<fieldset class="field" id="lf-f-specs"><legend>Specifications</legend><p class="hint">Leave a value empty to skip it. Only list what you have checked on the item.</p><div class="lf-rows">' + specRows.map(function (r, i) {
-          return '<div class="lf-row"><label class="visually-hidden" for="lf-sk-' + i + '">Specification name</label><input id="lf-sk-' + i + '" data-spec-key placeholder="Name" maxlength="60" value="' + esc(r[0]) + '">' +
-            '<label class="visually-hidden" for="lf-sv-' + i + '">' + esc(r[0] || 'Specification') + ' value</label><input id="lf-sv-' + i + '" data-spec-val placeholder="Value" maxlength="200" value="' + esc(r[1]) + '">' +
-            '<button class="link-btn link-btn--danger" type="button" data-del-spec="' + i + '">Remove<span class="visually-hidden"> ' + esc(r[0] || 'specification') + '</span></button></div>';
-        }).join('') + '</div><button class="btn btn--secondary btn--sm" type="button" data-add-spec>Add a specification</button></fieldset>';
-        if (has('inBox')) out += '<fieldset class="field" id="lf-f-inBox"><legend>In the box</legend><p class="hint">What the buyer gets. An optional add-on is ticked by the buyer and adds its price.</p><div class="lf-rows">' + dr.inBox.map(function (c, i) {
-          var addon = c.addonZMW != null && c.addonZMW !== '';
-          return '<div class="lf-row lf-row--box"><label class="visually-hidden" for="lf-bi-' + i + '">Item</label><input id="lf-bi-' + i + '" data-box-item placeholder="e.g. Charging cable" maxlength="80" value="' + esc(c.item || '') + '">' +
-            '<label class="visually-hidden" for="lf-bk-' + i + '">Included or add-on</label><select id="lf-bk-' + i + '" data-box-kind><option value="included">Included</option><option value="addon"' + (addon ? ' selected' : '') + '>Optional add-on</option></select>' +
-            '<label class="visually-hidden" for="lf-bp-' + i + '">Add-on price in Kwacha</label><input id="lf-bp-' + i + '" data-box-price type="number" min="0" step="0.01" inputmode="decimal" placeholder="K price"' + (addon ? ' value="' + esc(c.addonZMW) + '"' : ' hidden') + '>' +
-            '<button class="link-btn link-btn--danger" type="button" data-del-box="' + i + '">Remove<span class="visually-hidden"> ' + esc(c.item || 'item') + '</span></button></div>';
-        }).join('') + '</div><button class="btn btn--secondary btn--sm" type="button" data-add-box>Add an item</button></fieldset>';
-        return out || '<p class="pmeta">No extra details for this department.</p>';
-      };
-      var varsHTML = function () {
-        var out = '', cols = dr.options.colour || [], sizes = dr.options.size || [];
-        if (has('colour')) out += '<fieldset class="field" id="lf-f-colour"><legend>Colours the buyer can choose</legend><p class="hint">Pick a swatch that matches the real item.</p><div class="lf-rows">' + cols.map(function (c, i) {
-          return '<div class="lf-row lf-row--colour"><label class="visually-hidden" for="lf-cn-' + i + '">Colour name</label><input id="lf-cn-' + i + '" data-col-name placeholder="e.g. Midnight black" maxlength="40" value="' + esc(c.name) + '">' +
-            '<label class="visually-hidden" for="lf-ch-' + i + '">Swatch for ' + esc(c.name || 'this colour') + '</label><input id="lf-ch-' + i + '" data-col-hex type="color" value="' + esc(/^#[0-9a-f]{6}$/i.test(c.hex || '') ? c.hex : '#808080') + '">' +
-            '<button class="link-btn link-btn--danger" type="button" data-del-col="' + i + '">Remove<span class="visually-hidden"> ' + esc(c.name || 'colour') + '</span></button></div>';
-        }).join('') + '</div><button class="btn btn--secondary btn--sm" type="button" data-add-col>Add a colour</button></fieldset>';
-        if (has('size')) out += '<fieldset class="field" id="lf-f-sizes"><legend>Sizes the buyer can choose</legend><p class="hint">For example S, M, L, 42, or 500 ml and 1 l. Measured sizes are read with their unit.</p>' +
-          (sizes.length ? '<ul class="lf-chips">' + sizes.map(function (sz, i) { return '<li><span>' + esc(ZP.sizeLabel(sz)) + '</span><button type="button" class="lf-chip-x" data-del-size="' + i + '" aria-label="Remove size ' + esc(ZP.sizeLabel(sz)) + '">×</button></li>'; }).join('') + '</ul>' : '') +
-          '<div class="lf-row"><label class="visually-hidden" for="lf-newsize">New size</label><input id="lf-newsize" maxlength="20" placeholder="Add a size"><button class="btn btn--secondary btn--sm" type="button" data-add-size>Add size</button></div></fieldset>';
-        out += '<fieldset class="field lf-extra"><legend>Other buyer choices</legend><p class="hint">Use related variations such as Storage, Capacity, Material, Pack size or Fit. Different brands should have separate product listings.</p>' + (dr.options.extra || []).map(function (axis, i) {
-          return '<div class="lf-row"><label for="lf-extra-name-' + i + '">Choice name</label><input id="lf-extra-name-' + i + '" data-extra-name="' + axis.key + '" maxlength="40" placeholder="e.g. Storage" value="' + esc(axis.name) + '"><label for="lf-extra-values-' + i + '">Values</label><input id="lf-extra-values-' + i + '" data-extra-values="' + axis.key + '" placeholder="e.g. 128 GB, 256 GB" value="' + esc(axis.values.join(', ')) + '"><button type="button" class="link-btn" data-del-extra="' + i + '">Remove choice</button></div>';
-        }).join('') + ((dr.options.extra || []).length < 2 ? '<button type="button" class="btn btn--secondary btn--sm" data-add-extra>Add another choice</button>' : '') + '<p class="hint">Up to two extra choice types and ' + ZP.MAX_COMBINATIONS + ' total combinations.</p></fieldset>';
-        if (ZP.combinationCount(dr.options) > ZP.MAX_COMBINATIONS) out += '<p class="form-status is-error">There are too many combinations. Remove some values to generate the stock table.</p>';
-        if (dr.variants.length) {
-          var withC = cols.length > 0, matrixAxes = ZP.options(dr);
-          out += '<div class="field" id="lf-f-variants"><p class="lf-label" id="lf-vt">Stock for each combination (' + dr.variants.length + ')</p><p class="hint">Stock 0 shows that combination as sold out. Leave the price empty to use the main price.</p>' +
-            '<div class="cmp lf-matrix" tabindex="0" role="region" aria-labelledby="lf-vt"><table><thead><tr>' + matrixAxes.map(function (a) { return '<th scope="col">' + esc(a.name) + '</th>'; }).join('') + '<th scope="col">SKU</th><th scope="col">Stock</th><th scope="col">Price (K)</th></tr></thead><tbody>' +
-            dr.variants.map(function (v, i) {
-              var name = matrixAxes.map(function (a) { return v[a.key]; }).join(' / ');
-              var hex = withC ? ((cols.filter(function (c) { return c.name === v.colour; })[0] || {}).hex || '') : '';
-              return '<tr>' + matrixAxes.map(function (a, ai) { var tag = ai === 0 ? 'th' : 'td'; return '<' + tag + (ai === 0 ? ' scope="row"' : '') + '>' + (a.key === 'colour' ? '<span class="swatch swatch--sm" style="--sw:' + esc(hex) + '" aria-hidden="true"></span> ' : '') + esc(v[a.key]) + '</' + tag + '>'; }).join('') +
-                '<td><input data-v-sku="' + i + '" maxlength="40" value="' + esc(v.sku || '') + '" aria-label="SKU for ' + esc(name) + '"></td>' +
-                '<td><input data-v-stock="' + i + '" type="number" min="0" step="1" inputmode="numeric" value="' + esc(v.stock) + '" aria-label="Stock for ' + esc(name) + '"></td>' +
-                '<td><input data-v-price="' + i + '" type="number" min="0.01" step="0.01" inputmode="decimal" value="' + esc(v.priceZMW || '') + '" placeholder="Main price" aria-label="Price for ' + esc(name) + ' in Kwacha"></td></tr>';
-            }).join('') + '</tbody></table></div><button class="btn btn--secondary btn--sm" type="button" data-fill-sku>Fill in empty SKUs</button></div>';
-        }
-        return out || '<p class="pmeta">This department doesn\'t use colours or sizes.</p>';
-      };
-      var commitOn = !!dr.commit;
-      // Bulk prices: up to four "from this many, this price each" rows
-      var tiersHTML = function () {
-        return '<div class="field" id="lf-f-priceTiers"><p class="lf-label" id="lf-tiers-label">Bulk prices</p><p class="hint">A lower price ' + esc(perUnit(dr)) + ' when a buyer orders at least this many. Up to 4, each cheaper than the one before.</p>' +
-          (dr.priceTiers.length ? '<ul class="lf-tiers">' + dr.priceTiers.map(function (t, i) {
-            return '<li><label for="lf-tm-' + i + '">From quantity</label><input id="lf-tm-' + i + '" data-tier-min="' + i + '" type="number" min="2" step="1" inputmode="numeric" value="' + esc(t.min) + '">' +
-              '<label for="lf-tp-' + i + '">Price ' + esc(perUnit(dr)) + ' (K)</label><input id="lf-tp-' + i + '" data-tier-price="' + i + '" type="number" min="0.01" step="0.01" inputmode="decimal" value="' + esc(t.price) + '">' +
-              '<button class="link-btn link-btn--danger" type="button" data-del-tier="' + i + '">Remove<span class="visually-hidden"> bulk price ' + (i + 1) + '</span></button></li>';
-          }).join('') + '</ul>' : '') +
-          (dr.priceTiers.length < 4 ? '<button class="btn btn--secondary btn--sm" type="button" data-add-tier>Add a bulk price</button>' : '') + '</div>';
-      };
-      var html = crumbs([['Seller Centre', '#/seller'], [editing ? 'Edit product' : 'Add a product']]) +
-        head(editing ? 'Edit ' + esc(editing.title) : 'Add a product', 'Selling as ' + esc(s.name) + '. Fields marked * are required.') +
-        (q && q.get('saved') && editing ? '<div class="notice notice--secure" role="status"><p><strong>Saved.</strong> <a href="#/product/' + esc(editing.id) + '">View the product page</a>. Prototype: saved in this browser only.</p>' +
-          '<details><summary>Copy for catalogue.js</summary><p class="pmeta">To publish it for everyone, paste this into the products list in js/catalogue.js' + (function () {
-            // Photos uploaded here live in this browser; for the live store they become files in assets/products/
-            var files = (/^data:/.test(editing.image || '') ? ['assets/products/' + editing.id + '.webp'] : [])
-              .concat((editing.images || []).map(function (im, i) { return /^data:/.test(im.src) ? 'assets/products/' + editing.id + '-' + (i + 2) + '.webp' : ''; }).filter(Boolean));
-            return files.length ? ' and save the photo' + (files.length === 1 ? ' as ' : 's as ') + esc(files.join(', ')) : '';
-          })() + '.</p><textarea class="lf-code" readonly rows="10" aria-label="Catalogue entry">' + esc(ZP.catalogueEntry(editing)) + ',</textarea><button class="btn btn--secondary btn--sm" type="button" data-copy-entry>Copy</button></details></div>' : '') +
-        '<form class="form form--card lf" id="lf" novalidate>' +
-          '<div class="lf-errors" id="lf-errors" tabindex="-1" hidden></div>' +
-          '<section class="lf-sec" aria-labelledby="lf-h1"><h2 class="h3" id="lf-h1">Basics</h2>' +
-            fieldHTML('title', 'Product name *', '<input id="lf-title" maxlength="120" required value="' + esc(dr.title) + '">', 'Say what it is, its size or capacity, and the pack size, e.g. "Electric kettle, 1.7 litre".') +
-            '<div class="field-row">' + fieldHTML('category', 'Department *', '<select id="lf-category" required><option value="">Choose a department</option>' + D.departments.map(function (x) { return '<option value="' + x.id + '"' + (x.id === dr.category ? ' selected' : '') + '>' + esc(x.name) + '</option>'; }).join('') + '</select>') +
-              fieldHTML('brand', 'Brand', '<select id="lf-brand"><option value="">No brand store</option>' + D.brands.map(function (x) { return '<option value="' + x.id + '"' + (x.id === dr.brand ? ' selected' : '') + '>' + esc(x.name) + '</option>'; }).join('') + '</select>') + '</div>' +
-            '<div id="lf-sub-wrap">' + subHTML() + '</div>' +
-            fieldHTML('description', 'Description', '<textarea id="lf-description" maxlength="2000">' + esc(dr.description || '') + '</textarea>') +
-            fieldHTML('tags', 'Search words', '<input id="lf-tags" maxlength="200" value="' + esc(dr.tags || '') + '">', 'Other words buyers might search for, separated by spaces.') +
-            '<div class="field-row">' + fieldHTML('image', 'Photo', '<input id="lf-image" type="file" accept="image/jpeg,image/png,image/webp">', 'A square photo of the actual item on a plain background. We crop it to 600 × 600.') +
-              fieldHTML('alt', 'Photo description', '<input id="lf-alt" maxlength="160" value="' + esc(dr.alt || '') + '">', 'What the photo shows, for buyers using screen readers.') + '</div>' +
-            (dr.image ? '<img class="lf-photo" id="lf-photo" src="' + esc(dr.image) + '" alt="Current photo" width="120" height="120">' : '<img class="lf-photo" id="lf-photo" alt="" width="120" height="120" hidden>') +
-            '<div class="field" id="lf-f-images"><label for="lf-images">More photos (up to ' + ZP.MAX_PHOTOS + ')</label><input id="lf-images" type="file" accept="image/jpeg,image/png,image/webp" multiple aria-describedby="lf-images-hint">' +
-              '<p class="hint" id="lf-images-hint">Other angles, close-ups, labels, what\'s in the box or the item in use. Photos of the actual item only.</p><div id="lf-photos">' + photosHTML() + '</div></div>' +
-          '</section>' +
-          '<section class="lf-sec" aria-labelledby="lf-h2"><h2 class="h3" id="lf-h2">Details</h2><div id="lf-optional">' + fieldsHTML() + '</div><div id="lf-attrs">' + attrsHTML() + '</div></section>' +
-          '<section class="lf-sec" aria-labelledby="lf-h3"><h2 class="h3" id="lf-h3">Variations</h2><div id="lf-vars">' + varsHTML() + '</div></section>' +
-          '<section class="lf-sec" aria-labelledby="lf-h4"><h2 class="h3" id="lf-h4">Price and stock</h2>' +
-            '<div class="field-row">' + fieldHTML('priceZMW', 'Price (K) *', '<input id="lf-priceZMW" type="number" min="0.01" step="0.01" inputmode="decimal" required value="' + esc(dr.priceZMW) + '">', 'The Buy now price.') +
-              fieldHTML('wasZMW', 'Was price (K)', '<input id="lf-wasZMW" type="number" min="0.01" step="0.01" inputmode="decimal" value="' + esc(dr.wasZMW || '') + '">', 'Only a genuine previous price.') + '</div>' +
-            fieldHTML('stock', 'Stock status', '<select id="lf-stock">' + [['in', 'In stock'], ['low', 'Only a few left'], ['request', 'Sourced on request']].map(function (o) { return '<option value="' + o[0] + '"' + (o[0] === dr.stock ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('') + '</select>', 'With variations, buyers see the stock from the table above instead.') +
-            '<div class="lf-switch"><input type="checkbox" role="switch" id="lf-commit"' + (commitOn ? ' checked' : '') + ' aria-describedby="lf-commit-hint"><label for="lf-commit">Enable buyer offer and commit pricing</label></div>' +
-            '<p class="hint" id="lf-commit-hint">Buyers can name a price between your lowest and target prices. You confirm each offer on WhatsApp. Buyers see the range, including your lowest price.</p>' +
-            '<div class="field-row" id="lf-commit-fields"' + (commitOn ? '' : ' hidden') + '>' + fieldHTML('commitMin', 'Lowest price you\'ll accept (K) *', '<input id="lf-commitMin" type="number" min="0.01" step="0.01" inputmode="decimal" value="' + esc(dr.commit ? dr.commit.min : '') + '">') +
-              fieldHTML('commitMax', 'Target price (K) *', '<input id="lf-commitMax" type="number" min="0.01" step="0.01" inputmode="decimal" value="' + esc(dr.commit ? dr.commit.max : dr.priceZMW) + '">', 'Usually your Buy now price. It can\'t be higher.') + '</div>' +
-          '</section>' +
-          '<section class="lf-sec" aria-labelledby="lf-h5"><h2 class="h3" id="lf-h5">Trade and bulk buying</h2><p class="hint">For farms, building sites, shops and other businesses buying in quantity.</p>' +
-            '<div class="field-row">' + fieldHTML('sellUnit', 'Sold by the', '<select id="lf-sellUnit"><option value="">Item</option>' + ZP.SELL_UNITS.map(function (u) { return '<option value="' + u[0] + '"' + (u[0] === dr.sellUnit ? ' selected' : '') + '>' + esc(u[1].charAt(0).toUpperCase() + u[1].slice(1)) + '</option>'; }).join('') + '</select>', 'Buyers see the price per unit, e.g. "K185 per bag". Put the size in the name, e.g. "Cement, 50 kg bag".') +
-              fieldHTML('unitWeightKg', 'Weight of one unit (kg)', '<input id="lf-unitWeightKg" type="number" min="0.001" step="0.001" inputmode="decimal" value="' + esc(dr.unitWeightKg || '') + '">', 'Helps quote delivery for large orders.') + '</div>' +
-            '<div id="lf-tiers">' + tiersHTML() + '</div>' +
-            '<div class="lf-switch"><input type="checkbox" role="switch" id="lf-trade"' + (dr.trade ? ' checked' : '') + ' aria-describedby="lf-trade-hint"><label for="lf-trade">Sell in trade quantities</label></div>' +
-            '<p class="hint" id="lf-trade-hint">Buyers can order up to ' + ZP.TRADE_QTY_MAX.toLocaleString('en-US') + ' at a time instead of ' + ZP.QTY_MAX + '. You can set a minimum order and sell in multiples, e.g. by the pallet of 40.</p>' +
-            '<div class="field-row" id="lf-trade-fields"' + (dr.trade ? '' : ' hidden') + '>' + fieldHTML('minQty', 'Minimum order', '<input id="lf-minQty" type="number" min="1" step="1" inputmode="numeric" value="' + esc(dr.minQty || 1) + '">') +
-              fieldHTML('qtyStep', 'Sold in multiples of', '<input id="lf-qtyStep" type="number" min="1" step="1" inputmode="numeric" value="' + esc(dr.qtyStep || 1) + '">', '1 means any quantity.') + '</div>' +
-            '<div class="lf-switch"><input type="checkbox" role="switch" id="lf-heavy"' + (dr.heavy ? ' checked' : '') + ' aria-describedby="lf-heavy-hint"><label for="lf-heavy">Heavy or bulky: needs truck delivery</label></div>' +
-            '<p class="hint" id="lf-heavy-hint">Couriers aren\'t offered for it. Buyers see that the delivery fee is quoted for their order, or they can collect.</p>' +
-          '</section>' +
-          '<p class="form-status" role="status" tabindex="-1"></p>' +
-          '<div class="btn-row"><button class="btn btn--primary" type="submit">' + (editing ? 'Save changes' : 'Add product') + '</button><a class="btn btn--secondary" href="#/seller">Cancel</a>' +
-            (editing && listingsApi.get(editing.id) ? '<button class="link-btn link-btn--danger" type="button" id="lf-delete">' + (byId(BASE_PRODUCTS, editing.id) ? 'Undo my changes' : 'Delete this product') + '</button>' : '') + '</div>' +
-        '</form>';
-      show(html, editing ? 'Edit product' : 'Add a product');
-      var form = $('#lf');
-
-      // Form -> draft
-      var collect = function () {
-        dr.title = $('#lf-title').value; dr.category = $('#lf-category').value; dr.sub = $('#lf-sub') ? $('#lf-sub').value : ''; dr.brand = $('#lf-brand').value;
-        dr.description = $('#lf-description').value; dr.tags = $('#lf-tags').value; dr.alt = $('#lf-alt').value;
-        dr.priceZMW = $('#lf-priceZMW').value; dr.wasZMW = $('#lf-wasZMW').value; dr.stock = $('#lf-stock').value;
-        var a = dr.attributes;
-        if ($('#lf-size')) { var sv = $('#lf-size').value.trim(); a.size = sv ? { value: Number(sv), unit: $('#lf-unit').value } : undefined; }
-        if ($('#lf-f-ageRange')) a.ageRange = $$('[data-age]:checked', form).map(function (c) { return c.value; });
-        if ($('#lf-manufacturer')) a.manufacturer = $('#lf-manufacturer').value;
-        if ($('#lf-condition')) { a.condition = $('#lf-condition').value || undefined; a.conditionNotes = $('#lf-conditionNotes').value; }
-        if ($('#lf-features')) a.features = $('#lf-features').value.split('\n').map(function (f) { return f.trim(); }).filter(Boolean);
-        if ($('#lf-f-specs')) specRows = $$('[data-spec-key]', form).map(function (k, i) { return [k.value.trim(), $$('[data-spec-val]', form)[i].value.trim()]; });
-        a.specs = {};
-        specRows.forEach(function (r) { if (r[1]) a.specs[r[0]] = r[1]; });
-        if ($('#lf-f-inBox')) dr.inBox = $$('[data-box-item]', form).map(function (it, i) {
-          var kind = $$('[data-box-kind]', form)[i].value, price = $$('[data-box-price]', form)[i].value;
-          return kind === 'addon' ? { item: it.value, addonZMW: price === '' ? 0 : price } : { item: it.value };
-        });
-        (dr.images || []).forEach(function (im, i) { var alt = $('[data-photo-alt="' + i + '"]', form); if (alt) im.alt = alt.value.trim(); });
-        if ($('#lf-f-colour')) dr.options.colour =$$('[data-col-name]', form).map(function (n, i) { return { name: n.value.trim(), hex: $$('[data-col-hex]', form)[i].value }; });
-        (dr.options.extra || []).forEach(function (axis) {
-          var name = $('[data-extra-name="' + axis.key + '"]', form), values = $('[data-extra-values="' + axis.key + '"]', form);
-          if (name) axis.name = name.value.trim();
-          if (values) axis.values = values.value.split(',').map(function (v) { return v.trim(); }).filter(Boolean);
-        });
-        dr.variants.forEach(function (v, i) {
-          var sk = $('[data-v-sku="' + i + '"]', form); if (!sk) return;
-          v.sku = sk.value.trim(); v.stock = $('[data-v-stock="' + i + '"]', form).value; v.priceZMW = $('[data-v-price="' + i + '"]', form).value;
-        });
-        dr.commit = $('#lf-commit').checked ? { min: $('#lf-commitMin').value, max: $('#lf-commitMax').value } : undefined;
-        dr.sellUnit = $('#lf-sellUnit').value || undefined; dr.unitWeightKg = $('#lf-unitWeightKg').value;
-        dr.trade = $('#lf-trade').checked; dr.heavy = $('#lf-heavy').checked;
-        dr.minQty = dr.trade ? Number($('#lf-minQty').value) : 1; dr.qtyStep = dr.trade ? Number($('#lf-qtyStep').value) : 1;
-        dr.priceTiers = dr.priceTiers.map(function (t, i) { var m = $('[data-tier-min="' + i + '"]', form), pz = $('[data-tier-price="' + i + '"]', form); return m ? { min: Number(m.value), price: pz.value === '' ? NaN : Number(pz.value) } : t; });
-        if (!(dr.options.colour || []).length) delete dr.options.colour;
-        if (!(dr.options.size || []).length) delete dr.options.size;
-      };
-      var rebuildMatrix = function () {
-        var o = { colour: (dr.options.colour || []).filter(function (c) { return c.name; }), size: dr.options.size || [], extra: dr.options.extra || [] };
-        dr.variants = ZP.matrix(o, dr.variants);
-      };
-      var redraw = function (focusSel) {
-        var optionalOpen = $('#lf-optional details').open;
-        $('#lf-optional').innerHTML = fieldsHTML();
-        $('#lf-optional details').open = optionalOpen;
-        $('#lf-attrs').innerHTML = attrsHTML();
-        $('#lf-vars').innerHTML = varsHTML();
-        var f = focusSel && $(focusSel, form); if (f) f.focus();
-      };
-
-      form.addEventListener('change', function (e) {
-        var t = e.target;
-        if (t.id === 'lf-category') { collect(); if (dr.sub && !byId(dept(dr.category).subs, dr.sub)) dr.sub = ''; $('#lf-sub-wrap').innerHTML = subHTML(); addSuggestedSpecs(); redraw(); }
-        else if (t.hasAttribute('data-enable-field')) { var field = t.getAttribute('data-enable-field'); collect(); enabledFields[field] = t.checked; redraw('#lf-enable-' + field); }
-        else if (t.hasAttribute('data-measured')) { collect(); enabledFields.measured = t.checked; if (!t.checked) delete dr.attributes.size; redraw(); }
-        else if (t.hasAttribute('data-extra-name') || t.hasAttribute('data-extra-values')) { var extraId = t.id; collect(); rebuildMatrix(); redraw('#' + extraId); }
-        else if (t.matches('[data-box-kind]')) { var pr = t.parentNode.querySelector('[data-box-price]'); pr.hidden = t.value !== 'addon'; if (!pr.hidden) pr.focus(); }
-        else if (t.matches('[data-col-name]')) { collect(); rebuildMatrix(); var idx = $$('[data-col-name]', form).indexOf(t); redraw('#lf-cn-' + idx); }
-        else if (t.matches('[data-col-hex]')) { collect(); $('#lf-vars').innerHTML = varsHTML(); }
-        else if (t.id === 'lf-trade') { $('#lf-trade-fields').hidden = !t.checked; if (t.checked) $('#lf-minQty').focus(); }
-        else if (t.id === 'lf-sellUnit') { collect(); $('#lf-tiers').innerHTML = tiersHTML(); }
-        else if (t.id === 'lf-commit') {
-          $('#lf-commit-fields').hidden = !t.checked;
-          if (t.checked) { if (!$('#lf-commitMax').value) $('#lf-commitMax').value = $('#lf-priceZMW').value; $('#lf-commitMin').focus(); }
-        } else if (t.id === 'lf-images') {
-          collect();
-          dr.images = dr.images || [];
-          var files = Array.prototype.slice.call(t.files || []), room = ZP.MAX_PHOTOS - dr.images.length, st2 = $('.form-status', form), added = 0, failed = 0;
-          if (files.length > room) { st2.className = 'form-status is-error'; st2.textContent = 'You can add ' + room + ' more photo' + (room === 1 ? '' : 's') + '; the rest were left out.'; }
-          files = files.slice(0, Math.max(0, room));
-          // One at a time, so the photos keep the order they were chosen in
-          var nextPhoto = function () {
-            if (!files.length) {
-              t.value = '';
-              if (failed) { st2.className = 'form-status is-error'; st2.textContent = failed + ' photo' + (failed === 1 ? ' couldn\'t' : 's couldn\'t') + ' be used. Choose JPEG, PNG or WebP files under 10 MB.'; }
-              $('#lf-photos').innerHTML = photosHTML();
-              var first = $('[data-photo-alt="' + (dr.images.length - added) + '"]', form); if (first) first.focus();
-              return;
-            }
-            bannerFromFile(files.shift(), 600, 600, function (img) { if (img) { dr.images.push({ src: img, alt: '' }); added++; } else failed++; nextPhoto(); });
-          };
-          nextPhoto();
-        } else if (t.id === 'lf-image') {
-          bannerFromFile(t.files[0], 600, 600, function (img) {
-            var st = $('.form-status', form);
-            if (img === null) { st.className = 'form-status is-error'; st.textContent = 'That photo couldn\'t be used. Choose a JPEG, PNG or WebP under 10 MB.'; return; }
-            if (!img) return;
-            dr.image = img;
-            var ph = $('#lf-photo'); ph.src = img; ph.alt = 'New photo'; ph.hidden = false;
-          });
-        }
-      });
-      var addSize = function () {
-        var inp = $('#lf-newsize'), val = inp.value.trim();
-        if (!val) return inp.focus();
-        collect();
-        var sz = ZP.parseSize(val), label = ZP.sizeLabel(sz).toLowerCase();
-        dr.options.size = dr.options.size || [];
-        if (!dr.options.size.some(function (x) { return ZP.sizeLabel(x).toLowerCase() === label; })) dr.options.size.push(sz);
-        rebuildMatrix(); redraw('#lf-newsize');
-      };
-      form.addEventListener('keydown', function (e) { if (e.key === 'Enter' && e.target.id === 'lf-newsize') { e.preventDefault(); addSize(); } });
-      form.addEventListener('click', function (e) {
-        var t = e.target.closest('button');
-        if (!t || t.type === 'submit') return;
-        var n = function (attr) { return Number(t.getAttribute(attr)); };
-        if (t.hasAttribute('data-add-extra')) { collect(); dr.options.extra = dr.options.extra || []; var key = dr.options.extra.some(function (a) { return a.key === 'custom_1'; }) ? 'custom_2' : 'custom_1'; dr.options.extra.push({ key: key, name: '', values: [] }); rebuildMatrix(); redraw('#lf-extra-name-' + (dr.options.extra.length - 1)); }
-        else if (t.hasAttribute('data-del-extra')) { collect(); dr.options.extra.splice(n('data-del-extra'), 1); rebuildMatrix(); redraw('[data-add-extra]'); }
-        else if (t.hasAttribute('data-del-photo')) { collect(); dr.images.splice(n('data-del-photo'), 1); $('#lf-photos').innerHTML = photosHTML(); $('#lf-images').focus(); }
-        else if (t.hasAttribute('data-add-spec')) { collect(); specRows.push(['', '']); redraw('#lf-sk-' + (specRows.length - 1)); }
-        else if (t.hasAttribute('data-del-spec')) { collect(); specRows.splice(n('data-del-spec'), 1); redraw('[data-add-spec]'); }
-        else if (t.hasAttribute('data-add-box')) { collect(); dr.inBox.push({ item: '' }); redraw('#lf-bi-' + (dr.inBox.length - 1)); }
-        else if (t.hasAttribute('data-del-box')) { collect(); dr.inBox.splice(n('data-del-box'), 1); redraw('[data-add-box]'); }
-        else if (t.hasAttribute('data-add-col')) { collect(); dr.options.colour = (dr.options.colour || []).concat([{ name: '', hex: '#808080' }]); redraw('#lf-cn-' + (dr.options.colour.length - 1)); }
-        else if (t.hasAttribute('data-del-col')) { collect(); dr.options.colour.splice(n('data-del-col'), 1); rebuildMatrix(); redraw('[data-add-col]'); }
-        else if (t.hasAttribute('data-add-size')) addSize();
-        else if (t.hasAttribute('data-add-tier')) { collect(); var last = dr.priceTiers[dr.priceTiers.length - 1]; dr.priceTiers.push({ min: last ? last.min * 2 : (dr.trade ? dr.minQty : 1) + 1, price: '' }); $('#lf-tiers').innerHTML = tiersHTML(); $('#lf-tp-' + (dr.priceTiers.length - 1)).focus(); }
-        else if (t.hasAttribute('data-del-tier')) { collect(); dr.priceTiers.splice(n('data-del-tier'), 1); $('#lf-tiers').innerHTML = tiersHTML(); var addT = $('[data-add-tier]', form); if (addT) addT.focus(); }
-        else if (t.hasAttribute('data-del-size')) { collect(); dr.options.size.splice(n('data-del-size'), 1); rebuildMatrix(); redraw('#lf-newsize'); }
-        else if (t.hasAttribute('data-fill-sku')) {
-          collect();
-          dr.variants.forEach(function (v) { if (!v.sku) v.sku = ZP.skuFor(editing ? editing.id : dr.title, v); });
-          redraw('[data-fill-sku]');
-        }
-      });
-      form.addEventListener('submit', function (e) {
-        e.preventDefault();
-        collect();
-        $$('[aria-invalid]', form).forEach(function (x) { x.removeAttribute('aria-invalid'); });
-        var res = editing ? listingsApi.update(editing.id, dr, ctx) : listingsApi.create(dr, ctx), box = $('#lf-errors');
-        if (!res.ok) {
-          box.hidden = false;
-          box.innerHTML = '<h2 class="h3">Please fix ' + (res.errors.length === 1 ? 'this' : 'these ' + res.errors.length + ' things') + '</h2><ul>' + res.errors.map(function (er) {
-            var wrap = $('#lf-f-' + er.field), ctl = wrap && $('input, select, textarea', wrap);
-            if (ctl) ctl.setAttribute('aria-invalid', 'true');
-            return '<li>' + (ctl ? '<a href="#lf-f-' + er.field + '" data-goto="' + er.field + '">' + esc(er.message) + '</a>' : esc(er.message)) + '</li>';
-          }).join('') + '</ul>';
-          box.focus();
-          return;
-        }
-        loadProducts();
-        toast((editing ? 'Changes saved' : 'Product added') + (res.stored ? '' : '. This browser\'s storage is full, so it lasts until you close the page.'));
-        var to = '#/listing/' + encodeURIComponent(res.product.id) + '?saved=1';
-        if (location.hash === to) route(); else location.hash = to;
-      });
-      $('#lf-errors').addEventListener('click', function (e) {
-        var a = e.target.closest('[data-goto]'); if (!a) return;
-        e.preventDefault();
-        var wrap = $('#lf-f-' + a.getAttribute('data-goto')), ctl = wrap && $('input, select, textarea', wrap);
-        if (ctl) ctl.focus();
-      });
-      var del = $('#lf-delete');
-      if (del) del.addEventListener('click', function () {
-        listingsApi.remove(editing.id);
-        loadProducts();
-        toast(byId(BASE_PRODUCTS, editing.id) ? 'Your changes were undone' : 'Product deleted');
-        location.hash = '#/seller';
-      });
-      var cp = $('[data-copy-entry]');
-      if (cp) cp.addEventListener('click', function () {
-        var ta = $('.lf-code');
-        ta.select();
-        var done = function () { toast('Copied'); };
-        if (navigator.clipboard) navigator.clipboard.writeText(ta.value).then(done, function () { document.execCommand('copy'); done(); });
-        else { document.execCommand('copy'); done(); }
-      });
-    },
-
     // Stock planner: js/stock-planner.js is fetched the first time this opens
     stock: function () {
       show(crumbs([['Seller Centre', '#/seller'], ['Stock planner']]) +
@@ -4488,6 +3678,41 @@
     if (ext('route', path, q)) return;
     (views[path[0]] || EXT.views[path[0]] || views.notfound)(decodeURIComponent(path[1] || ''), q);
   }
+
+  // Checkout lives in js/checkout.js. It gets the helpers it shares with the rest of the store here;
+  // loc is a getter because saveLoc() replaces the location object.
+  var checkoutKit = {
+    $: $, $$: $$, CARD_WARNING: CARD_WARNING, COURIERS: COURIERS, D: D, DELIVERY: DELIVERY, OPTS: OPTS,
+    PAY_ASK: PAY_ASK, PAY_KINDS: PAY_KINDS, SCOPES: SCOPES, VAT: VAT, W: W, ZD: ZD, ZP: ZP,
+    addressLine: addressLine, addresses: addresses, addressesOn: addressesOn, arrivesText: arrivesText,
+    bindSaved: bindSaved, byName: byName, cards: cards, cart: cart,
+    checkoutNeedsDelivery: checkoutNeedsDelivery, cleanText: cleanText, closeDialog: closeDialog,
+    coMode: coMode, collectionAt: collectionAt, courier: courier, crumbs: crumbs, dayLabel: dayLabel,
+    deliveryDays: deliveryDays, empty: empty, esc: esc, ext: ext, feeText: feeText,
+    fulfilLine: fulfilLine, hasCardNumber: hasCardNumber, head: head, kwacha: kwacha, lineKey: lineKey,
+    lineQuote: lineQuote, locFull: locFull, locSummaryHTML: locSummaryHTML, media: media, newRef: newRef,
+    noteBought: noteBought, openDialog: openDialog, openLocation: openLocation, orders: orders,
+    parcelLine: parcelLine, payByName: payByName, payKind: payKind, payMethods: payMethods,
+    perUnit: perUnit, product: product, provinceOf: provinceOf, qtyAttrs: qtyAttrs, qtyLabel: qtyLabel,
+    qtyRange: qtyRange, quoteArrives: quoteArrives, rankedCouriers: rankedCouriers,
+    sameDayFor: sameDayFor, saveLoc: saveLoc, savedBusiness: savedBusiness, secureMode: secureMode,
+    seller: seller, sellerLoc: sellerLoc, sellerName: sellerName, setCart: setCart, setMode: setMode,
+    show: show, slotLabel: slotLabel, speedName: speedName, stockHTML: stockHTML, store: store,
+    toast: toast, today: today, townInfo: townInfo, tpinOK: tpinOK, user: user, variantOf: variantOf,
+    vatFor: vatFor, vatRowHTML: vatRowHTML, verifiedHTML: verifiedHTML, view: view, waUrl: waUrl,
+    weightText: weightText, wishedIn: wishedIn, zoneFor: zoneFor
+  };
+  Object.defineProperty(checkoutKit, 'loc', { get: function () { return loc; } });
+  if (window.ZSModules && window.ZSModules.checkout) views.cart = window.ZSModules.checkout(checkoutKit).cart;
+
+  // The seller listing form lives in js/listing-form.js, with the helpers it shares here.
+  var listingKit = {
+    $: $, $$: $$, BASE_PRODUCTS: BASE_PRODUCTS, D: D, ZP: ZP, bannerFromFile: bannerFromFile,
+    brand: brand, byId: byId, crumbs: crumbs, dept: dept, esc: esc, head: head, listing: listing,
+    listingsApi: listingsApi, loadProducts: loadProducts, perUnit: perUnit, product: product,
+    route: route, seller: seller, show: show, store: store, toast: toast, views: views
+  };
+  if (window.ZSModules && window.ZSModules.listing) views.listing = window.ZSModules.listing(listingKit).listing;
 
   // What extensions may use. Read-only views of the store, plus the shared page helpers.
   window.ZS = {
