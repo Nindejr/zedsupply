@@ -80,7 +80,7 @@ configuration completeness only, not hosted security or operational readiness.
 The admin panel is at **`/admin/`** (My Account shows staff an "Admin panel" button). It is a
 separate page from the shop: only this site's own scripts, data only to Supabase, no analytics
 or advertising, hidden from search engines and never served from the offline cache. Migrations
-029 and 030 add what it relies on: 029 is applied to the hosted project; 030 is not yet. The
+029 and 030 add what it relies on; both are applied to the hosted project. The
 shop's older staff screens are retired: their addresses open the matching admin section.
 
 - **Second sign-in step.** Staff sign in with the email code, then an authenticator app code
