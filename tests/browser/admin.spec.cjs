@@ -8,6 +8,16 @@ const token = aal => 'h.' + Buffer.from(JSON.stringify({ sub: 'staff-auth-id', a
 
 const application = { id: 'app-1', business: 'Kafue Solar Traders', contact_name: 'Mwila Banda', phone: '+260977123456', email: 'buyer@example.test', town: 'Kafue', pacra: null,
   categories: ['Solar, Power & Energy'], about: 'Solar lamps and panels', status: 'new', staff_note: null, seller_id: null, created_at: '2026-11-03T08:00:00Z' };
+// Sales by day ending 7 November 2026: K0 on the first day, then rising
+function salesReport(days) {
+  const series = Array.from({ length: days }, (_, i) => ({ day: new Date(Date.UTC(2026, 10, 7 - (days - 1 - i))).toISOString().slice(0, 10), orders: i % 3, sales: i % 3 ? 100 * i : 0 }));
+  const total = series.reduce((a, d) => a + d.sales, 0), orders = series.reduce((a, d) => a + d.orders, 0);
+  return { days, from: series[0].day, to: '2026-11-07', series, totals: { orders, sales: total, discounts: 150, delivery: 400 }, previous: { orders: orders * 2, sales: total / 2 }, cancelled: 1,
+    products: [{ id: 'SA1', title: 'Cement', units: 12, sales: 1800 }, { id: 'SA2', title: 'Solar lamp', units: 3, sales: 600 }],
+    departments: [{ id: 'build', name: 'Building', sales: 1800 }], payments: [{ method: 'mtn_momo', orders: 5, sales: 2000 }, { method: 'cod', orders: 1, sales: 400 }] };
+}
+const vouchers = [{ code: 'TAKE50', label: 'K50 off your first order', percent: null, amount: 50, max_off: null, min_spend: 200, active: true, starts: null, ends: '2026-12-31', max_uses: 100, uses_per_buyer: 1, uses: 3, discount_given: 150, sales: 1200, last_used: '2026-11-06T10:00:00Z' },
+  { code: 'BIG20', label: null, percent: 20, amount: null, max_off: 150, min_spend: 0, active: false, starts: null, ends: null, max_uses: null, uses_per_buyer: null, uses: 0, discount_given: 0, sales: 0, last_used: null }];
 async function setup(page, { roles = ['owner'], staff = true, enrolled = false, applications = [] } = {}) {
   const calls = [], state = { aal: 'aal1', enrolled };
   await page.route('**/*', async route => {
@@ -49,6 +59,9 @@ async function setup(page, { roles = ['owner'], staff = true, enrolled = false, 
     else if (p === '/rest/v1/seller_payouts') data = [{ id: 31, seller_id: 'sa-store', amount_zmw: 270, commission_zmw: 30, status: 'due', release_after: '2026-11-06T00:00:00Z', paid_at: null, reference: null, created_at: '2026-11-01T00:00:00Z', sellers: { name: 'Admin test store' }, orders: { ref: 'ZS-ADMIN001' } },
       { id: 32, seller_id: 'sa-store', amount_zmw: 90, commission_zmw: 10, status: 'due', release_after: '2026-11-06T00:00:00Z', paid_at: null, reference: null, created_at: '2026-11-02T00:00:00Z', sellers: { name: 'Admin test store' }, orders: { ref: 'ZS-ADMIN002' } }];
     else if (p === '/rest/v1/rpc/staff_mark_payouts_paid') data = body.payout_ids.length;
+    else if (p === '/rest/v1/rpc/staff_sales_report') data = salesReport(body.p_days);
+    else if (p === '/rest/v1/rpc/staff_vouchers') data = vouchers;
+    else if (p === '/rest/v1/rpc/staff_save_voucher') data = { code: body.v.code, created: !vouchers.some(v => v.code === body.v.code) };
     else if (p.startsWith('/rest/v1/rpc/staff_')) data = null;
     return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(data) });
   });
@@ -343,4 +356,97 @@ test('the owner manages staff roles and shop settings; finance records a payout;
   await page.evaluate(fs.readFileSync(axe, 'utf8'));
   expect(await page.evaluate(async () => (await axe.run('main', { runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa'] } })).violations.map(v => v.id))).toEqual([]);
   expect(errors).toEqual([]);
+});
+
+test('finance and operations see sales by day, the best sellers and how buyers paid', async ({ page }) => {
+  const errors = []; page.on('pageerror', e => errors.push(e.message));
+  const { calls } = await setup(page, { roles: ['finance'], enrolled: true });
+  await signIn(page); await confirmApp(page);
+  await expect.poll(() => (calls.filter(c => c.path === '/rest/v1/rpc/staff_sales_report').pop() || {}).body).toEqual({ p_days: 30 });
+  const sales = page.locator('.admin-sales');
+  await expect(sales.getByRole('heading', { name: 'Sales', level: 2 })).toBeVisible();
+  await expect(sales.locator('.admin-tile').filter({ hasText: 'Orders' })).toContainText('50% down on the previous 30 days');
+  await expect(sales.locator('.admin-tile').filter({ hasText: 'Given in vouchers' })).toContainText('K150');
+  // One bar per day with sales, and every day can be hovered
+  await expect(sales.locator('.admin-chart__hits rect')).toHaveCount(30);
+  await expect(sales.locator('.admin-chart__bars path')).toHaveCount(20);
+  await sales.locator('.admin-chart__hits rect').nth(29).hover();
+  await expect(sales.locator('.admin-chart__tip')).toBeVisible();
+  await expect(sales.locator('.admin-chart__tip')).toContainText('Sat 7 Nov');
+  await expect(sales.locator('.admin-chart__tip')).toContainText('K2,900 · 2 orders');
+  await expect(sales.locator('.admin-bars').first()).toContainText('Cement');
+  await expect(sales).toContainText('Cash on delivery');
+  await expect(sales).toContainText('Mtn momo');
+  // The same figures as a table and a CSV
+  await sales.getByText('Show as a table').click();
+  await expect(sales.locator('.admin-chart__table tbody tr')).toHaveCount(30);
+  const [download] = await Promise.all([page.waitForEvent('download'), sales.getByRole('button', { name: 'Download CSV' }).click()]);
+  expect(download.suggestedFilename()).toBe('zed-supply-sales-2026-10-09-to-2026-11-07.csv');
+  expect(fs.readFileSync(await download.path(), 'utf8')).toContain('2026-11-07,2,2900');
+  await sales.getByRole('link', { name: '7 days', exact: true }).click();
+  await expect.poll(() => calls.filter(c => c.path === '/rest/v1/rpc/staff_sales_report').pop().body).toEqual({ p_days: 7 });
+  await expect(page.locator('.admin-chart__hits rect')).toHaveCount(7);
+  await page.evaluate(fs.readFileSync(axe, 'utf8'));
+  expect(await page.evaluate(async () => (await axe.run('main', { runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa'] } })).violations.map(v => v.id))).toEqual([]);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
+  expect(errors).toEqual([]);
+});
+
+test('other roles see the dashboard without sales', async ({ page }) => {
+  const { calls } = await setup(page, { roles: ['support'], enrolled: true });
+  await signIn(page); await confirmApp(page);
+  await expect(page.locator('.admin-tile').filter({ hasText: 'Open complaints' })).toBeVisible();
+  await expect(page.locator('.admin-sales')).toHaveCount(0);
+  expect(calls.filter(c => c.path === '/rest/v1/rpc/staff_sales_report')).toHaveLength(0);
+  await expect(page.getByRole('navigation', { name: 'Admin sections' }).getByRole('link', { name: /^Vouchers/ })).toHaveCount(0);
+});
+
+test('the catalogue role creates, changes and switches off vouchers; finance only sees them', async ({ page }) => {
+  const errors = []; page.on('pageerror', e => errors.push(e.message));
+  const { calls } = await setup(page, { roles: ['catalogue'], enrolled: true });
+  await signIn(page); await confirmApp(page);
+  await navTo(page, 'Vouchers');
+  const row = page.locator('tr', { has: page.getByRole('rowheader').filter({ hasText: 'TAKE50' }) });
+  await expect(row).toContainText('K50 off over K200');
+  await expect(row).toContainText('100 uses in all, once per buyer');
+  await expect(row).toContainText('3 of 100');
+  await expect(row).toContainText('K150 off K1,200 of orders');
+  // A new percentage voucher with a cap
+  const f = page.locator('#ad-voucher');
+  await f.getByLabel('Code').fill('save15');
+  await f.getByLabel('Amount off (% or K)').fill('15');
+  await f.getByLabel('Most it takes off (K)').fill('300');
+  await f.getByLabel('Ends').fill('2026-12-24');
+  await f.getByLabel('Uses per buyer').fill('2');
+  await f.getByLabel('What buyers see').fill('15% off for the festive season');
+  await f.getByRole('button', { name: 'Create voucher' }).click();
+  await expect.poll(() => (calls.find(c => c.path === '/rest/v1/rpc/staff_save_voucher') || {}).body).toEqual({ v: { code: 'SAVE15', label: '15% off for the festive season', percent: 15, amount: null,
+    max_off: 300, min_spend: 0, active: true, starts: null, ends: '2026-12-24', max_uses: null, uses_per_buyer: 2 } });
+  await expect(page.locator('#admin-toast')).toHaveText('SAVE15 created');
+  await expect.poll(() => calls.filter(c => c.path === '/rest/v1/rpc/staff_vouchers').length).toBe(2);
+  // Switch one off: everything else stays as it was
+  await page.locator('tr', { has: page.getByRole('rowheader').filter({ hasText: 'TAKE50' }) }).getByRole('button', { name: 'Switch off' }).click();
+  await expect.poll(() => calls.filter(c => c.path === '/rest/v1/rpc/staff_save_voucher').at(-1).body).toEqual({ v: { code: 'TAKE50', label: 'K50 off your first order', percent: null, amount: 50,
+    max_off: null, min_spend: 200, active: false, starts: null, ends: '2026-12-31', max_uses: 100, uses_per_buyer: 1 } });
+  await expect.poll(() => calls.filter(c => c.path === '/rest/v1/rpc/staff_vouchers').length).toBe(3);
+  // Change one: the form holds its values and a kwacha amount has no cap
+  await page.locator('tr', { has: page.getByRole('rowheader').filter({ hasText: 'TAKE50' }) }).getByRole('link', { name: 'Change' }).click();
+  await expect(page.getByRole('heading', { name: 'Change TAKE50' })).toBeVisible();
+  await expect(page.getByRole('textbox', { name: 'Code', exact: true })).toHaveAttribute('readonly', '');
+  await expect(page.getByLabel('A kwacha amount')).toBeChecked();
+  await expect(page.getByLabel('Most it takes off (K)')).toBeDisabled();
+  await expect(page.getByLabel('Minimum spend (K)')).toHaveValue('200');
+  await page.evaluate(fs.readFileSync(axe, 'utf8'));
+  expect(await page.evaluate(async () => (await axe.run('main', { runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa'] } })).violations.map(v => v.id))).toEqual([]);
+  expect(errors).toEqual([]);
+});
+
+test('finance sees voucher use but can\'t change vouchers', async ({ page }) => {
+  await setup(page, { roles: ['finance'], enrolled: true });
+  await signIn(page); await confirmApp(page);
+  await navTo(page, 'Vouchers');
+  await expect(page.locator('main')).toContainText('TAKE50');
+  await expect(page.locator('#ad-voucher')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Switch off' })).toHaveCount(0);
+  await expect(page.locator('main')).toContainText('The catalogue role creates and changes vouchers.');
 });

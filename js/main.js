@@ -3655,7 +3655,7 @@
         if (row.seller) { var s = { id: row.seller.id, name: row.seller.name, city: row.seller.city, verified: row.seller.verified, about: row.seller.about || '', colours: ['#0A2A66', '#0057AE'] }; var si = D.sellers.findIndex(function (x) { return x.id === s.id; }); if (si === -1) D.sellers.push(s); else D.sellers[si] = s; }
       }); loadProducts();
     },
-    clearCheckout: function () { setCart([]); store.set('voucher', ''); }, refreshCounts: updateCounts,
+    clearCheckout: function () { setCart([]); store.set('voucher', ''); store.set('voucher-server', null); store.set('voucher-why', ''); }, refreshCounts: updateCounts,
     receiptHTML: receiptHTML, receiptText: receiptText, arrivesText: arrivesText, receiptDoc: receiptDoc, downloadReceiptPdf: downloadReceiptPdf,
     rememberReceipt: function (m) { receiptModels[m.ref] = m; }, wishedIn: wishedIn, rememberWished: rememberWished,
     wishPromptHTML: function (ref) { return wishPromptHTML(ref, store.get('wish-pending', {})[ref] || []); }, applyDeliverySettings: applyDeliverySettings, deliverySettingsNow: deliverySettingsNow,

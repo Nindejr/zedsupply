@@ -56,3 +56,35 @@
 .admin-listing-photo img { display: block; width: 96px; height: 96px; object-fit: contain; background: #FFFFFF; border: 1px solid var(--color-border); border-radius: var(--radius-sm); }
 .admin-listing-photo span { font-size: 0.8rem; color: var(--color-muted); font-weight: 400; }
 .admin-grid > .card, .admin-main > .card { margin-top: 0; }
+
+/* Sales on the dashboard: one series per chart, so one blue (checked against both surfaces);
+   grid and axis text stay recessive, and figures use the text colours, not the bar colour */
+.admin-body { --chart-bar: #1D6FCE; --chart-grid: #E6E9EE; }
+@media (prefers-color-scheme: dark) { .admin-body { --chart-bar: #4C93E6; --chart-grid: #1F3263; } }
+.admin-sales { margin-top: 1.5rem; display: grid; gap: 0.75rem; }
+.admin-sales__head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.5rem; }
+.admin-sales__head h2 { margin: 0; }
+.admin-sales__head .admin-chips { margin: 0; }
+.admin-sales .hint { margin: 0; }
+.admin-kpi small { color: var(--color-muted); font-size: 0.8rem; }
+.admin-panel { padding: 1rem; }
+.admin-panel h3 { margin: 0 0 0.75rem; font-size: 1rem; }
+.admin-panels { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: 0.75rem; }
+.admin-chart { position: relative; }
+.admin-chart svg { display: block; width: 100%; height: auto; overflow: visible; }
+.admin-chart text { fill: var(--color-muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+.admin-chart__grid line { stroke: var(--chart-grid); stroke-width: 1; }
+.admin-chart__bars path { fill: var(--chart-bar); }
+.admin-chart__hits rect { fill: transparent; }
+.admin-chart__hits rect.is-on { fill: rgb(127 140 160 / 0.14); }
+.admin-chart__tip { position: absolute; top: 0; z-index: 2; display: grid; gap: 0.1rem; padding: 0.4rem 0.6rem; border-radius: var(--radius-sm); border: 1px solid var(--color-border); background: var(--color-surface); color: var(--color-text); box-shadow: var(--glass-shadow); font-size: 0.85rem; white-space: nowrap; pointer-events: none; }
+.admin-chart__tip span { color: var(--color-muted); font-variant-numeric: tabular-nums; }
+.admin-chart__table { margin-top: 0.75rem; }
+.admin-chart__table summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; align-items: center; }
+.admin-bars { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.6rem; }
+.admin-bars li { max-width: none; display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "name val" "track track"; gap: 0.2rem 0.75rem; font-size: 0.9rem; }
+.admin-bars__name { grid-area: name; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.admin-bars__val { grid-area: val; color: var(--color-muted); font-variant-numeric: tabular-nums; }
+.admin-bars__track { grid-area: track; height: 8px; border-radius: 4px; background: var(--chart-grid); overflow: hidden; }
+.admin-bars__fill { display: block; height: 100%; border-radius: 4px; background: var(--chart-bar); }
+.admin-panels > .card { margin: 0; }

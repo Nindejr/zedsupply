@@ -69,7 +69,7 @@
     B.rpc('checkout_quote', { p: payload }).then(function (quote) {
       if (quoteId !== navigation || !box.isConnected) return;
       var pending = !!quote.delivery_pending, fee = quote.delivery == null ? null : Number(quote.delivery), grand = Number(quote.grand_total != null ? quote.grand_total : quote.total);
-      box.innerHTML = '<section class="notice"><h3>Review your server total</h3><dl class="totals"><div><dt>Items and applicable tax</dt><dd>' + Z().kwacha(Number(quote.total)) + '</dd></div>' +
+      box.innerHTML = '<section class="notice"><h3>Review your server total</h3><dl class="totals">' + (Number(quote.discount) ? '<div class="is-save"><dt>Voucher' + (payload.voucher_code ? ' ' + esc(payload.voucher_code) : '') + '</dt><dd>−' + Z().kwacha(Number(quote.discount)) + '</dd></div>' : '') + '<div><dt>Items and applicable tax' + (Number(quote.discount) ? ', after the voucher' : '') + '</dt><dd>' + Z().kwacha(Number(quote.total)) + '</dd></div>' +
         '<div><dt>Delivery' + (quote.delivery_speed ? ' · ' + esc(Z().speedName(quote.delivery_speed)) : '') + '</dt><dd>' + (pending ? 'To be quoted' : Z().feeText(fee)) + '</dd></div>' +
         '<div class="is-total"><dt>' + (pending ? 'Total before delivery' : 'Order total') + '</dt><dd>' + Z().kwacha(grand) + '</dd></div></dl>' +
         '<p>' + (pending ? 'Delivery is still to be quoted. Payment stays unavailable until it is.' : fee === 0 && payload.fulfilment !== 'collection' ? 'Delivery is free for this order.' : 'Stock and the delivery fee are checked again when you place the order.') + '</p>' +
@@ -85,6 +85,18 @@
         } catch (e) { status.textContent = e.message + ' Retry uses the same order reference.'; button.disabled = false; }
       };
     }).catch(function (error) { if (quoteId === navigation && box.isConnected) box.innerHTML = errorHTML(error); });
+  };
+  // The cart asks the server about a voucher code that isn't in the catalogue: whether this buyer
+  // can use it, and what it takes off. The order is checked again when it's placed.
+  ext.hooks.voucherCheck = function (code, done) {
+    if (!active()) return;
+    if (!B.profile()) { setTimeout(function () { done({ reason: 'Sign in to use a voucher.' }); }); return true; }
+    B.rpc('voucher_check', { p_code: code }).then(function (r) {
+      var num = function (x) { return x == null ? null : Number(x); };
+      done(r && r.valid ? { voucher: { code: r.code, label: r.label || '', percent: num(r.percent), amount: num(r.amount), maxOff: num(r.max_off), minSpend: Number(r.min_spend) || 0 } }
+        : { reason: (r && r.reason ? r.reason + '.' : 'That voucher code isn\'t valid.') });
+    }, function (e) { done({ reason: e.message }); });
+    return true;
   };
   // The cart asks courier-quote for the chosen courier's live price; the server saves it for 30
   // minutes and checkout charges exactly that. Without a connected courier, the rate card stands.

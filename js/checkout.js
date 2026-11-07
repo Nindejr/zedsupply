@@ -31,6 +31,29 @@
     var waUrl = K.waUrl, weightText = K.weightText, wishedIn = K.wishedIn, zoneFor = K.zoneFor;
     var shipScope = 'town', shipChoice = '';   // this cart's courier choice; kept in memory only
     var payChoice = '';   // the customer's preferred method for this cart; kept in memory only
+    var voucherChecking = '';   // the code the server is checking now, if any
+
+    // What a voucher takes off, rounded to the kwacha as the server does: a percentage (with an
+    // optional cap) or a kwacha amount, once the items reach the minimum spend
+    function voucherOff(v, sub) {
+      if (!v || sub < (Number(v.minSpend) || 0)) return 0;
+      if (v.amount != null) return Math.min(Number(v.amount), sub);
+      var off = Math.round(sub * Number(v.percent) / 100);
+      return v.maxOff != null ? Math.min(off, Number(v.maxOff)) : off;
+    }
+    // A code from the catalogue, or one the server confirmed for this buyer (connected mode)
+    function voucherFor(code) {
+      if (!code) return null;
+      var listed = (D.vouchers || []).filter(function (x) { return x.code === code; })[0];
+      if (listed) return listed;
+      var checked = store.get('voucher-server', null);
+      return checked && checked.code === code ? checked : null;
+    }
+    function voucherAbout(v) {
+      if (v.label) return v.label;
+      return [v.amount != null ? kwacha(v.amount) + ' off' : v.percent + '% off', v.amount == null && v.maxOff != null ? 'up to ' + kwacha(v.maxOff) : '',
+        Number(v.minSpend) ? 'on orders of ' + kwacha(v.minSpend) + ' or more' : ''].filter(Boolean).join(', ');
+    }
 
     // Checkout: the six top-ranked couriers for the route, and every other one in a list
     function shipChoiceHTML() {
@@ -127,8 +150,8 @@
         var voucher = store.get('voucher', '');
         var sub = 0, save = 0, items = [];
         lines.forEach(function (l) { var p = product(l.id), qty = ZP.fitQty(p, l.qty), lq = lineQuote(p, l.opt, qty), pr = lq.pr; sub += lq.q.each * qty; if (pr.was && !lq.q.commit) save += (pr.was - pr.now) * qty; items.push({ p: p, pr: pr, qty: qty, each: lq.q.each, commit: lq.q.commit, bulk: lq.q.bulk, key: lineKey(l), label: ZP.describe(p, l.opt), sku: lq.v ? lq.v.sku : "", opt: l.opt }); });
-        var v = voucher ? (D.vouchers || []).filter(function (x) { return x.code === voucher; })[0] : null;
-        var vOff = v && sub >= v.minSpend ? Math.round(sub * v.percent / 100) : 0;
+        var v = voucherFor(voucher);
+        var vOff = voucherOff(v, sub);
         var total = sub - vOff;
         // VAT is usually inside the price (shown as "Includes VAT"); if settings add it on top, the total grows
         var vat = vatFor(items, total);
@@ -211,7 +234,9 @@
             step(2, 'Payment',
               payChoiceHTML() + ext('checkoutPayment', total) +
               '<form class="voucher" id="voucher-form"><label for="voucher" class="visually-hidden">Voucher code</label><input id="voucher" placeholder="Voucher code" value="' + esc(voucher) + '" autocapitalize="characters"><button class="btn btn--secondary btn--sm" type="submit">Apply</button></form>' +
-              (voucher && !v ? '<p class="form-status is-error">That voucher code isn\'t valid.</p>' : '') +
+              (voucher && voucherChecking === voucher ? '<p class="form-status" role="status">Checking ' + esc(voucher) + '…</p>' :
+                voucher && !v ? '<p class="form-status is-error">' + esc(store.get('voucher-why', '') || 'That voucher code isn\'t valid.') + '</p>' : '') +
+              (v && vOff ? '<p class="form-status is-success">' + esc(v.code) + ' applied: ' + esc(voucherAbout(v)) + '. <button class="link-btn" type="button" id="voucher-remove">Remove</button></p>' : '') +
               (v && !vOff ? '<p class="form-status is-error">' + esc(v.code) + ' needs a minimum spend of ' + kwacha(v.minSpend) + '.</p>' : '')) +
             step(3, 'Review and place your order',
               '<div id="co-totals" aria-live="polite"></div>' +
@@ -510,7 +535,21 @@
           });
           inp.addEventListener('input', function (e) { if (e.isTrusted === false) inp.dispatchEvent(new Event('change')); });
         });
-        $('#voucher-form').addEventListener('submit', function (e) { e.preventDefault(); store.set('voucher', $('#voucher').value.trim().toUpperCase()); views.cart(); });
+        $('#voucher-form').addEventListener('submit', function (e) {
+          e.preventDefault();
+          var code = $('#voucher').value.trim().toUpperCase();
+          store.set('voucher', code); store.set('voucher-server', null); store.set('voucher-why', '');
+          // Connected: the server says whether this buyer can use a code that isn't in the catalogue
+          voucherChecking = code && !voucherFor(code) && ext('voucherCheck', code, function (r) {
+            if (store.get('voucher', '') !== code) return;
+            voucherChecking = '';
+            store.set('voucher-server', r.voucher || null); store.set('voucher-why', r.reason || '');
+            if (location.hash.indexOf('#/cart') === 0) views.cart();
+          }) ? code : '';
+          views.cart();
+        });
+        var vRemove = $('#voucher-remove');
+        if (vRemove) vRemove.addEventListener('click', function () { store.set('voucher', ''); store.set('voucher-server', null); store.set('voucher-why', ''); views.cart(); });
         bindSaved();
       }
     };

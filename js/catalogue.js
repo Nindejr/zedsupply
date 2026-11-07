@@ -543,7 +543,8 @@ window.ZS_CATALOGUE = {
      Seller Centre demo; those are saved in that browser only until Phase 2. */
   promotions: [],
 
-  // Voucher codes customers can enter in the cart: { code, percent, minSpend, label }
+  // Voucher codes customers can enter in the cart: { code, percent, maxOff, minSpend, label },
+  // or { code, amount, minSpend, label } for kwacha off. Connected, staff run vouchers in the admin panel.
   vouchers: [],
 
   // Order shown when someone types its number on the Track order page (demo only)

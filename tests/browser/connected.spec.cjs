@@ -29,6 +29,8 @@ async function setup(page, { staff = false, teamRole = 'owner', applications = [
     else if (url.pathname === '/rest/v1/users') data = [{id:7,name:'Verified Buyer',email:'buyer@example.test',phone:'+260970000001',is_staff:false}];
     else if (url.pathname === '/rest/v1/rpc/catalogue_page') data = [product];
     else if (url.pathname === '/rest/v1/rpc/checkout_quote') data = quote;
+    else if (url.pathname === '/rest/v1/rpc/voucher_check') data = body.p_code === 'TAKE50' ? {valid:true,code:'TAKE50',label:'K50 off your order',percent:null,amount:50,max_off:null,min_spend:0,ends:null}
+      : body.p_code === 'BIG20' ? {valid:true,code:'BIG20',label:null,percent:20,amount:null,max_off:15,min_spend:50,ends:null} : {valid:false,reason:'That voucher has been used up'};
     else if (url.pathname === '/rest/v1/order_parcels') data = [{seller_id:'live-store',speed:'express',fee_zmw:85,free:false,courier_id:'dhl',tracking_ref:'JD0001',courier_status:'in_transit',min_days:1,max_days:1}];
     else if (url.pathname === '/rest/v1/courier_tracking_events') data = [{seller_id:'live-store',status:'in_transit',description:'At the Lusaka hub',location:'Lusaka',occurred_at:'2026-11-02T08:00:00Z'}];
     else if (url.pathname === '/rest/v1/rpc/order_receipt') data = {ref:'ZS-LIVE0001',created_at:'2026-11-01T08:00:00Z',status:'placed',payment_status:'unpaid',payment_method:'mtn',name:'Verified Buyer',
@@ -236,6 +238,45 @@ test('a business buyer saves their details once and they go with the order', asy
   await expect.poll(() => calls.filter(c => c.path === '/functions/v1/place-order').length).toBe(1);
   const order = calls.find(c => c.path === '/functions/v1/place-order').body;
   expect([order.business_name, order.business_tpin, order.business_address]).toEqual(['Mwila Farms','1234567890','Plot 4, Chongwe']);
+  expect(errors).toEqual([]);
+});
+
+test('the cart checks a voucher with the server, shows what it takes off, and the order carries the code', async ({page}) => {
+  const errors = []; page.on('pageerror', e => errors.push(e.message));
+  const calls = await setup(page, {quote:{total:50,subtotal:100,discount:50,vat:0,currency:'ZMW',delivery_pending:true}});
+  await signIn(page);
+  await page.goto('/index.html?demo=0#/product/LIVE1');
+  await page.getByRole('button',{name:'Add to cart',exact:true}).click();
+  await page.goto('/index.html?demo=0#/cart');
+  const voucher = page.getByLabel('Voucher code',{exact:true});
+  await voucher.fill('used1');
+  await page.getByRole('button',{name:'Apply',exact:true}).click();
+  await expect(page.locator('.voucher ~ .form-status.is-error')).toHaveText('That voucher has been used up.');
+  expect(calls.filter(c => c.path === '/rest/v1/rpc/voucher_check').pop().body).toEqual({p_code:'USED1'});
+  // A percentage with a cap: 20% of K100 would be K20, capped at K15
+  await voucher.fill('big20');
+  await page.getByRole('button',{name:'Apply',exact:true}).click();
+  await expect(page.getByText('BIG20 applied: 20% off, up to K15, on orders of K50 or more.')).toBeVisible();
+  await expect(page.locator('#co-totals')).toContainText('Voucher BIG20');
+  await expect(page.locator('#co-totals')).toContainText('−K15');
+  // A kwacha amount, with the label staff wrote
+  await voucher.fill('TAKE50');
+  await page.getByRole('button',{name:'Apply',exact:true}).click();
+  await expect(page.getByText('TAKE50 applied: K50 off your order.')).toBeVisible();
+  await expect(page.locator('#co-totals')).toContainText('−K50');
+  await page.getByRole('link',{name:'Review server total',exact:true}).click();
+  const review = page.locator('#server-checkout-review');
+  await expect(review).toContainText('Voucher TAKE50');
+  await expect(review).toContainText('after the voucher');
+  expect(calls.filter(c => c.path === '/rest/v1/rpc/checkout_quote').pop().body.p.voucher_code).toBe('TAKE50');
+  await page.getByRole('button',{name:'Place order for K50 before delivery',exact:true}).click();
+  await expect(page.getByRole('heading',{name:/Order ZS-/})).toBeVisible();
+  expect(calls.find(c => c.path.endsWith('/place-order')).body.voucher_code).toBe('TAKE50');
+  // Placing the order clears the voucher
+  await page.goto('/index.html?demo=0#/product/LIVE1');
+  await page.getByRole('button',{name:'Add to cart',exact:true}).click();
+  await page.goto('/index.html?demo=0#/cart');
+  await expect(page.getByLabel('Voucher code',{exact:true})).toHaveValue('');
   expect(errors).toEqual([]);
 });
 

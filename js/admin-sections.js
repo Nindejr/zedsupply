@@ -1,5 +1,6 @@
-/* Zed Supply — admin panel sections: dashboard, orders, payments, support, applications,
-   listings, delivery prices, messages and the audit log. Loaded before js/admin-app.js, which
+/* Zed Supply — admin panel sections: dashboard (with sales for finance and operations), orders,
+   payments, support, applications, listings, delivery prices, messages, payouts, vouchers, staff,
+   settings and the audit log. Loaded before js/admin-app.js, which
    supplies the helpers (A.esc, A.rpc, A.read, A.act, …) and runs them.
 
    Each section lists which staff roles use it (the owner sees all). Hiding a section is only a
@@ -20,8 +21,87 @@
   }
 
   // ---------- Dashboard ----------
+  var SALES_DAYS = [7, 30, 90];
+  function dayName(iso, long) { return new Date(iso + 'T12:00:00Z').toLocaleDateString('en-GB', long ? { weekday: 'short', day: 'numeric', month: 'short' } : { day: 'numeric', month: 'short' }); }
+  function niceStep(x) { var m = Math.pow(10, Math.floor(Math.log10(x))), f = x / m; return (f <= 1 ? 1 : f <= 2 ? 2 : f <= 2.5 ? 2.5 : f <= 5 ? 5 : 10) * m; }
+  function shortK(n) { return n >= 1e6 ? 'K' + (n / 1e6).toFixed(n % 1e6 ? 1 : 0) + 'm' : n >= 1e3 ? 'K' + (n / 1e3).toFixed(n % 1e3 ? 1 : 0) + 'k' : 'K' + n; }
+  // Sales by day as thin bars on one axis, with a tooltip on hover and the same figures as a table
+  function salesChart(series) {
+    var W = 640, H = 220, L = 52, R = 8, T = 10, B = 26, pw = W - L - R, ph = H - T - B, n = series.length;
+    var top = Math.max.apply(null, series.map(function (d) { return Number(d.sales); }).concat([0]));
+    var step = top > 0 ? niceStep(top / 4) : 250, max = Math.max(step * Math.ceil(top / step), step);
+    var slot = pw / n, bw = Math.max(1, slot - 2), y = function (v) { return T + ph - (v / max) * ph; };
+    var grid = '', bars = '', hits = '', labels = '';
+    for (var t = 0; t <= max + 1e-9; t += step) grid += '<line x1="' + L + '" x2="' + (W - R) + '" y1="' + y(t).toFixed(1) + '" y2="' + y(t).toFixed(1) + '"/><text x="' + (L - 6) + '" y="' + (y(t) + 4).toFixed(1) + '" text-anchor="end">' + e(shortK(t)) + '</text>';
+    series.forEach(function (d, i) {
+      var v = Number(d.sales), x = L + i * slot + (slot - bw) / 2, h = (v / max) * ph, r = Math.min(4, bw / 2, h);
+      if (h > 0) bars += '<path d="M' + x.toFixed(1) + ',' + (T + ph) + 'V' + (T + ph - h + r).toFixed(1) + 'q0,-' + r.toFixed(1) + ' ' + r.toFixed(1) + ',-' + r.toFixed(1) + 'h' + (bw - 2 * r).toFixed(1) + 'q' + r.toFixed(1) + ',0 ' + r.toFixed(1) + ',' + r.toFixed(1) + 'V' + (T + ph) + 'Z"/>';
+      hits += '<rect x="' + (L + i * slot).toFixed(1) + '" y="' + T + '" width="' + slot.toFixed(1) + '" height="' + ph + '" data-i="' + i + '"/>';
+    });
+    [0, Math.floor((n - 1) / 2), n - 1].forEach(function (i, k) { labels += '<text x="' + (L + i * slot + slot / 2).toFixed(1) + '" y="' + (H - 8) + '" text-anchor="' + (k === 0 ? 'start' : k === 2 ? 'end' : 'middle') + '">' + e(dayName(series[i].day)) + '</text>'; });
+    var total = series.reduce(function (a, d) { return a + Number(d.sales); }, 0), best = series.reduce(function (a, d) { return Number(d.sales) > Number(a.sales) ? d : a; }, series[0]);
+    return '<div class="admin-chart" id="ad-sales-chart"><svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Sales by day, ' + e(A.kwacha(total)) + ' in all' + (Number(best.sales) ? ', highest on ' + e(dayName(best.day, true)) + ' at ' + e(A.kwacha(best.sales)) : '') + '. The table below has each day.">' +
+      '<g class="admin-chart__grid">' + grid + '</g><g class="admin-chart__bars">' + bars + '</g><g class="admin-chart__x">' + labels + '</g><g class="admin-chart__hits">' + hits + '</g></svg>' +
+      '<div class="admin-chart__tip" role="presentation" hidden></div></div>';
+  }
+  function bindChart(series) {
+    var box = A.$('#ad-sales-chart');
+    if (!box) return;
+    var tip = A.$('.admin-chart__tip', box), last = null;
+    A.$$('.admin-chart__hits rect', box).forEach(function (r) {
+      r.addEventListener('pointerenter', function () {
+        var d = series[Number(r.getAttribute('data-i'))], br = r.getBoundingClientRect(), bb = box.getBoundingClientRect();
+        if (last) last.classList.remove('is-on');
+        r.classList.add('is-on'); last = r;
+        tip.innerHTML = '<strong>' + e(dayName(d.day, true)) + '</strong><span>' + e(A.kwacha(d.sales)) + ' · ' + e(d.orders) + (Number(d.orders) === 1 ? ' order' : ' orders') + '</span>';
+        tip.hidden = false;
+        var left = br.left - bb.left + br.width / 2, w = tip.offsetWidth;
+        tip.style.left = Math.max(0, Math.min(bb.width - w, left - w / 2)) + 'px';
+      });
+    });
+    box.addEventListener('pointerleave', function () { tip.hidden = true; if (last) last.classList.remove('is-on'); last = null; });
+  }
+  function barList(title, rows, name, value) {
+    var top = Math.max.apply(null, rows.map(function (r) { return Number(r.sales); }).concat([0])) || 1;
+    return '<section class="card admin-panel"><h3>' + e(title) + '</h3>' + (rows.length ? '<ol class="admin-bars">' + rows.map(function (r) {
+      return '<li><span class="admin-bars__name">' + e(name(r)) + '</span><span class="admin-bars__track"><span class="admin-bars__fill" style="width:' + Math.max(1, Number(r.sales) / top * 100).toFixed(1) + '%"></span></span><span class="admin-bars__val">' + e(value(r)) + '</span></li>';
+    }).join('') + '</ol>' : empty('Nothing sold in this period.')) + '</section>';
+  }
+  function change(now, before, days) {
+    now = Number(now); before = Number(before);
+    if (!before) return now ? 'None in the previous ' + days + ' days' : '';
+    var pct = Math.round((now - before) / before * 100);
+    return (pct > 0 ? '▲ ' + pct + '% up' : pct < 0 ? '▼ ' + -pct + '% down' : 'Level') + ' on the previous ' + days + ' days';
+  }
+  // Payment names from the catalogue's settings (js/catalogue.js), or the id made readable
+  function methodName(m) {
+    var known = (((window.ZS_CATALOGUE || {}).settings || {}).paymentMethods || []).filter(function (x) { return x.id === m; })[0];
+    if (known) return known.name;
+    var t = String(m).replace(/[-_]+/g, ' '); return t.charAt(0).toUpperCase() + t.slice(1);
+  }
+  function salesHTML(r, days) {
+    var t = r.totals, pr = r.previous, avg = Number(t.orders) ? Number(t.sales) / Number(t.orders) : 0;
+    var kpi = function (value, label, note) { return '<li><div class="admin-tile admin-kpi"><strong>' + e(value) + '</strong><span>' + e(label) + '</span>' + (note ? '<small>' + e(note) + '</small>' : '') + '</div></li>'; };
+    return '<section class="admin-sales" aria-labelledby="ad-sales-h"><div class="admin-sales__head"><h2 id="ad-sales-h">Sales</h2>' +
+        '<nav class="chips admin-chips" aria-label="Sales period">' + SALES_DAYS.map(function (d) { return '<a class="chip" href="#/dashboard?days=' + d + '"' + (d === days ? ' aria-current="page"' : '') + '>' + d + ' days</a>'; }).join('') + '</nav></div>' +
+      '<p class="hint">' + e(dayName(r.from, true)) + ' to ' + e(dayName(r.to, true)) + ', Zambian time. Sales are order totals with delivery; cancelled orders are left out' + (Number(r.cancelled) ? ' (' + e(r.cancelled) + ' cancelled)' : '') + '.</p>' +
+      '<ul class="admin-tiles">' + kpi(A.kwacha(t.sales), 'Sales', change(t.sales, pr.sales, days)) + kpi(t.orders, 'Orders', change(t.orders, pr.orders, days)) +
+        kpi(A.kwacha(Math.round(avg)), 'Average order') + kpi(A.kwacha(t.discounts), 'Given in vouchers') + '</ul>' +
+      '<section class="card admin-panel"><h3>Sales by day</h3>' + salesChart(r.series) +
+        '<details class="admin-chart__table"><summary>Show as a table</summary>' + table(['Day', 'Orders', 'Sales'], r.series.slice().reverse().map(function (d) {
+          return '<tr><th scope="row">' + e(dayName(d.day, true)) + '</th><td>' + e(d.orders) + '</td><td>' + A.kwacha(d.sales) + '</td></tr>'; })) +
+        '<p><button class="btn btn--secondary btn--sm" type="button" id="ad-sales-csv">Download CSV</button></p></details></section>' +
+      '<div class="admin-panels">' +
+        barList('Best-selling products', r.products, function (x) { return x.title; }, function (x) { return A.kwacha(x.sales) + ' · ' + x.units + ' sold'; }) +
+        barList('Departments', r.departments, function (x) { return x.name; }, function (x) { return A.kwacha(x.sales); }) +
+        barList('How buyers chose to pay', r.payments, function (x) { return methodName(x.method); }, function (x) { return A.kwacha(x.sales) + ' · ' + x.orders + (Number(x.orders) === 1 ? ' order' : ' orders'); }) +
+      '</div><p class="hint">Product and department figures are item prices before vouchers and delivery.</p></section>';
+  }
   section('dashboard', { title: 'Dashboard', render: function (arg, q, mine) {
-    return A.rpc('staff_dashboard').then(function (c) {
+    var days = SALES_DAYS.indexOf(Number(q.get('days'))) !== -1 ? Number(q.get('days')) : 30;
+    var sales = A.can('finance') || A.can('operations') ? A.rpc('staff_sales_report', { p_days: days }).catch(function (err) { return { error: err.message }; }) : Promise.resolve(null);
+    return Promise.all([A.rpc('staff_dashboard'), sales]).then(function (both) {
+      var c = both[0], r = both[1];
       if (stale(mine)) return;
       A.counts = c;
       var tile = function (n, label, href, warn) { return '<li><a class="admin-tile' + (warn && n ? ' is-warn' : '') + '" href="#/' + href + '"><strong>' + e(n) + '</strong><span>' + e(label) + '</span></a></li>'; };
@@ -33,7 +113,12 @@
         tile(c.complaints, 'Open complaints', 'support', true) + tile(c.returns, 'Returns in progress', 'support') +
         tile(c.seller_applications, 'Seller applications', 'applications', true) + tile(c.rider_applications, 'Rider applications', 'applications?show=riders', true) +
         tile(c.listings_to_review, 'Listings to review', 'listings', true) + tile(c.messages_failed, 'Messages failed', 'messages?status=failed', true) +
-        tile(c.messages_waiting, 'Messages waiting', 'messages?status=queued') + tile(c.staff_actions_today, 'Staff actions today', 'audit') + '</ul>');
+        tile(c.messages_waiting, 'Messages waiting', 'messages?status=queued') + tile(c.staff_actions_today, 'Staff actions today', 'audit') + '</ul>' +
+        (r && r.error ? '<p class="form-status is-error" role="alert">Sales couldn\'t load: ' + e(r.error) + '</p>' : r ? salesHTML(r, days) : ''));
+      if (r && r.series) {
+        bindChart(r.series);
+        A.$('#ad-sales-csv').addEventListener('click', function () { A.csv('zed-supply-sales-' + r.from + '-to-' + r.to + '.csv', ['Day', 'Orders', 'Sales (K)'], r.series.map(function (d) { return [d.day, d.orders, d.sales]; })); });
+      }
     });
   } });
 
@@ -332,8 +417,76 @@
     });
   } });
 
+  // ---------- Vouchers (catalogue changes them; finance sees how they're used) ----------
+  function voucherGives(v) {
+    return (v.amount != null ? A.kwacha(v.amount) + ' off' : v.percent + '% off' + (v.max_off != null ? ', up to ' + A.kwacha(v.max_off) : '')) +
+      (Number(v.min_spend) ? ' over ' + A.kwacha(v.min_spend) : '');
+  }
+  function voucherLimits(v) {
+    var out = [];
+    if (v.max_uses != null) out.push(v.max_uses + ' uses in all');
+    if (v.uses_per_buyer != null) out.push(v.uses_per_buyer === 1 ? 'once per buyer' : v.uses_per_buyer + ' per buyer');
+    return out.join(', ') || 'No limit';
+  }
+  function voucherDates(v) { return v.starts || v.ends ? (v.starts ? 'From ' + dayName(v.starts, true) : 'Now') + (v.ends ? ' to ' + dayName(v.ends, true) : ' on') : 'Any time'; }
+  function voucherBody(v) {
+    return { code: v.code, label: v.label || '', percent: v.percent, amount: v.amount, max_off: v.max_off, min_spend: v.min_spend, active: v.active,
+      starts: v.starts, ends: v.ends, max_uses: v.max_uses, uses_per_buyer: v.uses_per_buyer };
+  }
+  function voucherForm(v) {
+    var isNew = !v; v = v || { active: true, min_spend: 0 };
+    var val = function (k) { return e(v[k] == null ? '' : v[k]); }, amountKind = v.amount != null;
+    return '<section class="card admin-item"><h2>' + (isNew ? 'New voucher' : 'Change ' + e(v.code)) + '</h2>' +
+      form('ad-voucher', field('ad-v-code', 'Code', '<input id="ad-v-code" maxlength="20" required pattern="[A-Za-z0-9]{3,20}" autocapitalize="characters" value="' + val('code') + '"' + (isNew ? '' : ' readonly') + '>', '3 to 20 letters and numbers. Buyers type this in the cart.') +
+        '<fieldset class="field"><legend>Takes off</legend><div class="check"><input type="radio" name="ad-v-kind" id="ad-v-kind-p" value="percent"' + (amountKind ? '' : ' checked') + '><label for="ad-v-kind-p">A percentage</label></div>' +
+          '<div class="check"><input type="radio" name="ad-v-kind" id="ad-v-kind-a" value="amount"' + (amountKind ? ' checked' : '') + '><label for="ad-v-kind-a">A kwacha amount</label></div>' +
+          '<div class="field-row">' + field('ad-v-value', 'Amount off (% or K)', '<input id="ad-v-value" type="number" min="1" max="100000" step="1" required value="' + e(amountKind ? v.amount : v.percent == null ? '' : v.percent) + '">') +
+          field('ad-v-cap', 'Most it takes off (K)', '<input id="ad-v-cap" type="number" min="1" max="100000" step="1" value="' + val('max_off') + '">', 'Percentage vouchers only. Empty for no cap.') + '</div></fieldset>' +
+        '<div class="field-row">' + field('ad-v-min', 'Minimum spend (K)', '<input id="ad-v-min" type="number" min="0" max="1000000" step="1" value="' + val('min_spend') + '">') +
+          field('ad-v-starts', 'Starts', '<input id="ad-v-starts" type="date" value="' + val('starts') + '">') + field('ad-v-ends', 'Ends', '<input id="ad-v-ends" type="date" value="' + val('ends') + '">', 'Inclusive, on Zambian dates. Empty for no end.') + '</div>' +
+        '<div class="field-row">' + field('ad-v-max', 'Uses in all', '<input id="ad-v-max" type="number" min="1" max="1000000" step="1" value="' + val('max_uses') + '">', 'Empty for no limit. A cancelled order gives its use back.') +
+          field('ad-v-per', 'Uses per buyer', '<input id="ad-v-per" type="number" min="1" max="100" step="1" value="' + val('uses_per_buyer') + '">', 'Counted by account, or by phone number for guests.') + '</div>' +
+        field('ad-v-label', 'What buyers see', '<input id="ad-v-label" maxlength="80" value="' + val('label') + '" placeholder="e.g. K50 off your first order">', 'Shown in the cart when the code is applied. Keep prices and terms accurate.') +
+        '<div class="check"><input type="checkbox" id="ad-v-active"' + (v.active ? ' checked' : '') + '><label for="ad-v-active">On: buyers can use it</label></div>',
+        '<button class="btn btn--primary" type="submit">' + (isNew ? 'Create voucher' : 'Save changes') + '</button>' + (isNew ? '' : '<a class="btn btn--secondary" href="#/vouchers">Cancel</a>')) + '</section>';
+  }
+  section('vouchers', { title: 'Vouchers', roles: ['catalogue', 'finance'], render: function (code, q, mine) {
+    return A.rpc('staff_vouchers').then(function (rows) {
+      if (stale(mine)) return;
+      var can = A.can('catalogue'), editing = code ? rows.filter(function (v) { return v.code === code; })[0] : null;
+      A.show('Vouchers', '<p>Codes buyers enter in the cart for money off. The server checks every code, its dates and limits when an order is placed. Uses count orders that weren\'t cancelled.</p>' +
+        (rows.length ? table(['Code', 'Gives', 'Limits', 'When', 'Used', 'Status', ''], rows.map(function (v) {
+          return '<tr><th scope="row">' + e(v.code) + (v.label ? '<br><small>' + e(v.label) + '</small>' : '') + '</th><td>' + e(voucherGives(v)) + '</td><td>' + e(voucherLimits(v)) + '</td><td>' + e(voucherDates(v)) + '</td>' +
+            '<td>' + e(v.uses) + (v.max_uses != null ? ' of ' + e(v.max_uses) : '') + (Number(v.uses) ? '<br><small>' + A.kwacha(v.discount_given) + ' off ' + A.kwacha(v.sales) + ' of orders</small>' : '') + '</td>' +
+            '<td>' + A.status(v.active ? 'active' : 'off') + '</td><td>' + (can ? '<div class="btn-row"><a class="btn btn--secondary btn--sm" href="#/vouchers/' + encodeURIComponent(v.code) + '">Change</a>' +
+              '<button class="btn btn--secondary btn--sm" type="button" data-voucher-toggle="' + e(v.code) + '">' + (v.active ? 'Switch off' : 'Switch on') + '</button></div>' : '') + '</td></tr>';
+        })) : empty('No vouchers yet.')) +
+        (can ? voucherForm(editing) : '<p class="hint">The catalogue role creates and changes vouchers.</p>'));
+      bindAll('[data-voucher-toggle]', 'data-voucher-toggle', function (b, c) {
+        var v = rows.filter(function (x) { return x.code === c; })[0], body = voucherBody(v);
+        body.active = !v.active;
+        A.act(b, function () { return A.rpc('staff_save_voucher', { v: body }); }, function () { A.toast(c + (body.active ? ' switched on' : ' switched off'), 'success'); });
+      });
+      var f = A.$('#ad-voucher');
+      if (!f) return;
+      var kindSync = function () { var pct = A.$('#ad-v-kind-p').checked, cap = A.$('#ad-v-cap'); cap.disabled = !pct; if (!pct) cap.value = ''; A.$('#ad-v-value').max = pct ? 90 : 100000; };
+      A.$$('[name="ad-v-kind"]', f).forEach(function (r) { r.addEventListener('change', kindSync); }); kindSync();
+      f.addEventListener('submit', function (ev) {
+        ev.preventDefault();
+        var num = function (id) { var x = A.$(id).value.trim(); return x === '' ? null : Number(x); }, pct = A.$('#ad-v-kind-p').checked;
+        var body = { code: A.$('#ad-v-code').value.trim().toUpperCase(), label: A.$('#ad-v-label').value.trim(), percent: pct ? num('#ad-v-value') : null, amount: pct ? null : num('#ad-v-value'),
+          max_off: pct ? num('#ad-v-cap') : null, min_spend: num('#ad-v-min') || 0, active: A.$('#ad-v-active').checked, starts: A.$('#ad-v-starts').value || null,
+          ends: A.$('#ad-v-ends').value || null, max_uses: num('#ad-v-max'), uses_per_buyer: num('#ad-v-per') };
+        A.act(f.querySelector('button'), function () { return A.rpc('staff_save_voucher', { v: body }); }, function (r) {
+          A.toast(body.code + (r && r.created ? ' created' : ' saved'), 'success');
+          if (code) location.hash = '#/vouchers';
+        });
+      });
+    });
+  } });
+
   // ---------- Staff and roles (owner) ----------
-  var ROLES = [['owner', 'Owner', 'Everything, including staff and settings'], ['operations', 'Operations', 'Orders, delivery fees and prices, riders, resending messages'], ['support', 'Support', 'Complaints, returns and support cases'], ['catalogue', 'Catalogue', 'Listings, sellers and seller applications'], ['finance', 'Finance', 'Payment requests and seller payouts']];
+  var ROLES = [['owner', 'Owner', 'Everything, including staff and settings'], ['operations', 'Operations', 'Orders, delivery fees and prices, riders, resending messages, sales'], ['support', 'Support', 'Complaints, returns and support cases'], ['catalogue', 'Catalogue', 'Listings, sellers, seller applications and vouchers'], ['finance', 'Finance', 'Payment requests, seller payouts and sales']];
   function roleChecks(prefix, have) { return '<div class="checks admin-roles">' + ROLES.map(function (r) { return '<div class="check"><input type="checkbox" id="' + prefix + r[0] + '" value="' + r[0] + '"' + (have.indexOf(r[0]) !== -1 ? ' checked' : '') + '><label for="' + prefix + r[0] + '">' + r[1] + ' <small>' + r[2] + '</small></label></div>'; }).join('') + '</div>'; }
   section('staff', { title: 'Staff', roles: ['owner'], render: function (arg, q, mine) {
     return A.rpc('staff_list').then(function (rows) {
