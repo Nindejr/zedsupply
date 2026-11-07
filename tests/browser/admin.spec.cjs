@@ -6,7 +6,9 @@ const live = fs.readFileSync('js/catalogue.js', 'utf8').replace("api: { enabled:
 const axe = require.resolve('axe-core/axe.min.js');
 const token = aal => 'h.' + Buffer.from(JSON.stringify({ sub: 'staff-auth-id', aal })).toString('base64url') + '.s';
 
-async function setup(page, { roles = ['owner'], staff = true, enrolled = false } = {}) {
+const application = { id: 'app-1', business: 'Kafue Solar Traders', contact_name: 'Mwila Banda', phone: '+260977123456', email: 'buyer@example.test', town: 'Kafue', pacra: null,
+  categories: ['Solar, Power & Energy'], about: 'Solar lamps and panels', status: 'new', staff_note: null, seller_id: null, created_at: '2026-11-03T08:00:00Z' };
+async function setup(page, { roles = ['owner'], staff = true, enrolled = false, applications = [] } = {}) {
   const calls = [], state = { aal: 'aal1', enrolled };
   await page.route('**/*', async route => {
     const req = route.request(), url = new URL(req.url());
@@ -37,6 +39,16 @@ async function setup(page, { roles = ['owner'], staff = true, enrolled = false }
     else if (p === '/rest/v1/rpc/staff_notifications') data = [{ id: 7, channel: 'whatsapp', to: '+260970000001', template: 'handover_code', status: 'failed', attempts: 5, last_error: 'Provider HTTP 400', created_at: '2026-11-07T08:00:00Z', order_ref: 'ZS-ADMIN001', payload: { ref: 'ZS-ADMIN001' } }];
     else if (p === '/rest/v1/rpc/staff_audit') data = [{ id: 3, action: 'set_delivery_fee', target: 'ZS-ADMIN001', detail: { fee: 350 }, at: '2026-11-07T09:00:00Z', by: 'Mutinta Staff' }];
     else if (p === '/rest/v1/rpc/delivery_settings') data = { rates: [{ id: 1, courier: null, zone: 'town', speed: 'standard', fee: 45, kg: 5, perKg: 5, days: [1, 2], active: true }], freeDelivery: { min: null, zones: [] }, defaultKg: 1, origin: null, sameDay: { cutoff: 11, towns: [] }, closedDays: [0] };
+    else if (p === '/rest/v1/seller_applications' || p === '/rest/v1/rider_applications') data = applications;
+    else if (p === '/rest/v1/rpc/staff_approve_application') data = body.store_id;
+    else if (p === '/rest/v1/rpc/staff_list') data = [{ id: 9, name: 'Mutinta Staff', email: 'staff@example.test', you: true, roles: ['owner'], last_action: '2026-11-07T09:00:00Z' },
+      { id: 12, name: 'Bwalya Ops', email: 'ops@example.test', you: false, roles: ['operations'], last_action: null }];
+    else if (p === '/rest/v1/rpc/staff_set_roles') data = { email: body.account_email, roles: body.new_roles };
+    else if (p === '/rest/v1/shop_settings') data = [{ vat_registered: false, vat_registration_verified: false, vat_rate: 16, vat_included: true, commission_pct: 0, payout_hold_days: 3, cod_max_zmw: 1500, cod_min_delivered: 1,
+      layby_enabled: false, layby_deposit_pct: 20, layby_weeks: 8, support_reply_hours: null, staff_mfa_required: true, site_url: 'https://nindejr.github.io/zedsupply/' }];
+    else if (p === '/rest/v1/seller_payouts') data = [{ id: 31, seller_id: 'sa-store', amount_zmw: 270, commission_zmw: 30, status: 'due', release_after: '2026-11-06T00:00:00Z', paid_at: null, reference: null, created_at: '2026-11-01T00:00:00Z', sellers: { name: 'Admin test store' }, orders: { ref: 'ZS-ADMIN001' } },
+      { id: 32, seller_id: 'sa-store', amount_zmw: 90, commission_zmw: 10, status: 'due', release_after: '2026-11-06T00:00:00Z', paid_at: null, reference: null, created_at: '2026-11-02T00:00:00Z', sellers: { name: 'Admin test store' }, orders: { ref: 'ZS-ADMIN002' } }];
+    else if (p === '/rest/v1/rpc/staff_mark_payouts_paid') data = body.payout_ids.length;
     else if (p.startsWith('/rest/v1/rpc/staff_')) data = null;
     return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(data) });
   });
@@ -144,4 +156,135 @@ test('a buyer account is refused, and without the connection the page explains',
   await expect(plain.getByRole('heading', { name: 'Admin panel' })).toBeVisible();
   await expect(plain.locator('main')).toContainText('works once the shop is connected');
   expect(await plain.evaluate(() => document.querySelector('meta[name="robots"]').content)).toBe('noindex, nofollow');
+});
+
+async function confirmApp(page) {
+  await page.getByLabel('6-digit code from your authenticator app').fill('123456');
+  await page.getByRole('button', { name: 'Confirm' }).click();
+  await expect(page.getByRole('heading', { name: 'Dashboard', level: 1 })).toBeVisible();
+}
+const navTo = (page, name) => page.getByRole('navigation', { name: 'Admin sections' }).getByRole('link', { name: new RegExp('^' + name) }).click();
+
+test('applications page through, filter by status and search, as the old staff screen did', async ({ page }) => {
+  const many = Array.from({ length: 26 }, (_, i) => ({ ...application, id: 'app-' + i, business: 'Shop number ' + i }));
+  const { calls } = await setup(page, { enrolled: true, applications: many });
+  await signIn(page); await confirmApp(page);
+  const reads = () => calls.filter(c => c.path === '/rest/v1/seller_applications').map(c => decodeURIComponent(c.query));
+  await navTo(page, 'Applications');
+  await expect(page.locator('main article')).toHaveCount(25);
+  expect(reads().at(-1)).toContain('status=in.(new,review)');
+  expect(reads().at(-1)).toContain('order=created_at.asc,id.asc&limit=26&offset=0');
+  await expect(page.locator('main')).toContainText('Showing 1–25, oldest first.');
+  await page.getByRole('link', { name: 'Next page', exact: true }).click();
+  await expect.poll(() => reads().at(-1)).toContain('offset=25');
+  await expect(page.getByRole('link', { name: 'Previous page', exact: true })).toBeVisible();
+  await page.getByRole('link', { name: 'Awaiting applicant', exact: true }).click();
+  await expect.poll(() => reads().at(-1)).toContain('status=in.(info_needed)');
+  await page.getByRole('searchbox', { name: 'Search applications' }).fill('0977 123456');
+  await page.getByRole('button', { name: 'Search applications', exact: true }).click();
+  await expect.poll(() => reads().at(-1)).toContain('or=(business.ilike."*0977 123456*",contact_name.ilike."*0977 123456*",email.ilike."*0977 123456*",phone.ilike."*977123456*",town.ilike."*0977 123456*",pacra.ilike."*0977 123456*")');
+  expect(reads().at(-1)).toContain('offset=0');
+  await page.getByRole('searchbox', { name: 'Search applications' }).fill('Kafue, (x)"');
+  await page.getByRole('button', { name: 'Search applications', exact: true }).click();
+  await expect.poll(() => reads().at(-1)).toContain('business.ilike."*Kafue x*"');
+  // Riders have their own views, including the in-person checks
+  await page.getByRole('link', { name: 'Riders', exact: true }).click();
+  await expect(page.getByRole('link', { name: 'In-person checks', exact: true })).toBeVisible();
+});
+
+test('staff review, ask about and approve a seller application', async ({ page }) => {
+  const errors = []; page.on('pageerror', e => errors.push(e.message));
+  const { calls } = await setup(page, { enrolled: true, applications: [application] });
+  await signIn(page); await confirmApp(page);
+  await navTo(page, 'Applications');
+  const card = page.locator('article', { hasText: 'Kafue Solar Traders' });
+  await expect(card).toContainText('+260977123456');
+  await card.getByRole('button', { name: 'Mark under review' }).click();
+  await expect.poll(() => (calls.find(c => c.path === '/rest/v1/rpc/staff_review_application') || {}).body).toEqual({ application: 'app-1', decision: 'review', note: null });
+  // The list reloads after each decision; wait for it before typing
+  await expect.poll(() => calls.filter(c => c.path === '/rest/v1/seller_applications').length).toBe(2);
+  await card.getByLabel('Message to the applicant', { exact: true }).fill('Please add your PACRA number.');
+  await card.getByRole('button', { name: 'Ask for more information' }).click();
+  await expect.poll(() => (calls.filter(c => c.path === '/rest/v1/rpc/staff_review_application')[1] || {}).body).toEqual({ application: 'app-1', decision: 'info_needed', note: 'Please add your PACRA number.' });
+  await expect.poll(() => calls.filter(c => c.path === '/rest/v1/seller_applications').length).toBe(3);
+  await expect(card.getByLabel('Store ID (used in web addresses)')).toHaveValue('kafue-solar-traders');
+  await card.getByRole('button', { name: 'Approve and open store' }).click();
+  await expect.poll(() => (calls.find(c => c.path === '/rest/v1/rpc/staff_approve_application') || {}).body).toEqual({ application: 'app-1', store_id: 'kafue-solar-traders', store_name: 'Kafue Solar Traders', note: null });
+  await expect(page.locator('#admin-toast')).toContainText('Store kafue-solar-traders is open');
+  expect(errors).toEqual([]);
+});
+
+test('changing a delivery rate\'s route removes its old price, and the editor then holds the saved rates', async ({ page }) => {
+  const { calls } = await setup(page, { enrolled: true });
+  await signIn(page); await confirmApp(page);
+  await page.route('**/rest/v1/rpc/delivery_settings', route => route.fulfill({ json: { rates: [{ id: 1, courier: null, zone: 'town', speed: 'standard', fee: 45, kg: 5, perKg: 5, days: [1, 2], active: true },
+    { id: 2, courier: null, zone: 'town', speed: 'express', fee: 85, kg: 5, perKg: 8, days: [1, 1], active: true }], freeDelivery: { min: null, zones: ['town'] }, defaultKg: 1, origin: null, sameDay: { cutoff: 11, towns: [] }, closedDays: [0] } }));
+  await navTo(page, 'Delivery prices');
+  const editor = page.locator('#delivery-editor');
+  await editor.getByLabel('Rate 1: where it goes').selectOption('province');
+  await editor.getByLabel('Rate 1: fee in kwacha').fill('19.90');
+  await editor.getByRole('button', { name: 'Remove Rate 2' }).click();
+  await editor.getByLabel('For items worth at least (K)').fill('1500');
+  await page.unroute('**/rest/v1/rpc/delivery_settings');
+  await page.route('**/rest/v1/rpc/delivery_settings', route => route.fulfill({ json: { rates: [{ id: 9, courier: null, zone: 'province', speed: 'standard', fee: 19.9, kg: 5, perKg: 5, days: [1, 2], active: true }],
+    freeDelivery: { min: 1500, zones: ['town'] }, defaultKg: 1, origin: null, sameDay: { cutoff: 11, towns: [] }, closedDays: [0] } }));
+  await editor.getByRole('button', { name: 'Save delivery prices' }).click();
+  await expect(page.locator('#admin-toast')).toHaveText('Delivery prices saved');
+  expect(calls.filter(c => c.path.endsWith('/staff_delete_delivery_rate')).map(c => c.body.rate_id)).toEqual([2, 1]);
+  expect(calls.find(c => c.path.endsWith('/staff_save_delivery_rate')).body).toEqual({ courier: null, zone: 'province', speed: 'standard', fee: 19.9, included_kg: 5, per_kg: 5, min_days: 1, max_days: 2, active: true });
+  expect(calls.find(c => c.path.endsWith('/staff_set_delivery_settings')).body).toEqual({ free_min: 1500, free_zones: ['town'], default_kg: 1, origin_town: null, origin_province: null, same_day_cutoff: 11, same_day_towns: [], closed_days: [0] });
+  // After saving, the editor shows the database's rates, so saving again deletes nothing more
+  await expect(page.locator('#delivery-editor [data-rate-id="9"]')).toHaveCount(1);
+  await page.locator('#delivery-editor').getByRole('button', { name: 'Save delivery prices' }).click();
+  await expect.poll(() => calls.filter(c => c.path.endsWith('/staff_save_delivery_rate')).length).toBe(2);
+  expect(calls.filter(c => c.path.endsWith('/staff_delete_delivery_rate'))).toHaveLength(2);
+});
+
+test('the owner manages staff roles and shop settings; finance records a payout; lists download as CSV', async ({ page }) => {
+  const errors = []; page.on('pageerror', e => errors.push(e.message));
+  const { calls } = await setup(page, { enrolled: true });
+  await signIn(page); await confirmApp(page);
+  // Staff
+  await navTo(page, 'Staff');
+  const ops = page.locator('article', { hasText: 'ops@example.test' });
+  await expect(ops.getByLabel(/^Operations/)).toBeChecked();
+  await ops.getByLabel(/^Support/).check();
+  await ops.getByRole('button', { name: 'Save roles' }).click();
+  await expect.poll(() => (calls.find(c => c.path === '/rest/v1/rpc/staff_set_roles') || {}).body).toEqual({ account_email: 'ops@example.test', new_roles: ['operations', 'support'] });
+  // Each save reloads the list; wait for it before using the page again
+  await expect.poll(() => calls.filter(c => c.path === '/rest/v1/rpc/staff_list').length).toBe(2);
+  const add = page.locator('#ad-staff-new');
+  await add.getByLabel('Their email').fill('new@example.test');
+  await add.getByRole('button', { name: 'Add to staff' }).click();
+  await expect(add.locator('[role="status"]')).toHaveText('Choose at least one role.');
+  await add.getByLabel(/^Finance/).check();
+  await add.getByRole('button', { name: 'Add to staff' }).click();
+  await expect.poll(() => calls.filter(c => c.path === '/rest/v1/rpc/staff_set_roles').at(-1).body).toEqual({ account_email: 'new@example.test', new_roles: ['finance'] });
+  await expect.poll(() => calls.filter(c => c.path === '/rest/v1/rpc/staff_list').length).toBe(3);
+  page.once('dialog', d => d.accept());
+  await page.locator('article', { hasText: 'ops@example.test' }).getByRole('button', { name: 'Remove from staff' }).click();
+  await expect.poll(() => calls.filter(c => c.path === '/rest/v1/rpc/staff_set_roles').at(-1).body).toEqual({ account_email: 'ops@example.test', new_roles: [] });
+  // Settings: only what changed is sent
+  await navTo(page, 'Settings');
+  await page.getByLabel('Commission (%)').fill('12.5');
+  await page.getByLabel('Lay-by is available').check();
+  await page.getByRole('button', { name: 'Save settings' }).click();
+  await expect.poll(() => (calls.find(c => c.path === '/rest/v1/rpc/staff_set_shop_settings') || {}).body).toEqual({ changes: { commission_pct: 12.5, layby_enabled: true } });
+  // Payouts: one seller's due payouts, with the transfer reference
+  await navTo(page, 'Payouts');
+  const store = page.locator('article', { hasText: 'Admin test store' });
+  await expect(store).toContainText('K360');
+  await store.getByLabel('Transfer reference').fill('MTN-778899');
+  page.once('dialog', d => d.accept());
+  await store.getByRole('button', { name: 'Record K360 as paid' }).click();
+  await expect.poll(() => (calls.find(c => c.path === '/rest/v1/rpc/staff_mark_payouts_paid') || {}).body).toEqual({ payout_ids: [31, 32], transfer_reference: 'MTN-778899' });
+  // CSV: a formula-looking cell is kept as text
+  const [download] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: 'Download CSV' }).click()]);
+  expect(download.suggestedFilename()).toMatch(/^zed-supply-payouts-due-\d{4}-\d{2}-\d{2}\.csv$/);
+  const csv = fs.readFileSync(await download.path(), 'utf8');
+  expect(csv.split('\r\n')[0]).toBe('\ufeffSeller,Store ID,Order,Amount (K),Commission (K),Status,Release after,Paid,Reference');
+  expect(csv).toContain('Admin test store,sa-store,ZS-ADMIN001,270,30,due');
+  await page.evaluate(fs.readFileSync(axe, 'utf8'));
+  expect(await page.evaluate(async () => (await axe.run('main', { runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa'] } })).violations.map(v => v.id))).toEqual([]);
+  expect(errors).toEqual([]);
 });

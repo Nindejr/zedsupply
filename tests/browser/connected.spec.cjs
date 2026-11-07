@@ -102,26 +102,6 @@ test('verified sign-in, server search and quote-before-order use trusted identit
   expect(errors).toEqual([]);
 });
 
-test('changing a delivery route removes its old price and repeated saves keep current IDs', async ({page}) => {
-  const calls = await setup(page, {staff:true}); await signIn(page);
-  await page.getByRole('link',{name:'Delivery prices',exact:true}).click();
-  const editor = page.locator('#delivery-editor');
-  await expect(editor.getByLabel('Rate 1: fee in kwacha')).toHaveValue('45');
-  await editor.getByLabel('Rate 1: where it goes').selectOption('province');
-  await editor.getByLabel('Rate 1: fee in kwacha').fill('19.90');
-  await editor.getByRole('button',{name:'Remove Rate 2'}).click();
-  await page.route('**/rest/v1/rpc/delivery_settings', route => route.fulfill({json:{
-    rates:[{id:9,courier:null,zone:'province',speed:'standard',fee:19.9,kg:5,perKg:5,days:[1,2],active:true}],
-    freeDelivery:{min:null,zones:['town']},defaultKg:1,origin:null,sameDay:{cutoff:11,towns:[]},closedDays:[0]
-  }}));
-  await editor.getByRole('button',{name:'Save delivery prices'}).click();
-  await expect(editor.locator('[role="status"]')).toContainText('Delivery prices saved');
-  expect(calls.filter(c => c.path.endsWith('/staff_delete_delivery_rate')).map(c => c.body.rate_id)).toEqual([2,1]);
-  await expect(editor.locator('[data-rate-id="9"]')).toHaveCount(1);
-  await editor.getByRole('button',{name:'Save delivery prices'}).click();
-  await expect(editor.getByRole('button',{name:'Save delivery prices'})).toBeEnabled();
-  expect(calls.filter(c => c.path.endsWith('/staff_delete_delivery_rate'))).toHaveLength(2);
-});
 test('a changed checkout field invalidates the reviewed quote', async ({page}) => {
   const calls = await setup(page); await signIn(page);
   await page.goto('/index.html?demo=0#/product/LIVE1');
@@ -202,54 +182,6 @@ test('an applicant sees a request for more information and updates the applicati
   await page.getByRole('button',{name:'Withdraw application',exact:true}).click();
   await expect.poll(() => calls.find(c => c.path === '/rest/v1/rpc/withdraw_seller_application')?.body).toEqual({application:'app-1'});
 });
-test('the staff queue pages through applications and searches them', async ({page}) => {
-  const many = Array.from({length: 26}, (_, i) => ({ ...application, id: 'app-' + i, business: 'Shop number ' + i }));
-  const calls = await setup(page, { staff: true, applications: many }); await signIn(page);
-  const reads = () => calls.filter(c => c.path === '/rest/v1/seller_applications' && !c.query.includes('user_id=eq.')).map(c => decodeURIComponent(c.query));
-  await page.goto('/index.html?demo=0#/staff-applications');
-  await expect(page.locator('main article')).toHaveCount(25);
-  expect(reads().at(-1)).toContain('status=in.(new,review)');
-  expect(reads().at(-1)).toContain('order=created_at.asc,id.asc&limit=26&offset=0');
-  await expect(page.locator('main')).toContainText('Showing 1–25, oldest first.');
-  await page.getByRole('link',{name:'Next page',exact:true}).click();
-  await expect.poll(() => reads().at(-1)).toContain('offset=25');
-  await expect(page.getByRole('link',{name:'Previous page',exact:true})).toBeVisible();
-  await page.getByRole('link',{name:'Awaiting applicant',exact:true}).click();
-  await expect.poll(() => reads().at(-1)).toContain('status=in.(info_needed)');
-  await page.getByRole('searchbox',{name:'Search applications'}).fill('0977 123456');
-  await page.getByRole('button',{name:'Search applications',exact:true}).click();
-  await expect.poll(() => reads().at(-1)).toContain('or=(business.ilike."*0977 123456*",contact_name.ilike."*0977 123456*",email.ilike."*0977 123456*",phone.ilike."*977123456*",town.ilike."*0977 123456*",pacra.ilike."*0977 123456*")');
-  expect(reads().at(-1)).toContain('offset=0');
-  await page.getByRole('searchbox',{name:'Search applications'}).fill('Kafue, (x)"');
-  await page.getByRole('button',{name:'Search applications',exact:true}).click();
-  await expect.poll(() => reads().at(-1)).toContain('business.ilike."*Kafue x*"');
-  await page.getByRole('searchbox',{name:'Search applications'}).fill('shop.co');
-  await page.getByRole('button',{name:'Search applications',exact:true}).click();
-  await expect.poll(() => reads().at(-1)).toContain('email.ilike."*shop.co*"');
-});
-test('staff review, ask about and approve seller applications', async ({page}) => {
-  const errors = []; page.on('pageerror', e => errors.push(e.message));
-  const calls = await setup(page, { staff: true, applications: [application] }); await signIn(page);
-  await page.getByRole('link',{name:'Seller applications',exact:true}).click();
-  const card = page.locator('article', { hasText: 'Kafue Solar Traders' });
-  await expect(card).toContainText('+260977123456');
-  await expect(card).toContainText('Received');
-  await card.getByRole('button',{name:'Mark under review'}).click();
-  await expect.poll(() => calls.find(c => c.path === '/rest/v1/rpc/staff_review_application')?.body).toEqual({application:'app-1',decision:'review',note:null});
-  await expect(card.getByRole('button',{name:'Mark under review'})).toBeEnabled();
-  await card.getByLabel('Message to the applicant',{exact:true}).fill('Please add your PACRA number.');
-  await card.getByRole('button',{name:'Ask for more information'}).click();
-  await expect.poll(() => calls.filter(c => c.path === '/rest/v1/rpc/staff_review_application')[1]?.body).toEqual({application:'app-1',decision:'info_needed',note:'Please add your PACRA number.'});
-  await expect(card.getByLabel('Store ID (used in web addresses)')).toHaveValue('kafue-solar-traders');
-  await card.getByRole('button',{name:'Approve and open store'}).click();
-  await expect.poll(() => calls.find(c => c.path === '/rest/v1/rpc/staff_approve_application')?.body).toEqual({application:'app-1',store_id:'kafue-solar-traders',store_name:'Kafue Solar Traders',note:null});
-  await expect(page.locator('#toast')).not.toHaveClass(/is-on/, { timeout: 10000 });
-  await page.evaluate(fs.readFileSync(require.resolve('axe-core/axe.min.js'),'utf8'));
-  expect(await page.evaluate(async () => (await axe.run('main', { runOnly: { type: 'tag', values: ['wcag2a','wcag2aa','wcag21aa','wcag22aa'] } })).violations.map(v => v.id + ' ' + v.nodes.map(n => n.target).join(';')))).toEqual([]);
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
-  expect(errors).toEqual([]);
-});
-
 test('the buyer sees a private handover code and the rider records delivery with it', async ({page}) => {
   const errors = []; page.on('pageerror', e => errors.push(e.message));
   const calls = await setup(page);
@@ -394,22 +326,13 @@ test('delivery prices come from the database, and a courier\'s live price is cha
   expect(placed.body.delivery_quote_id).toBe('quote-live-1');
   expect(errors).toEqual([]);
 });
-test('staff edit delivery prices on the server, and every change goes through the staff functions', async ({page}) => {
-  const errors = []; page.on('pageerror', e => errors.push(e.message));
-  const calls = await setup(page, {staff:true}); await signIn(page);
-  await page.getByRole('link',{name:'Delivery prices',exact:true}).click();
-  const editor = page.locator('#delivery-editor');
-  await expect(editor.getByLabel('Rate 1: fee in kwacha')).toHaveValue('45');
-  await editor.getByLabel('Rate 2: fee in kwacha').fill('90');
-  await editor.getByRole('button',{name:'Remove Rate 1'}).click();
-  await editor.getByLabel('For items worth at least (K)').fill('1500');
-  await editor.getByLabel('Same province').check();
-  await editor.getByRole('button',{name:'Save delivery prices'}).click();
-  await expect(editor.locator('[role="status"]')).toContainText('Delivery prices saved');
-  expect(calls.find(c => c.path === '/rest/v1/rpc/staff_delete_delivery_rate').body).toEqual({rate_id:1});
-  expect(calls.find(c => c.path === '/rest/v1/rpc/staff_save_delivery_rate').body).toEqual({courier:null,zone:'town',speed:'express',fee:90,included_kg:5,per_kg:8,min_days:1,max_days:1,active:true});
-  expect(calls.find(c => c.path === '/rest/v1/rpc/staff_set_delivery_settings').body).toEqual({free_min:1500,free_zones:['town','province'],default_kg:1,
-    origin_town:null,origin_province:null,same_day_cutoff:11,same_day_towns:[],closed_days:[0]});
-  expect(calls.some(c => c.path.startsWith('/rest/v1/delivery_rates'))).toBe(false);
-  expect(errors).toEqual([]);
+
+test('staff go to the admin panel from My Account, and the old staff addresses open it', async ({page}) => {
+  await setup(page, {staff:true}); await signIn(page);
+  await expect(page.getByRole('link',{name:'Admin panel',exact:true})).toHaveAttribute('href', 'admin/index.html');
+  await expect(page.getByRole('link',{name:'Seller applications',exact:true})).toHaveCount(0);
+  for (const [old, section] of [['staff-applications', 'applications'], ['staff-riders', 'applications?show=riders'], ['staff-delivery', 'delivery'], ['staff-support', 'support']]) {
+    await page.goto('/index.html?demo=0#/' + old);
+    await expect(page).toHaveURL(new RegExp('/admin/index\\.html#/' + section.replace('?', '\\?') + '$'));
+  }
 });

@@ -79,8 +79,9 @@ configuration completeness only, not hosted security or operational readiness.
 
 The admin panel is at **`/admin/`** (My Account shows staff an "Admin panel" button). It is a
 separate page from the shop: only this site's own scripts, data only to Supabase, no analytics
-or advertising, hidden from search engines and never served from the offline cache. Migration
-029 adds what it relies on; it is not yet applied to the hosted project.
+or advertising, hidden from search engines and never served from the offline cache. Migrations
+029 and 030 add what it relies on: 029 is applied to the hosted project; 030 is not yet. The
+shop's older staff screens are retired: their addresses open the matching admin section.
 
 - **Second sign-in step.** Staff sign in with the email code, then an authenticator app code
   (Supabase's TOTP, `aal2`). Until then the database treats them as an ordinary account: no
@@ -91,16 +92,24 @@ or advertising, hidden from search engines and never served from the offline cac
 - **Roles.** `staff_roles`: `owner` (everything), `operations` (orders, delivery fees and prices,
   riders, resending messages), `support` (complaints, returns, support cases, hiding content),
   `catalogue` (listings, sellers, seller applications) and `finance` (closing payment
-  requests). `app.staff_only()` checks the role for every staff action and logs it; an action
+  requests, recording seller payouts). `app.staff_only()` checks the role for every staff action and logs it; an action
   not yet given a role is owner-only. Existing staff became owners when 029 was applied.
 - **First owner.** In the Supabase SQL editor, for an account that has signed in once:
   `UPDATE users SET is_staff = true WHERE email = 'you@…';`
   `INSERT INTO staff_roles (user_id, role) SELECT id, 'owner' FROM users WHERE email = 'you@…';`
-  Add other staff the same way with their role. (A staff screen to manage roles is phase 2.)
+  After that, the owner adds and removes staff and changes roles in the admin panel's **Staff**
+  section. The shop always keeps at least one owner.
 - **Sections.** Dashboard (what needs attention), orders (search, detail, confirm, dispatch,
-  delivery fee, cancellations), payments to check, support, seller and rider applications,
-  listings and seller verification, delivery prices, the message queue (handover codes are
-  never shown to staff) and the audit log (the owner sees everyone's actions, others their own).
+  delivery fee, cancellations, CSV export), payments to check, support (complaints with
+  "assign to me", returns), seller and rider applications (views, search, paging), listings and
+  seller verification, delivery prices, payouts (due, held, paid; record a transfer; CSV), the
+  message queue (handover codes are never shown to staff), staff and roles (owner), shop
+  settings (owner: VAT, commission and payout hold, cash on delivery, lay-by, support reply
+  hours, the second-step requirement, the site address) and the audit log (the owner sees
+  everyone's actions, others their own; CSV). Every change is role-checked and logged with
+  the values before and after.
+- **CSV files** open in Excel or Google Sheets. A cell that starts with `=`, `+`, `-` or `@` is
+  saved as text, so a spreadsheet never runs it as a formula.
 
 ## Staging rehearsal
 

@@ -51,6 +51,17 @@
     }).then(function () { control.disabled = false; });
   };
   A.rpc = function (name, body) { return B.rpc(name, body || {}); };
+  A.myId = function () { var p = B.profile(); return p ? p.id : null; };
+  /* A CSV file from rows of values. A cell that starts with = + - @ gets a leading ' so a
+     spreadsheet shows it as text instead of running it as a formula. */
+  A.csv = function (name, header, rows) {
+    var cell = function (v) { var t = v == null ? '' : String(v); if (/^[=+\-@\t\r]/.test(t)) t = "'" + t; return /[",\n\r]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t; };
+    var text = '\ufeff' + [header].concat(rows).map(function (r) { return r.map(cell).join(','); }).join('\r\n');
+    var url = URL.createObjectURL(new Blob([text], { type: 'text/csv;charset=utf-8' })), a = document.createElement('a');
+    a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
+    A.toast('Downloaded ' + rows.length + (rows.length === 1 ? ' row' : ' rows'), 'success');
+  };
   A.read = function (q) { return B.read(q); };
   // Text from a search box, safe inside a PostgREST filter
   A.term = function (v) { return String(v || '').replace(/[^\p{L}\p{N}@+.' -]/gu, ' ').replace(/\s+/g, ' ').trim().slice(0, 80); };

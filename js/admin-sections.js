@@ -55,13 +55,21 @@
       var more = rows.length > 25; rows = rows.slice(0, 25);
       var link = function (s2, p) { return '#/orders?status=' + s2 + (term ? '&q=' + encodeURIComponent(term) : '') + (p ? '&page=' + p : ''); };
       A.show('Orders', '<nav class="chips admin-chips" aria-label="Order status">' + STATUS_TABS.map(function (t) { return '<a class="chip" href="' + link(t[0]) + '"' + (t[0] === st ? ' aria-current="page"' : '') + '>' + e(t[1]) + '</a>'; }).join('') + '</nav>' +
-        '<form class="admin-search" id="ad-order-search" role="search"><label for="ad-oq">Find an order</label><input id="ad-oq" type="search" maxlength="80" value="' + e(term) + '" placeholder="Reference, name or phone"><button class="btn btn--secondary btn--sm" type="submit">Search</button></form>' +
+        '<form class="admin-search" id="ad-order-search" role="search"><label for="ad-oq">Find an order</label><input id="ad-oq" type="search" maxlength="80" value="' + e(term) + '" placeholder="Reference, name or phone"><button class="btn btn--secondary btn--sm" type="submit">Search</button>' +
+          '<button class="btn btn--secondary btn--sm" type="button" id="ad-order-csv">Download CSV</button></form>' +
         (rows.length ? table(['Order', 'Placed', 'Buyer', 'Total', 'Delivery', 'Status'], rows.map(function (o) {
           return '<tr><th scope="row"><a href="#/orders/' + encodeURIComponent(o.ref) + '">' + e(o.ref) + '</a></th><td>' + A.when(o.created_at) + '</td><td>' + e(o.contact_name || '') + '<br><small>' + e(o.recipient_phone || o.buyer_town || '') + '</small></td>' +
             '<td>' + A.kwacha(Number(o.total_zmw) + Number(o.delivery_zmw || 0)) + '</td><td>' + (o.fulfilment !== 'delivery' ? 'Collection' : o.delivery_zmw == null ? A.status('to quote') : A.kwacha(o.delivery_zmw)) + '</td><td>' + A.status(o.status) + '</td></tr>';
         })) : empty(term ? 'No orders match “' + term + '”.' : 'No orders here.')) +
         (page || more ? '<nav class="btn-row" aria-label="More orders">' + (page ? '<a class="btn btn--secondary btn--sm" href="' + link(st, page - 1) + '">Previous</a>' : '') + (more ? '<a class="btn btn--secondary btn--sm" href="' + link(st, page + 1) + '">Next</a>' : '') + '</nav>' : ''));
       A.$('#ad-order-search').addEventListener('submit', function (ev) { ev.preventDefault(); location.hash = '#/orders?status=' + st + '&q=' + encodeURIComponent(A.term(A.$('#ad-oq').value)); });
+      A.$('#ad-order-csv').addEventListener('click', function () {
+        var b = this;
+        A.act(b, function () { return A.read('orders?select=' + select + filter + search + '&order=created_at.desc&limit=1000'); }, function (all) {
+          A.csv('zed-supply-orders-' + new Date().toISOString().slice(0, 10) + '.csv', ['Reference', 'Placed', 'Status', 'Buyer', 'Phone', 'Town', 'Fulfilment', 'Items (K)', 'Delivery (K)', 'Paid (K)', 'Payment'],
+            all.map(function (o) { return [o.ref, o.created_at, o.status, o.contact_name, o.recipient_phone, o.buyer_town, o.fulfilment, o.total_zmw, o.delivery_zmw, o.paid_zmw, o.payment_status]; }));
+        });
+      });
     });
   }
   function orderDetail(ref, mine) {
@@ -133,14 +141,15 @@
   var RET_STATUS = ['approved', 'declined', 'collected', 'received', 'refunded', 'replaced', 'repaired', 'closed'];
   section('support', { title: 'Support', roles: ['support'], badge: function (c) { return c.complaints; }, render: function (arg, q, mine) {
     return Promise.all([
-      A.read('complaints?select=id,ref,type,wanted,details,status,created_at,contact_name,contact_phone,reply_due_at,orders(ref)&status=not.in.(resolved,closed)&order=created_at.asc&limit=100'),
+      A.read('complaints?select=id,ref,type,wanted,details,status,created_at,contact_name,contact_phone,reply_due_at,assigned_to,escalated_at,orders(ref)&status=not.in.(resolved,closed)&order=created_at.asc&limit=100'),
       A.read('return_requests?select=id,kind,details,status,quantity,requested_at,refund_zmw,order_items(orders(ref),products(title))&status=not.in.(refunded,replaced,repaired,closed,declined)&order=requested_at.asc&limit=100')
     ]).then(function (r) {
       if (stale(mine)) return;
       var cx = r[0], rt = r[1], can = A.can('support');
       A.show('Support', '<h2>Complaints</h2>' + (cx.length ? cx.map(function (c) {
           return '<article class="card admin-item"><h3>' + e(c.ref) + ' ' + A.status(c.status) + '</h3><p class="pmeta">' + e(String(c.type).replace(/_/g, ' ')) + ' · wants ' + e(c.wanted) + (c.orders ? ' · order <a href="#/orders/' + encodeURIComponent(c.orders.ref) + '">' + e(c.orders.ref) + '</a>' : '') + ' · ' + A.when(c.created_at) + (c.reply_due_at ? ' · reply by ' + A.when(c.reply_due_at) : '') + '</p>' +
-            '<p>' + e(c.details) + '</p><p class="pmeta">' + e(c.contact_name || '') + ' ' + e(c.contact_phone || '') + '</p>' +
+            '<p>' + e(c.details) + '</p><p class="pmeta">' + e(c.contact_name || '') + ' ' + e(c.contact_phone || '') + (c.escalated_at ? ' · <strong>escalated</strong>' : '') + ' · ' + (c.assigned_to ? (c.assigned_to === A.myId() ? 'assigned to you' : 'assigned') : 'not assigned') + '</p>' +
+            (can && c.assigned_to !== A.myId() ? '<p><button class="btn btn--secondary btn--sm" type="button" data-assign="' + c.id + '">Assign to me</button></p>' : '') +
             (can ? form('ad-cx-' + c.id, field('ad-cxs-' + c.id, 'Status', '<select id="ad-cxs-' + c.id + '">' + CX_STATUS.map(function (s) { return '<option value="' + s[0] + '"' + (s[0] === c.status ? ' selected' : '') + '>' + s[1] + '</option>'; }).join('') + '</select>') +
               field('ad-cxf-' + c.id, 'Finding (shown to the buyer)', '<textarea id="ad-cxf-' + c.id + '" maxlength="1000"></textarea>') +
               '<div class="check"><input type="checkbox" id="ad-cxu-' + c.id + '"><label for="ad-cxu-' + c.id + '">The complaint is upheld</label></div>', '<button class="btn btn--primary btn--sm" type="submit">Save</button>', ' data-complaint="' + c.id + '"') : '') + '</article>';
@@ -153,6 +162,7 @@
               field('ad-rtm-' + x.id, 'Refund by', '<select id="ad-rtm-' + x.id + '"><option value="">Not yet</option><option value="mobile">Mobile money</option><option value="bank">Bank</option><option value="card">Card</option><option value="cash">Cash</option></select>') + '</div>',
               '<button class="btn btn--primary btn--sm" type="submit">Save</button>', ' data-return="' + x.id + '"') : '') + '</article>';
         }).join('') : empty('No returns in progress.')));
+      bindAll('[data-assign]', 'data-assign', function (b, id) { A.act(b, function () { return A.rpc('assign_support_case', { case_id: Number(id), staff_user: A.myId() }); }, function () { A.toast('Assigned to you', 'success'); }); });
       bindAll('[data-complaint]', 'data-complaint', function (f, id) {
         A.act(f.querySelector('button'), function () { return A.rpc('staff_decide_complaint', { cid: Number(id), new_status: A.$('#ad-cxs-' + id).value, finding: A.$('#ad-cxf-' + id).value.trim() || null, was_upheld: A.$('#ad-cxu-' + id).checked || null }); }, function () { A.toast('Complaint updated', 'success'); });
       });
@@ -166,36 +176,51 @@
   // ---------- Applications: sellers and riders ----------
   var APP_STATUS = { new: 'New', review: 'Being reviewed', info_needed: 'Waiting for the applicant', vetting: 'Invited to in-person checks', approved: 'Approved', rejected: 'Not approved', withdrawn: 'Withdrawn' };
   function slug(t) { return String(t || '').toLowerCase().normalize('NFKD').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40).replace(/-+$/, ''); }
+  var APP_VIEWS = { sellers: [['review', 'To review', 'new,review'], ['info', 'Awaiting applicant', 'info_needed'], ['approved', 'Approved', 'approved'], ['rejected', 'Not approved', 'rejected'], ['withdrawn', 'Withdrawn', 'withdrawn']],
+    riders: [['review', 'To review', 'new,review'], ['vetting', 'In-person checks', 'vetting'], ['info', 'Awaiting applicant', 'info_needed'], ['approved', 'Approved', 'approved'], ['rejected', 'Not approved', 'rejected'], ['withdrawn', 'Withdrawn', 'withdrawn']] };
+  var APP_SEARCH = { sellers: ['business', 'contact_name', 'email', 'phone', 'town', 'pacra'], riders: ['full_name', 'email', 'phone', 'town', 'areas'] };
   section('applications', { title: 'Applications', roles: ['catalogue', 'operations'], badge: function (c) { return c.seller_applications + c.rider_applications; }, render: function (arg, q, mine) {
-    var riders = q.get('show') === 'riders';
-    var read = riders ? A.read('rider_applications?select=id,full_name,phone,email,town,areas,vehicle,owns_vehicle,availability,experience,status,staff_note,created_at&status=in.(new,review,info_needed,vetting)&order=created_at.asc&limit=50')
-      : A.read('seller_applications?select=id,business,contact_name,phone,email,town,pacra,categories,about,status,staff_note,created_at&status=in.(new,review,info_needed)&order=created_at.asc&limit=50');
-    return read.then(function (rows) {
+    var kind = q.get('show') === 'riders' ? 'riders' : 'sellers', riders = kind === 'riders';
+    var views = APP_VIEWS[kind], view = views.filter(function (v) { return v[0] === q.get('view'); })[0] || views[0], waiting = /^(review|info|vetting)$/.test(view[0]);
+    var term = A.term(q.get('q')), page = Math.max(0, Math.min(999, parseInt(q.get('page'), 10) || 0));
+    // Phones are stored as +260…, so "0977 123456" searches for the digits after the leading 0
+    var digits = term.replace(/\D/g, ''), phone = digits.length >= 4 ? digits.replace(/^0/, '') : term;
+    var search = term ? '&or=' + encodeURIComponent('(' + APP_SEARCH[kind].map(function (f) { return f + '.ilike."*' + (f === 'phone' ? phone : term) + '*"'; }).join(',') + ')') : '';
+    var fields = riders ? 'id,full_name,phone,email,town,areas,vehicle,owns_vehicle,availability,experience,status,staff_note,created_at'
+      : 'id,business,contact_name,phone,email,town,pacra,categories,about,status,staff_note,seller_id,created_at';
+    var link = function (v, t, p) { return '#/applications?show=' + kind + '&view=' + v + (t ? '&q=' + encodeURIComponent(t) : '') + (p ? '&page=' + p : ''); };
+    return A.read((riders ? 'rider_applications' : 'seller_applications') + '?select=' + fields + '&status=in.(' + view[2] + ')' + search + '&order=created_at.' + (waiting ? 'asc' : 'desc') + ',id.asc&limit=26&offset=' + page * 25).then(function (rows) {
       if (stale(mine)) return;
-      var can = riders ? A.can('operations') : A.can('catalogue');
-      A.show('Applications', '<nav class="chips admin-chips" aria-label="Applications"><a class="chip" href="#/applications"' + (riders ? '' : ' aria-current="page"') + '>Sellers</a><a class="chip" href="#/applications?show=riders"' + (riders ? ' aria-current="page"' : '') + '>Riders</a></nav>' +
+      var more = rows.length > 25; rows = rows.slice(0, 25);
+      var can = riders ? A.can('operations') : A.can('catalogue'), open = /^(new|review|info_needed|vetting)$/;
+      A.show('Applications', '<nav class="chips admin-chips" aria-label="Who is applying"><a class="chip" href="#/applications"' + (riders ? '' : ' aria-current="page"') + '>Sellers</a><a class="chip" href="#/applications?show=riders"' + (riders ? ' aria-current="page"' : '') + '>Riders</a></nav>' +
+        '<nav class="chips admin-chips" aria-label="Applications">' + views.map(function (v) { return '<a class="chip" href="' + link(v[0], term) + '"' + (v === view ? ' aria-current="page"' : '') + '>' + e(v[1]) + '</a>'; }).join('') + '</nav>' +
         (riders ? '<p>Approve a rider only after checking their NRC, licence, police clearance and references in person: invite them to the checks first.</p>' : '<p>Check the business before opening its store: the contact details, and the PACRA number on the PACRA register where one is given.</p>') +
+        '<form class="admin-search" id="ad-app-search" role="search"><label for="ad-apq">Search applications</label><input id="ad-apq" type="search" maxlength="80" value="' + e(term) + '" placeholder="' + (riders ? 'Name, email, phone, town or area' : 'Business, contact, email, phone, town or PACRA') + '"><button class="btn btn--secondary btn--sm" type="submit">Search applications</button></form>' +
+        '<p role="status">' + (rows.length ? 'Showing ' + (page * 25 + 1) + '–' + (page * 25 + rows.length) + (waiting ? ', oldest first' : ', newest first') + (term ? ' for “' + e(term) + '”' : '') + '.' : '') + '</p>' +
         (rows.length ? rows.map(function (a) {
           var k = e(a.id);
           return '<article class="card admin-item"><h2>' + e(riders ? a.full_name : a.business) + ' ' + A.status(APP_STATUS[a.status] || a.status) + '</h2><dl class="totals">' +
-            (riders ? '<div><dt>Phone</dt><dd>' + e(a.phone) + '</dd></div><div><dt>Town</dt><dd>' + e(a.town) + (a.areas ? ' · ' + e(a.areas) : '') + '</dd></div><div><dt>Vehicle</dt><dd>' + e(a.vehicle) + (a.owns_vehicle ? ', own' : '') + '</dd></div><div><dt>Available</dt><dd>' + e((a.availability || []).join(', ') || 'Not given') + '</dd></div>'
+            (riders ? '<div><dt>Phone</dt><dd>' + e(a.phone) + '</dd></div><div><dt>Email</dt><dd>' + e(a.email) + '</dd></div><div><dt>Town</dt><dd>' + e(a.town) + (a.areas ? ' · ' + e(a.areas) : '') + '</dd></div><div><dt>Vehicle</dt><dd>' + e(a.vehicle) + (a.owns_vehicle ? ', own' : '') + '</dd></div><div><dt>Available</dt><dd>' + e((a.availability || []).join(', ') || 'Not given') + '</dd></div>'
               : '<div><dt>Contact</dt><dd>' + e(a.contact_name) + ' · ' + e(a.phone) + '</dd></div><div><dt>Email</dt><dd>' + e(a.email) + '</dd></div><div><dt>Town</dt><dd>' + e(a.town) + '</dd></div><div><dt>PACRA</dt><dd>' + e(a.pacra || 'Not given') + '</dd></div>') +
             '<div><dt>Sent</dt><dd>' + A.when(a.created_at) + '</dd></div></dl>' + (a.about || a.experience ? '<p>' + e(a.about || a.experience) + '</p>' : '') + (a.categories && a.categories.length ? '<p class="pmeta">Sells: ' + e(a.categories.join(', ')) + '</p>' : '') +
-            (a.staff_note ? '<p class="notice">Last message: ' + e(a.staff_note) + '</p>' : '') +
-            (can ? (!riders ? form('ad-ap-' + k, '<div class="field-row">' + field('ad-apid-' + k, 'Store ID', '<input id="ad-apid-' + k + '" pattern="[a-z0-9][a-z0-9-]{1,38}[a-z0-9]" maxlength="40" required value="' + e(slug(a.business)) + '">') + field('ad-apn-' + k, 'Store name', '<input id="ad-apn-' + k + '" maxlength="120" required value="' + e(a.business) + '">') + '</div>', '<button class="btn btn--primary btn--sm" type="submit">Approve and open store</button>', ' data-approve="' + k + '"') : '') +
+            (a.staff_note ? '<p class="notice">Last message: ' + e(a.staff_note) + '</p>' : '') + (a.seller_id ? '<p class="pmeta">Store: ' + e(a.seller_id) + '</p>' : '') +
+            (can && open.test(a.status) ? (!riders ? form('ad-ap-' + k, '<div class="field-row">' + field('ad-apid-' + k, 'Store ID (used in web addresses)', '<input id="ad-apid-' + k + '" pattern="[a-z0-9][a-z0-9-]{1,38}[a-z0-9]" maxlength="40" required value="' + e(slug(a.business)) + '">') + field('ad-apn-' + k, 'Store name', '<input id="ad-apn-' + k + '" maxlength="120" required value="' + e(a.business) + '">') + '</div>', '<button class="btn btn--primary btn--sm" type="submit">Approve and open store</button>', ' data-approve="' + k + '"') : '') +
               form('ad-dec-' + k, field('ad-msg-' + k, 'Message to the applicant', '<textarea id="ad-msg-' + k + '" maxlength="1000"></textarea>'),
                 (a.status === 'new' ? '<button class="btn btn--secondary btn--sm" type="submit" value="review">Mark under review</button>' : '') +
                 '<button class="btn btn--secondary btn--sm" type="submit" value="info_needed">Ask for more information</button>' +
                 (riders ? (a.status === 'vetting' ? '<button class="btn btn--primary btn--sm" type="submit" value="approved">Checks passed: approve</button>' : '<button class="btn btn--primary btn--sm" type="submit" value="vetting">Invite to in-person checks</button>') : '') +
                 '<button class="btn btn--secondary btn--sm btn--danger" type="submit" value="rejected">Reject</button>', ' data-decide="' + k + '"') : '') + '</article>';
-        }).join('') : empty('No applications waiting.')));
+        }).join('') : empty(term ? 'No applications match “' + term + '”.' : page ? 'No more applications.' : 'No applications here.')) +
+        (page || more ? '<nav class="btn-row" aria-label="More applications">' + (page ? '<a class="btn btn--secondary btn--sm" href="' + link(view[0], term, page - 1) + '">Previous page</a>' : '') + (more ? '<a class="btn btn--secondary btn--sm" href="' + link(view[0], term, page + 1) + '">Next page</a>' : '') + '</nav>' : ''));
+      A.$('#ad-app-search').addEventListener('submit', function (ev) { ev.preventDefault(); location.hash = link(view[0], A.term(A.$('#ad-apq').value)); });
       bindAll('[data-approve]', 'data-approve', function (f, id) {
-        A.act(f.querySelector('button'), function () { return A.rpc('staff_approve_application', { application: id, store_id: A.$('#ad-apid-' + id).value.trim(), store_name: A.$('#ad-apn-' + id).value.trim(), note: A.$('#ad-msg-' + id) ? A.$('#ad-msg-' + id).value.trim() || null : null }); }, function (store) { A.toast('Store ' + store + ' is open', 'success'); });
+        A.act(f.querySelector('button'), function () { return A.rpc('staff_approve_application', { application: id, store_id: A.$('#ad-apid-' + id).value.trim(), store_name: A.$('#ad-apn-' + id).value.trim(), note: A.$('#ad-msg-' + id).value.trim() || null }); }, function (store) { A.toast('Store ' + store + ' is open. The applicant is its owner.', 'success'); });
       });
       bindAll('[data-decide]', 'data-decide', function (f, id, ev) {
         var decision = ev.submitter ? ev.submitter.value : 'review', note = A.$('#ad-msg-' + id).value.trim();
         if (decision === 'rejected' && !window.confirm('Reject this application? The applicant sees your message.')) return;
-        A.act(ev.submitter || f.querySelector('button'), function () { return A.rpc(riders ? 'staff_review_rider_application' : 'staff_review_application', { application: id, decision: decision, note: note || null }); }, function () { A.toast('Saved', 'success'); });
+        A.act(ev.submitter || f.querySelector('button'), function () { return A.rpc(riders ? 'staff_review_rider_application' : 'staff_review_application', { application: id, decision: decision, note: note || null }); }, function () { A.toast(decision === 'rejected' ? 'Application rejected' : decision === 'info_needed' ? 'Asked for more information' : 'Saved', 'success'); });
       });
     });
   } });
@@ -263,18 +288,114 @@
     });
   } });
 
+  // ---------- Seller payouts ----------
+  var PAYOUT_TABS = [['due', 'Due'], ['held', 'Held'], ['paid', 'Paid'], ['cancelled', 'Cancelled']];
+  section('payouts', { title: 'Payouts', roles: ['finance'], render: function (arg, q, mine) {
+    var st = (PAYOUT_TABS.filter(function (t) { return t[0] === q.get('status'); })[0] || PAYOUT_TABS[0])[0];
+    return A.read('seller_payouts?select=id,seller_id,amount_zmw,commission_zmw,status,release_after,paid_at,reference,created_at,sellers(name),orders(ref)&status=eq.' + st + '&order=' + (st === 'paid' ? 'paid_at.desc' : 'created_at.asc') + '&limit=500').then(function (rows) {
+      if (stale(mine)) return;
+      var by = {};
+      rows.forEach(function (p) { (by[p.seller_id] = by[p.seller_id] || { name: p.sellers ? p.sellers.name : p.seller_id, list: [], total: 0 }).list.push(p); by[p.seller_id].total += Number(p.amount_zmw); });
+      var ids = Object.keys(by), can = A.can('finance') && st === 'due';
+      A.show('Payouts', '<p>What each seller is owed once a buyer has received their order and the hold has passed (' + (st === 'due' ? 'due now' : st) + '). Pay sellers by bank or mobile money, then record the transfer here so the seller sees it.</p>' +
+        '<nav class="chips admin-chips" aria-label="Payout status">' + PAYOUT_TABS.map(function (t) { return '<a class="chip" href="#/payouts?status=' + t[0] + '"' + (t[0] === st ? ' aria-current="page"' : '') + '>' + t[1] + '</a>'; }).join('') + '</nav>' +
+        (rows.length ? '<p><button class="btn btn--secondary btn--sm" type="button" id="ad-payout-csv">Download CSV</button></p>' : '') +
+        (ids.length ? ids.map(function (sid) {
+          var g = by[sid];
+          return '<article class="card admin-item"><h2>' + e(g.name) + ' <span class="pmeta">' + A.kwacha(g.total) + ' · ' + g.list.length + (g.list.length === 1 ? ' order' : ' orders') + '</span></h2>' +
+            table(['Order', 'Amount', 'Commission', st === 'paid' ? 'Paid' : st === 'held' ? 'Released after' : 'Since'], g.list.map(function (p) {
+              return '<tr><th scope="row">' + (p.orders ? '<a href="#/orders/' + encodeURIComponent(p.orders.ref) + '">' + e(p.orders.ref) + '</a>' : '') + '</th><td>' + A.kwacha(p.amount_zmw) + '</td><td>' + A.kwacha(p.commission_zmw) + '</td><td>' +
+                (st === 'paid' ? A.when(p.paid_at) + (p.reference ? '<br><small>' + e(p.reference) + '</small>' : '') : st === 'held' ? A.when(p.release_after) : A.when(p.created_at)) + '</td></tr>';
+            })) +
+            (can ? form('ad-pay-' + e(sid), field('ad-payref-' + e(sid), 'Transfer reference', '<input id="ad-payref-' + e(sid) + '" maxlength="120" required placeholder="e.g. the bank or mobile money reference">'), '<button class="btn btn--primary btn--sm" type="submit">Record ' + A.kwacha(g.total) + ' as paid</button>', ' data-payout="' + e(sid) + '"') : '') + '</article>';
+        }).join('') : empty('No payouts here.')));
+      bindAll('[data-payout]', 'data-payout', function (f, sid) {
+        if (!window.confirm('Record ' + A.kwacha(by[sid].total) + ' to ' + by[sid].name + ' as paid? Do this only after the money has been sent.')) return;
+        A.act(f.querySelector('button'), function () { return A.rpc('staff_mark_payouts_paid', { payout_ids: by[sid].list.map(function (p) { return p.id; }), transfer_reference: A.$('#ad-payref-' + sid).value.trim() }); }, function () { A.toast('Payout recorded', 'success'); });
+      });
+      var csv = A.$('#ad-payout-csv');
+      if (csv) csv.addEventListener('click', function () { A.csv('zed-supply-payouts-' + st + '-' + new Date().toISOString().slice(0, 10) + '.csv', ['Seller', 'Store ID', 'Order', 'Amount (K)', 'Commission (K)', 'Status', 'Release after', 'Paid', 'Reference'], rows.map(function (p) { return [p.sellers ? p.sellers.name : '', p.seller_id, p.orders ? p.orders.ref : '', p.amount_zmw, p.commission_zmw, p.status, p.release_after, p.paid_at, p.reference]; })); });
+    });
+  } });
+
+  // ---------- Staff and roles (owner) ----------
+  var ROLES = [['owner', 'Owner', 'Everything, including staff and settings'], ['operations', 'Operations', 'Orders, delivery fees and prices, riders, resending messages'], ['support', 'Support', 'Complaints, returns and support cases'], ['catalogue', 'Catalogue', 'Listings, sellers and seller applications'], ['finance', 'Finance', 'Payment requests and seller payouts']];
+  function roleChecks(prefix, have) { return '<div class="checks admin-roles">' + ROLES.map(function (r) { return '<div class="check"><input type="checkbox" id="' + prefix + r[0] + '" value="' + r[0] + '"' + (have.indexOf(r[0]) !== -1 ? ' checked' : '') + '><label for="' + prefix + r[0] + '">' + r[1] + ' <small>' + r[2] + '</small></label></div>'; }).join('') + '</div>'; }
+  section('staff', { title: 'Staff', roles: ['owner'], render: function (arg, q, mine) {
+    return A.rpc('staff_list').then(function (rows) {
+      if (stale(mine)) return;
+      A.show('Staff', '<p>Who can use the admin panel, and what each person can do. Everyone also confirms sign-ins with an authenticator app. If someone loses their phone, remove their authenticator in Supabase (Authentication → Users), and they set it up again at their next sign-in.</p>' +
+        rows.map(function (u, i) {
+          return '<article class="card admin-item"><h2>' + e(u.name || u.email) + (u.you ? ' <span class="pmeta">(you)</span>' : '') + '</h2><p class="pmeta">' + e(u.email) + (u.last_action ? ' · last action ' + A.when(u.last_action) : '') + '</p>' +
+            form('ad-staff-' + i, '<fieldset class="field"><legend>Roles</legend>' + roleChecks('ad-r' + i + '-', u.roles || []) + '</fieldset>', '<button class="btn btn--primary btn--sm" type="submit" value="save">Save roles</button><button class="btn btn--secondary btn--sm btn--danger" type="submit" value="remove">Remove from staff</button>', ' data-staff="' + e(u.email) + '" data-i="' + i + '"') + '</article>';
+        }).join('') +
+        '<section class="card"><h2>Add a staff member</h2><p class="pmeta">They need to sign in to the shop once with their email first, so the account exists.</p>' +
+        form('ad-staff-new', field('ad-staff-email', 'Their email', '<input id="ad-staff-email" type="email" maxlength="254" required>') + '<fieldset class="field"><legend>Roles</legend>' + roleChecks('ad-rn-', []) + '</fieldset>', '<button class="btn btn--primary btn--sm" type="submit">Add to staff</button>') + '</section>');
+      var save = function (f, email, roles, done) { A.act(f.querySelector('button'), function () { return A.rpc('staff_set_roles', { account_email: email, new_roles: roles }); }, done); };
+      bindAll('[data-staff]', 'data-staff', function (f, email, ev) {
+        var remove = ev.submitter && ev.submitter.value === 'remove', i = f.getAttribute('data-i');
+        var roles = remove ? [] : A.$$('[id^="ad-r' + i + '-"]:checked').map(function (c) { return c.value; });
+        if ((remove || !roles.length) && !window.confirm('Remove ' + email + ' from staff? They lose access to the admin panel straight away.')) return;
+        save(f, email, roles, function () { A.toast(roles.length ? 'Roles saved' : email + ' removed from staff', 'success'); });
+      });
+      var add = A.$('#ad-staff-new');
+      add.addEventListener('submit', function (ev) {
+        ev.preventDefault();
+        var roles = A.$$('[id^="ad-rn-"]:checked').map(function (c) { return c.value; }), st = add.querySelector('[role="status"]');
+        if (!roles.length) { st.className = 'form-status is-error'; st.textContent = 'Choose at least one role.'; return; }
+        save(add, A.$('#ad-staff-email').value.trim(), roles, function () { A.toast('Added to staff', 'success'); });
+      });
+    });
+  } });
+
+  // ---------- Shop settings (owner) ----------
+  section('settings', { title: 'Settings', roles: ['owner'], render: function (arg, q, mine) {
+    return A.read('shop_settings?select=*&limit=1').then(function (rows) {
+      if (stale(mine)) return;
+      var s = rows[0] || {};
+      var num = function (k, label, attrs, hint) { return field('ad-set-' + k, label, '<input id="ad-set-' + k + '" data-k="' + k + '" type="number" ' + attrs + ' value="' + e(s[k] == null ? '' : s[k]) + '">', hint); };
+      var tick = function (k, label, hint) { return '<div class="check"><input type="checkbox" id="ad-set-' + k + '" data-k="' + k + '"' + (s[k] ? ' checked' : '') + '><label for="ad-set-' + k + '">' + label + (hint ? ' <small>' + hint + '</small>' : '') + '</label></div>'; };
+      A.show('Settings', '<p>How the shop charges and pays. Each change is logged with what it was before. Delivery prices have their own section.</p>' +
+        form('ad-settings', '<fieldset class="field"><legend>VAT</legend>' + tick('vat_registered', 'Zed Supply is registered for VAT with ZRA') +
+            tick('vat_registration_verified', 'The registration and TPIN have been checked against ZRA\'s record', 'Online orders aren\'t accepted while VAT is on but not checked') +
+            '<div class="field-row">' + num('vat_rate', 'VAT rate (%)', 'min="0" max="30" step="0.01" required') + '</div>' + tick('vat_included', 'Listed prices include VAT') + '</fieldset>' +
+          '<fieldset class="field"><legend>Sellers</legend><div class="field-row">' + num('commission_pct', 'Commission (%)', 'min="0" max="50" step="0.01" required') + num('payout_hold_days', 'Days to hold a payout after delivery', 'min="0" max="60" step="1" required') + '</div></fieldset>' +
+          '<fieldset class="field"><legend>Paying</legend><div class="field-row">' + num('cod_max_zmw', 'Cash on delivery up to (K)', 'min="0" max="100000" step="1" required') + num('cod_min_delivered', 'Delivered orders before cash on delivery', 'min="0" max="50" step="1" required') + '</div>' +
+            tick('layby_enabled', 'Lay-by is available') + '<div class="field-row">' + num('layby_deposit_pct', 'Lay-by deposit (%)', 'min="5" max="90" step="1" required') + num('layby_weeks', 'Weeks to finish paying', 'min="1" max="26" step="1" required') + '</div></fieldset>' +
+          '<fieldset class="field"><legend>Support and staff</legend><div class="field-row">' + num('support_reply_hours', 'Hours to reply to a complaint', 'min="1" max="336" step="1"', 'Leave empty if no reply time is promised yet.') + '</div>' +
+            tick('staff_mfa_required', 'Staff confirm sign-ins with an authenticator app', 'Strongly recommended: switch off only while setting up') +
+            field('ad-set-site_url', 'Site address', '<input id="ad-set-site_url" data-k="site_url" type="url" maxlength="200" required value="' + e(s.site_url || '') + '">', 'Used in email links, starting https:// and ending with /') + '</fieldset>',
+          '<button class="btn btn--primary" type="submit">Save settings</button>'));
+      var f = A.$('#ad-settings');
+      f.addEventListener('submit', function (ev) {
+        ev.preventDefault();
+        var changes = {};
+        A.$$('[data-k]', f).forEach(function (el) {
+          var k = el.getAttribute('data-k'), v = el.type === 'checkbox' ? el.checked : el.type === 'number' ? (el.value === '' ? null : Number(el.value)) : el.value.trim();
+          if (String(v) !== String(s[k] == null ? (el.type === 'checkbox' ? false : null) : (el.type === 'number' ? Number(s[k]) : s[k]))) changes[k] = v;
+        });
+        if (!Object.keys(changes).length) { A.toast('Nothing changed'); return; }
+        if (changes.staff_mfa_required === false && !window.confirm('Let staff sign in without an authenticator app? Anyone who gets into a staff email account could then use the admin panel.')) return;
+        A.act(f.querySelector('button'), function () { return A.rpc('staff_set_shop_settings', { changes: changes }); }, function () { A.toast('Settings saved', 'success'); });
+      });
+    });
+  } });
+
   // ---------- Audit log ----------
   section('audit', { title: 'Audit log', render: function (arg, q, mine) {
     var term = A.term(q.get('q')), before = parseInt(q.get('before'), 10) || null;
     return A.rpc('staff_audit', { search: term || null, p_before: before, p_limit: 50 }).then(function (rows) {
       if (stale(mine)) return;
       A.show('Audit log', '<p>' + (A.can('owner') && (A.me.roles || []).indexOf('owner') !== -1 ? 'Every staff action, newest first.' : 'Your own staff actions, newest first. The owner sees everyone\'s.') + '</p>' +
-        '<form class="admin-search" id="ad-audit-search" role="search"><label for="ad-aq">Search the log</label><input id="ad-aq" type="search" maxlength="80" value="' + e(term) + '" placeholder="Action, order, store or person"><button class="btn btn--secondary btn--sm" type="submit">Search</button></form>' +
+        '<form class="admin-search" id="ad-audit-search" role="search"><label for="ad-aq">Search the log</label><input id="ad-aq" type="search" maxlength="80" value="' + e(term) + '" placeholder="Action, order, store or person"><button class="btn btn--secondary btn--sm" type="submit">Search</button>' +
+          (rows.length ? '<button class="btn btn--secondary btn--sm" type="button" id="ad-audit-csv">Download CSV</button>' : '') + '</form>' +
         (rows.length ? table(['Action', 'On', 'By', 'When', 'Detail'], rows.map(function (a) {
           return '<tr><th scope="row">' + e(a.action.replace(/_/g, ' ')) + '</th><td>' + e(a.target) + '</td><td>' + e(a.by || a.by_email || '') + '</td><td>' + A.when(a.at) + '</td><td><small>' + e(JSON.stringify(a.detail || {})).slice(0, 160) + '</small></td></tr>';
         })) : empty('No actions found.')) +
         (rows.length === 50 ? '<p><a class="btn btn--secondary btn--sm" href="#/audit?q=' + encodeURIComponent(term) + '&before=' + rows[rows.length - 1].id + '">Older</a></p>' : ''));
       A.$('#ad-audit-search').addEventListener('submit', function (ev) { ev.preventDefault(); location.hash = '#/audit?q=' + encodeURIComponent(A.term(A.$('#ad-aq').value)); });
+      var ac = A.$('#ad-audit-csv');
+      if (ac) ac.addEventListener('click', function () { A.csv('zed-supply-audit-' + new Date().toISOString().slice(0, 10) + '.csv', ['When', 'By', 'Email', 'Action', 'On', 'Detail'], rows.map(function (a) { return [a.at, a.by, a.by_email, a.action, a.target, JSON.stringify(a.detail || {})]; })); });
     });
   } });
 })();

@@ -11,7 +11,7 @@
     var p = B.profile();
     if (p) {
       show('<section class="card"><h2>Hello, ' + esc(p.name || p.email || 'shopper') + '</h2><p>Your contact is verified. Orders and support requests below are stored securely for this account.</p>' +
-        '<div class="btn-row"><a class="btn btn--primary" href="#/orders">Your orders</a><a class="btn btn--secondary" href="#/complaints">Support requests</a><a class="btn btn--secondary" href="#/team">Store team</a><a class="btn btn--secondary" href="#/fulfilment">Store fulfilment</a>' + (p.is_staff ? '<a class="btn btn--primary" href="admin/index.html">Admin panel</a><a class="btn btn--secondary" href="#/staff-applications">Seller applications</a><a class="btn btn--secondary" href="#/staff-riders">Rider applications</a><a class="btn btn--secondary" href="#/staff-delivery">Delivery prices</a><a class="btn btn--secondary" href="#/staff-support">Staff support queue</a>' : '') + '<a class="btn btn--secondary" href="#/device">Data on this device</a>' +
+        '<div class="btn-row"><a class="btn btn--primary" href="#/orders">Your orders</a><a class="btn btn--secondary" href="#/complaints">Support requests</a><a class="btn btn--secondary" href="#/team">Store team</a><a class="btn btn--secondary" href="#/fulfilment">Store fulfilment</a>' + (p.is_staff ? '<a class="btn btn--primary" href="admin/index.html">Admin panel</a>' : '') + '<a class="btn btn--secondary" href="#/device">Data on this device</a>' +
         '<button class="btn btn--secondary" id="secure-signout" type="button">Sign out</button></div><p class="form-status" role="status"></p></section>' +
         Z().businessFormHTML({ name: p.business_name || '', tpin: p.business_tpin || '', address: p.business_address || '' }) + '<div id="team-invites"></div><div id="seller-application"></div>', 'My Account');
       teamInvites(); applicationStatus();
@@ -154,45 +154,6 @@
     if (query && query.get('print') === '1') setTimeout(function () { window.print(); }, 250);
     if (query && query.get('pdf') === '1') Z().downloadReceiptPdf(m.ref);
   }
-  /* Staff: delivery prices. The database is their only home: the storefront and checkout both
-     read them from there. Every change goes through a logged staff function. */
-  async function staffDelivery(ticket) {
-    if (!requireUser()) return;
-    if (!B.profile().is_staff) throw new Error('Staff access is required.');
-    var x = await B.rpc('delivery_settings', {});
-    if (ticket !== navigation) return;
-    show('<p>These are the delivery prices buyers see in the cart and pay at checkout. Each change is saved to the database and logged with your name.</p>' + Z().deliveryEditorHTML(x), 'Delivery prices');
-    Z().bindDeliveryEditor(document.getElementById('delivery-editor'), async function (v) {
-      // A rate's route is its database key. Remove the previous route when it changes.
-      v.rates.forEach(function (r) {
-        var old = (x.rates || []).find(function (a) { return String(a.id) === String(r.id); });
-        if (old && ((old.courier || '') !== (r.courier || '') || old.zone !== r.zone || old.speed !== r.speed)) v.removed.push(r.id);
-      });
-      for (var i = 0; i < v.removed.length; i++) await B.rpc('staff_delete_delivery_rate', { rate_id: Number(v.removed[i]) });
-      for (var j = 0; j < v.rates.length; j++) {
-        var r = v.rates[j];
-        await B.rpc('staff_save_delivery_rate', { courier: r.courier, zone: r.zone, speed: r.speed, fee: r.fee, included_kg: r.kg, per_kg: r.perKg,
-          min_days: r.days ? r.days[0] : null, max_days: r.days ? r.days[1] : null, active: r.active });
-      }
-      await B.rpc('staff_set_delivery_settings', { free_min: v.freeDelivery.min, free_zones: v.freeDelivery.zones, default_kg: v.defaultKg,
-        origin_town: v.origin ? v.origin.town : null, origin_province: v.origin ? v.origin.province : null,
-        same_day_cutoff: v.sameDay.cutoff, same_day_towns: v.sameDay.towns, closed_days: v.closedDays });
-      var fresh = await B.rpc('delivery_settings', {});
-      window.ZS_DELIVERY_SETTINGS = fresh; Z().applyDeliverySettings(fresh, false);
-      x = fresh;
-      var editor = document.getElementById('delivery-editor');
-      if (ticket === navigation && editor) {
-        editor.removeAttribute('data-removed');
-        editor.querySelectorAll('[data-rate-body] [data-rate-row]').forEach(function (tr, i) {
-          var r = v.rates[i], saved = (fresh.rates || []).find(function (a) {
-            return (a.courier || '') === (r.courier || '') && a.zone === r.zone && a.speed === r.speed;
-          });
-          if (saved) tr.setAttribute('data-rate-id', saved.id);
-        });
-      }
-      Z().toast('Delivery prices saved', 'success');
-    });
-  }
   /* Rider sign-up (settings.riders.open): apply from a verified account, follow the decision */
   var RIDER_FIELDS = 'id,full_name,phone,email,town,areas,vehicle,owns_vehicle,availability,experience,has_licence,status,staff_note,created_at,updated_at,decided_at';
   async function riderApply(ticket) {
@@ -218,36 +179,6 @@
         Z().toast('Application sent. We\'ll be in touch.', 'success'); Z().route();
       } catch (err) { st.className = 'form-status is-error'; st.textContent = err.message; btn.disabled = false; }
     };
-  }
-  // Staff: the rider queue, oldest first. Approval needs the in-person checks first.
-  async function staffRiders(ticket) {
-    if (!requireUser()) return;
-    if (!B.profile().is_staff) throw new Error('Staff access is required.');
-    var rows = await B.read('rider_applications?select=' + RIDER_FIELDS + '&status=in.(new,review,info_needed,vetting)&order=created_at.asc&limit=50');
-    if (ticket !== navigation) return;
-    var S2 = Z().RIDER_STATUS;
-    show('<p>Approve a rider only after checking, in person, their NRC, driving licence (not needed for a bicycle), police clearance certificate and two references. Invite them to the checks first: approval isn\'t possible before that step.</p>' +
-      (rows.length ? rows.map(function (a) {
-        var k = esc(a.id);
-        return '<article class="card"><h2>' + esc(a.full_name) + ' <span class="' + Z().statusClass(S2[a.status]) + '">' + esc(S2[a.status] || a.status) + '</span></h2>' +
-          '<dl class="totals"><div><dt>Phone</dt><dd><a href="tel:' + esc(a.phone) + '">' + esc(a.phone) + '</a></dd></div><div><dt>Email</dt><dd>' + esc(a.email) + '</dd></div>' +
-          '<div><dt>Town</dt><dd>' + esc(a.town) + (a.areas ? ' · ' + esc(a.areas) : '') + '</dd></div><div><dt>Vehicle</dt><dd>' + esc(Z().VEHICLES[a.vehicle] || a.vehicle) + (a.owns_vehicle ? ', own' : '') + '</dd></div>' +
-          '<div><dt>Available</dt><dd>' + esc((a.availability || []).map(function (x) { return Z().AVAIL[x]; }).join(', ') || 'Not given') + '</dd></div><div><dt>Sent</dt><dd>' + when(a.created_at) + '</dd></div></dl>' +
-          (a.experience ? '<p>' + esc(a.experience) + '</p>' : '') + (a.staff_note ? '<p class="notice"><strong>Last message to the rider:</strong> ' + esc(a.staff_note) + '</p>' : '') +
-          '<form class="form" data-rider-decide="' + k + '"><label for="rdn-' + k + '">Message to the rider</label><textarea id="rdn-' + k + '" maxlength="1000"></textarea><div class="btn-row">' +
-            (a.status === 'new' ? '<button class="btn btn--secondary btn--sm" type="submit" value="review">Mark under review</button>' : '') +
-            '<button class="btn btn--secondary btn--sm" type="submit" value="info_needed">Ask for more information</button>' +
-            (a.status === 'vetting' ? '<button class="btn btn--primary btn--sm" type="submit" value="approved">Checks passed: approve</button>' : '<button class="btn btn--primary btn--sm" type="submit" value="vetting">Invite to in-person checks</button>') +
-            '<button class="btn btn--secondary btn--sm btn--danger" type="submit" value="rejected">Reject</button></div><p class="form-status" role="status"></p></form></article>';
-      }).join('') : '<p>No rider applications waiting.</p>'), 'Rider applications');
-    document.querySelectorAll('[data-rider-decide]').forEach(function (form) {
-      var id = form.dataset.riderDecide; form.id = 'rider-' + id;
-      bind(form.id, async function (f, decision) {
-        if (decision === 'rejected' && !window.confirm('Reject this application? The rider will see your message.')) return;
-        await B.rpc('staff_review_rider_application', { application: id, decision: decision, note: document.getElementById('rdn-' + id).value.trim() || null });
-        Z().toast('Saved', 'success'); Z().route();
-      });
-    });
   }
   async function orders(ref, ticket, query) {
     if (!requireUser()) return;
@@ -460,76 +391,6 @@
       Z().toast('Application sent. We\'ll be in touch.', 'success'); Z().route();
     });
   }
-  function storeSlug(name) { return String(name || '').toLowerCase().normalize('NFKD').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40).replace(/-+$/, ''); }
-  // Waiting applications are split so ones awaiting the applicant never crowd out new ones; oldest first
-  var APP_VIEWS = [['review', 'To review', 'new,review'], ['info', 'Awaiting applicant', 'info_needed'], ['approved', 'Approved', 'approved'], ['rejected', 'Not approved', 'rejected'], ['withdrawn', 'Withdrawn', 'withdrawn']];
-  var APP_PAGE = 25, APP_SEARCH = ['business', 'contact_name', 'email', 'phone', 'town', 'pacra'];
-  function appLink(view, q, page) { return '#/staff-applications?show=' + view + (q ? '&q=' + encodeURIComponent(q) : '') + (page ? '&page=' + page : ''); }
-  async function staffApplications(query, ticket) {
-    if (!requireUser()) return;
-    if (!B.profile().is_staff) throw new Error('Staff access is required.');
-    var view = APP_VIEWS.filter(function (x) { return x[0] === query.get('show'); })[0] || APP_VIEWS[0], waiting = view[0] === 'review' || view[0] === 'info';
-    // Letters, numbers and the characters in names, emails and phone numbers; anything else would change the filter
-    var q = (query.get('q') || '').replace(/[^\p{L}\p{N}@+.' -]/gu, ' ').replace(/\s+/g, ' ').trim().slice(0, 80);
-    var page = Math.max(0, Math.min(999, parseInt(query.get('page'), 10) || 0));
-    // Phones are stored as +260…, so "0977 123456" searches for the digits after the leading 0
-    var digits = q.replace(/\D/g, ''), phoneTerm = digits.length >= 4 ? digits.replace(/^0/, '') : q;
-    var rows = await B.read('seller_applications?select=' + APP_FIELDS + '&status=in.(' + view[2] + ')' +
-      (q ? '&or=' + encodeURIComponent('(' + APP_SEARCH.map(function (f) { return f + '.ilike."*' + (f === 'phone' ? phoneTerm : q) + '*"'; }).join(',') + ')') : '') +
-      '&order=created_at.' + (waiting ? 'asc' : 'desc') + ',id.asc&limit=' + (APP_PAGE + 1) + '&offset=' + page * APP_PAGE);
-    if (ticket !== navigation) return;
-    var more = rows.length > APP_PAGE; rows = rows.slice(0, APP_PAGE);
-    show('<p>Check each business before opening its store: the contact details, and the PACRA number on the PACRA register where one is given. Approving opens the store, verified, with the applicant as its owner. Set VAT details on the store only after confirming them with ZRA.</p>' +
-      '<nav class="btn-row" aria-label="Applications">' + APP_VIEWS.map(function (x) { return '<a class="btn btn--' + (x === view ? 'primary' : 'secondary') + ' btn--sm" href="' + appLink(x[0], q) + '"' + (x === view ? ' aria-current="page"' : '') + '>' + x[1] + '</a>'; }).join('') + '</nav>' +
-      '<form class="form" id="app-search" role="search"><label for="app-q">Search applications</label><div class="qa__row"><input id="app-q" type="search" maxlength="80" value="' + esc(q) + '" placeholder="Business, contact, email, phone, town or PACRA">' +
-        '<button class="btn btn--secondary btn--sm" type="submit">Search applications</button></div></form>' +
-      '<p role="status">' + (rows.length ? 'Showing ' + (page * APP_PAGE + 1) + '–' + (page * APP_PAGE + rows.length) + (waiting ? ', oldest first' : ', newest first') + (q ? ' for “' + esc(q) + '”' : '') + '.' : '') + '</p>' +
-      (rows.length ? rows.map(function (a) {
-        var k = esc(a.id);
-        return '<article class="card"><h2>' + esc(a.business) + ' <span class="' + Z().statusClass(APP_STATUS[a.status] || a.status) + '">' + esc(APP_STATUS[a.status] || a.status) + '</span></h2>' +
-          '<dl class="totals"><div><dt>Contact</dt><dd>' + esc(a.contact_name) + '</dd></div><div><dt>Phone</dt><dd><a href="tel:' + esc(a.phone) + '">' + esc(a.phone) + '</a></dd></div>' +
-          '<div><dt>Email</dt><dd>' + esc(a.email) + '</dd></div><div><dt>Town</dt><dd>' + esc(a.town) + '</dd></div><div><dt>PACRA</dt><dd>' + esc(a.pacra || 'Not given') + '</dd></div>' +
-          '<div><dt>Sent</dt><dd>' + when(a.created_at) + (a.updated_at !== a.created_at ? ', updated ' + when(a.updated_at) : '') + '</dd></div></dl>' +
-          (a.categories.length ? '<p><strong>Sells:</strong> ' + a.categories.map(esc).join(', ') + '</p>' : '') + (a.about ? '<p>' + esc(a.about) + '</p>' : '') +
-          (a.staff_note ? '<p class="notice"><strong>Last message to the applicant:</strong> ' + esc(a.staff_note) + '</p>' : '') +
-          (a.seller_id ? '<p><a href="#/team/' + encodeURIComponent(a.seller_id) + '">Store team for ' + esc(a.seller_id) + '</a></p>' : '') +
-          (isOpen(a) ? (a.status === 'new' ? '<p><button class="btn btn--secondary btn--sm" type="button" data-app-review="' + k + '">Mark under review</button></p>' : '') +
-            '<div class="duo duo--gap"><form class="form" data-app-approve="' + k + '"><h3 class="h3">Approve</h3>' +
-              '<label for="ap-id-' + k + '">Store ID (used in web addresses)</label><input id="ap-id-' + k + '" required pattern="[a-z0-9][a-z0-9-]{1,38}[a-z0-9]" maxlength="40" value="' + esc(storeSlug(a.business)) + '">' +
-              '<label for="ap-sn-' + k + '">Store name</label><input id="ap-sn-' + k + '" required maxlength="120" value="' + esc(a.business) + '">' +
-              '<label for="ap-am-' + k + '">Message to the applicant (optional)</label><textarea id="ap-am-' + k + '" maxlength="1000"></textarea>' +
-              '<button class="btn btn--primary" type="submit">Approve and open store</button><p class="form-status" role="status"></p></form>' +
-            '<form class="form" data-app-decide="' + k + '"><h3 class="h3">Reply</h3><label for="ap-msg-' + k + '">Message to the applicant</label><textarea id="ap-msg-' + k + '" required minlength="5" maxlength="1000"></textarea>' +
-              '<div class="btn-row"><button class="btn btn--secondary" type="submit" value="info_needed">Ask for more information</button><button class="btn btn--secondary btn--danger" type="submit" value="rejected">Reject</button></div><p class="form-status" role="status"></p></form></div>' : '') + '</article>';
-      }).join('') : '<p>' + (q ? 'No applications match “' + esc(q) + '”.' : page ? 'No more applications.' : 'No applications here.') + '</p>') +
-      (page || more ? '<nav class="btn-row" aria-label="More applications">' + (page ? '<a class="btn btn--secondary" href="' + appLink(view[0], q, page - 1) + '">Previous page</a>' : '') +
-        (more ? '<a class="btn btn--secondary" href="' + appLink(view[0], q, page + 1) + '">Next page</a>' : '') + '</nav>' : ''), 'Seller applications');
-    document.getElementById('app-search').onsubmit = function (e) { e.preventDefault(); location.hash = appLink(view[0], document.getElementById('app-q').value.trim()); };
-    document.querySelectorAll('[data-app-review]').forEach(function (b) { b.onclick = function () { rpcButton(b, 'staff_review_application', { application: b.dataset.appReview, decision: 'review', note: null }, function () { Z().route(); }); }; });
-    document.querySelectorAll('[data-app-approve]').forEach(function (form) {
-      var id = form.dataset.appApprove; form.id = 'approve-' + id;
-      bind(form.id, async function () {
-        var store = await B.rpc('staff_approve_application', { application: id, store_id: document.getElementById('ap-id-' + id).value.trim(), store_name: document.getElementById('ap-sn-' + id).value.trim(), note: document.getElementById('ap-am-' + id).value.trim() || null });
-        Z().toast('Store ' + esc(store) + ' is open. The applicant is its owner.', 'success'); Z().route();
-      });
-    });
-    document.querySelectorAll('[data-app-decide]').forEach(function (form) {
-      var id = form.dataset.appDecide; form.id = 'decide-' + id;
-      bind(form.id, async function (f, decision) {
-        if (decision === 'rejected' && !window.confirm('Reject this application? The applicant will see your message.')) return;
-        await B.rpc('staff_review_application', { application: id, decision: decision, note: document.getElementById('ap-msg-' + id).value.trim() });
-        Z().toast(decision === 'rejected' ? 'Application rejected' : 'Asked for more information'); Z().route();
-      });
-    });
-  }
-  async function staffSupport(ticket) {
-    if (!requireUser()) return;
-    if (!B.profile().is_staff) throw new Error('Staff access is required.');
-    var cases = await B.read('complaints?select=id,ref,status,details,escalated_at,assigned_to&status=not.in.(resolved,closed)&order=created_at.asc&limit=100');
-    if (ticket !== navigation) return;
-    show('<p>Open support requests, oldest first. Assign a case before recording a review. Refund decisions require provider reconciliation; this queue does not send money.</p>' + cases.map(function (c) { return '<article class="card"><h2>' + esc(c.ref) + (c.escalated_at ? ' · Escalated' : '') + '</h2><p>' + esc(c.details) + '</p><p>Assigned staff ID: ' + esc(c.assigned_to || 'Unassigned') + '</p><button class="btn btn--secondary" type="button" data-take-case="' + c.id + '">Assign to me</button></article>'; }).join(''), 'Staff support queue');
-    document.querySelectorAll('[data-take-case]').forEach(function (button) { button.onclick = async function () { button.disabled = true; try { await B.rpc('assign_support_case', { case_id: Number(button.dataset.takeCase), staff_user: B.profile().id }); Z().route(); } catch (e) { Z().toast(esc(e.message), 'error'); button.disabled = false; } }; });
-  }
   ext.hooks.route = function (path, query) {
     if (!active()) return false;
     var ticket = ++navigation;
@@ -547,11 +408,14 @@
     }
     if (path[0] === 'seller') { show('<p>Your store team and shipments use secure server records. Listing, promotion and store-detail tools are awaiting their authenticated integration.</p><div class="btn-row"><a class="btn btn--primary" href="#/team">Store team</a><a class="btn btn--secondary" href="#/fulfilment">Store fulfilment</a><a class="btn btn--secondary" href="#/sell">Apply to sell</a><a class="btn btn--secondary" href="#/account">My Account</a></div>', 'Seller Centre'); return true; }
     if (['staff', 'addresses', 'alerts'].indexOf(path[0]) !== -1) { show('<p>This account uses secure server records. These management tools are awaiting their authenticated integration.</p><a class="btn btn--secondary" href="#/account">My Account</a>', 'Secure account tools'); return true; }
+    // Staff tools live in the admin panel now
+    var moved = { 'staff-applications': 'applications', 'staff-riders': 'applications?show=riders', 'staff-delivery': 'delivery', 'staff-support': 'support' };
+    if (moved[path[0]]) { location.replace('admin/index.html#/' + moved[path[0]]); return true; }
     if (path[0] === 'riders' && !(Z().S.riders || {}).open) return false;
-    if (['search', 'dept', 'orders', 'order', 'receipt', 'complaints', 'product', 'fulfilment', 'staff-support', 'team', 'sell', 'staff-applications', 'staff-delivery', 'staff-riders', 'riders'].indexOf(path[0]) === -1) return false;
+    if (['search', 'dept', 'orders', 'order', 'receipt', 'complaints', 'product', 'fulfilment', 'team', 'sell', 'riders'].indexOf(path[0]) === -1) return false;
     if (path[0] === 'product' && ready[path[1]]) return false;
     show('<p role="status">Loading secure marketplace data…</p>', 'Loading');
-    var action = path[0] === 'staff-delivery' ? staffDelivery(ticket) : path[0] === 'staff-riders' ? staffRiders(ticket) : path[0] === 'riders' ? riderApply(ticket) : path[0] === 'sell' ? sellApply(ticket) : path[0] === 'staff-applications' ? staffApplications(query, ticket) : path[0] === 'team' ? team(path[1] ? decodeURIComponent(path[1]) : '', ticket) : path[0] === 'fulfilment' ? fulfilment(ticket) : path[0] === 'staff-support' ? staffSupport(ticket) : path[0] === 'search' || path[0] === 'dept' ? catalogue(path, query, ticket) : path[0] === 'receipt' ? receipt(decodeURIComponent(path[1] || ''), query, ticket) : path[0] === 'orders' || path[0] === 'order' ? orders(path[1], ticket, query) : path[0] === 'complaints' ? support(query, ticket) :
+    var action = path[0] === 'riders' ? riderApply(ticket) : path[0] === 'sell' ? sellApply(ticket) : path[0] === 'team' ? team(path[1] ? decodeURIComponent(path[1]) : '', ticket) : path[0] === 'fulfilment' ? fulfilment(ticket) : path[0] === 'search' || path[0] === 'dept' ? catalogue(path, query, ticket) : path[0] === 'receipt' ? receipt(decodeURIComponent(path[1] || ''), query, ticket) : path[0] === 'orders' || path[0] === 'order' ? orders(path[1], ticket, query) : path[0] === 'complaints' ? support(query, ticket) :
       B.rpc('catalogue_page', { product_id: path[1], page_size: 1 }).then(function (rows) { if (ticket !== navigation) return; if (!rows.length) throw new Error('This listing is not available.'); Z().ingest(rows); ready[path[1]] = true; Z().route(); });
     Promise.resolve(action).catch(function (error) { if (ticket === navigation) show(errorHTML(error) + '<a class="btn btn--secondary" href="#/account">My Account</a>', 'Request unavailable'); });
     return true;
