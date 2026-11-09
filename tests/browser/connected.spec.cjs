@@ -9,7 +9,7 @@ const product = { id:'LIVE1',title:'Approved studio lamp',department_id:'tech',s
 const application = {id:'app-1',business:'Kafue Solar Traders',contact_name:'Mwila Banda',phone:'+260977123456',email:'buyer@example.test',town:'Kafue',pacra:null,
   categories:['Solar, Power & Energy'],about:'Solar lamps and panels',status:'new',staff_note:null,seller_id:null,created_at:'2026-11-03T08:00:00Z',updated_at:'2026-11-03T08:00:00Z',decided_at:null};
 async function setup(page, { staff = false, teamRole = 'owner', applications = [], quote = {total:100,subtotal:100,vat:0,currency:'ZMW',delivery_pending:true} } = {}) {
-  const calls = [];
+  const calls = [], remind = {on:false,channel:null};
   await page.addInitScript(() => {
     localStorage.setItem('zs-consent','denied');
     localStorage.setItem('zs-user',JSON.stringify({id:999,name:'Untrusted local profile',is_staff:true}));
@@ -29,6 +29,9 @@ async function setup(page, { staff = false, teamRole = 'owner', applications = [
     else if (url.pathname === '/rest/v1/users') data = [{id:7,name:'Verified Buyer',email:'buyer@example.test',phone:'+260970000001',is_staff:false}];
     else if (url.pathname === '/rest/v1/rpc/catalogue_page') data = [product];
     else if (url.pathname === '/rest/v1/rpc/checkout_quote') data = quote;
+    else if (url.pathname === '/rest/v1/rpc/cart_reminder_settings') data = {on:remind.on,channel:remind.channel,can_whatsapp:true,can_email:true};
+    else if (url.pathname === '/rest/v1/rpc/set_cart_reminders') { remind.on = body.turn_on; remind.channel = body.turn_on ? body.p_channel : null; data = {on:remind.on,channel:remind.channel}; }
+    else if (url.pathname === '/rest/v1/rpc/save_cart') data = {saved:remind.on,lines:body.items.length};
     else if (url.pathname === '/rest/v1/rpc/voucher_check') data = body.p_code === 'TAKE50' ? {valid:true,code:'TAKE50',label:'K50 off your order',percent:null,amount:50,max_off:null,min_spend:0,ends:null}
       : body.p_code === 'BIG20' ? {valid:true,code:'BIG20',label:null,percent:20,amount:null,max_off:15,min_spend:50,ends:null} : {valid:false,reason:'That voucher has been used up'};
     else if (url.pathname === '/rest/v1/order_parcels') data = [{seller_id:'live-store',speed:'express',fee_zmw:85,free:false,courier_id:'dhl',tracking_ref:'JD0001',courier_status:'in_transit',min_days:1,max_days:1}];
@@ -376,4 +379,45 @@ test('staff go to the admin panel from My Account, and the old staff addresses o
     await page.goto('/index.html?demo=0#/' + old);
     await expect(page).toHaveURL(new RegExp('/admin/index\\.html#/' + section.replace('?', '\\?') + '$'));
   }
+});
+
+test('cart reminders are off until the buyer switches them on, and only then is the cart saved', async ({page}) => {
+  const errors = []; page.on('pageerror', e => errors.push(e.message));
+  const calls = await setup(page); await signIn(page);
+  const saves = () => calls.filter(c => c.path === '/rest/v1/rpc/save_cart');
+  const box = page.locator('#cart-reminders');
+  await expect(box.getByRole('heading',{name:'Cart reminders'})).toBeVisible();
+  await expect(box.getByLabel('Remind me once if I leave items in my cart for a day')).not.toBeChecked();
+  // Off: adding to the cart sends nothing
+  await page.goto('/index.html?demo=0#/product/LIVE1');
+  await page.getByRole('button',{name:'Add to cart',exact:true}).click();
+  await page.waitForTimeout(2000);
+  expect(saves()).toHaveLength(0);
+  // On, by WhatsApp: the current cart is saved straight away
+  await page.goto('/index.html?demo=0#/account');
+  await box.getByLabel('Remind me once if I leave items in my cart for a day').check();
+  await expect(box.getByLabel('Email')).toBeChecked();
+  await box.getByLabel('WhatsApp').check();
+  await box.getByRole('button',{name:'Save reminder choice'}).click();
+  await expect(box.getByRole('status')).toHaveText('Cart reminders are on, by WhatsApp.');
+  expect(calls.filter(c => c.path === '/rest/v1/rpc/set_cart_reminders').pop().body).toEqual({turn_on:true,p_channel:'whatsapp'});
+  await expect.poll(() => saves().length).toBe(1);
+  expect(saves()[0].body).toEqual({items:[{product_id:'LIVE1',quantity:1}]});
+  // A change to the cart is saved once it settles
+  await page.goto('/index.html?demo=0#/cart');
+  await page.getByRole('button',{name:/^Remove/}).first().click();
+  await expect.poll(() => saves().length).toBe(2);
+  expect(saves()[1].body).toEqual({items:[]});
+  // Off again deletes the saved copy, and nothing more is sent
+  await page.goto('/index.html?demo=0#/account');
+  await box.getByLabel('Remind me once if I leave items in my cart for a day').uncheck();
+  await expect(box.locator('#cr-how')).toBeHidden();
+  await box.getByRole('button',{name:'Save reminder choice'}).click();
+  await expect(box.getByRole('status')).toHaveText('Cart reminders are off, and your saved cart is deleted.');
+  expect(calls.filter(c => c.path === '/rest/v1/rpc/set_cart_reminders').pop().body).toEqual({turn_on:false,p_channel:null});
+  await page.goto('/index.html?demo=0#/product/LIVE1');
+  await page.getByRole('button',{name:'Add to cart',exact:true}).click();
+  await page.waitForTimeout(2000);
+  expect(saves()).toHaveLength(2);
+  expect(errors).toEqual([]);
 });

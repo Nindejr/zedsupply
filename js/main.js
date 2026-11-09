@@ -492,7 +492,7 @@
 
   /* ---------- Cart, wishlist, account state ---------- */
   function cart() { return store.get('cart', []); }
-  function setCart(c) { store.set('cart', c); updateCounts(); }
+  function setCart(c) { store.set('cart', c); updateCounts(); ext('cartChanged', c); }
   function wish() { return store.get('wish', []); }
   function isLiked(id) { return wish().indexOf(id) !== -1; }
   function user() { return secureMode() ? window.ZSBackend.profile() : store.get('user', null); }

@@ -159,7 +159,7 @@ test('replayed payment attempts never send another provider prompt', async () =>
 test('daily jobs need the schedule\'s secret', async () => {
   assert.equal((await dailyJobs(post({}), fakeDeps())).status, 401);
   const res = await dailyJobs(post({}, { authorization: 'Bearer cron' }), fakeDeps({ CRON_SECRET: 'cron' }, () => [{ n: 2 }]));
-  assert.deepEqual(await res.json(), { payouts_released: 2, laybys_expired: 2 });
+  assert.deepEqual(await res.json(), { payouts_released: 2, laybys_expired: 2, cart_reminders: 2 });
 });
 
 test('start-payment asks for the deposit on a new lay-by, and only for the buyer\'s own order', async () => {
@@ -276,4 +276,17 @@ test('place-order gives a guest their handover code; signed-in buyers read their
   body = await (await placeOrder(post({ ref: 'ZS-ABCD1234', items: [{ product_id: 'L001' }] }, { authorization: 'Bearer good-token' }), d)).json();
   assert.equal(body.handover_code, undefined);
   assert.equal(d.calls.length, 1);
+});
+
+test('cart reminders name what was left and say how to stop them', () => {
+  assert.deepEqual(TEMPLATES.cart_reminder({ name: 'Chipo', title: 'Solar lantern', more: 2 }), ['Chipo', 'Solar lantern and 2 more items']);
+  assert.deepEqual(TEMPLATES.cart_reminder({ title: 'Phone charger', more: 0 }), ['there', 'Phone charger']);
+  assert.equal(TEMPLATES.cart_reminder({ name: 'A', title: 'Kettle', more: 1 })[1], 'Kettle and 1 more item');
+  const email = EMAILS.cart_reminder({ name: 'Mutale <i>', title: 'Lamp & shade', more: 1 }, 'https://example.test/');
+  assert.equal(email.subject, 'You left something in your Zed Supply cart');
+  assert.match(email.html, /Mutale &lt;i&gt;/);
+  assert.match(email.html, /Lamp &amp; shade and 1 more item/);
+  assert.match(email.html, /href="https:\/\/example\.test\/index\.html#\/cart"/);
+  assert.match(email.text, /turn off cart reminders in My Account: https:\/\/example\.test\/index\.html#\/account/);
+  assert.doesNotMatch(email.text, /K[0-9]/);
 });

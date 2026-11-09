@@ -8,7 +8,7 @@ Small programs that run on Supabase (Edge Functions, Deno) for the jobs the webs
 | `start-payment` | The website, "Pay now" | Asks the payment provider to send a mobile money prompt to the buyer's phone for what's owed. On a new lay-by, this is the deposit. | `PAYMENT_API_URL`, `PAYMENT_API_KEY`, `PAYMENT_CALLBACK_URL` |
 | `payment-webhook` | The payment provider | Checks the provider's signature, then records the payment once with `app.record_payment()`. A fully paid order is confirmed, and each seller's share is held. | `PAYMENT_PROVIDER`, `PAYMENT_WEBHOOK_SECRET` |
 | `send-notifications` | A schedule, every few minutes | Sends queued order and alert messages as approved WhatsApp templates. Until WhatsApp is set up, messages wait in the queue. | `WHATSAPP_TOKEN`, `WHATSAPP_PHONE_ID`, `CRON_SECRET` |
-| `daily-jobs` | A schedule, once a day | Releases seller payouts whose hold has passed with no open complaint, and cancels lay-bys not paid by their date. | `CRON_SECRET` |
+| `daily-jobs` | A schedule, once a day | Releases seller payouts whose hold has passed with no open complaint, cancels lay-bys not paid by their date, and queues cart reminders for buyers who switched them on. | `CRON_SECRET` |
 | `courier-quote` | The website, at checkout | Prices delivery for the cart from the rate card (`app.delivery_quote()`), or from a connected courier's API when the buyer chose that courier. A live price is saved for 30 minutes and sent with the order as `delivery_quote_id`. | Migration 025 and rates in `delivery_rates`; for live prices `COURIER_API_URL`, `COURIER_API_KEY`, `COURIER_API_COURIER`, `COURIER_CONTRACT_VALIDATED` |
 | `courier-webhook` | A connected courier | Checks the courier's signature, then records each parcel event once with `app.record_courier_event()`. | `COURIER_WEBHOOK_SECRET`, `COURIER_WEBHOOK_COURIER`, `COURIER_CONTRACT_VALIDATED` |
 
@@ -95,6 +95,7 @@ WhatsApp only allows business-started messages from templates that Meta has appr
 | `handover_code` | order reference, the 6-digit code (e.g. "482 913"); tell them to read it out only once the parcel is in their hands, and that staff never ask for it |
 | `rider_application_update` | rider's name, outcome ("needs more information", "is ready for the in-person checks", "is approved" or "was not approved") |
 | `parcel_update` | order reference, what happened ("is out for delivery", "has been delivered by the courier" or "could not be delivered; the courier will try again") |
+| `cart_reminder` | name, what was left (e.g. "Solar lantern" or "Solar lantern and 2 more items"); say prices and stock can change, and how to turn reminders off in My Account. Sent only to buyers who switched cart reminders on; Meta is likely to class it as a marketing template |
 
 ## Costs
 

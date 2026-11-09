@@ -13,12 +13,12 @@
       show('<section class="card"><h2>Hello, ' + esc(p.name || p.email || 'shopper') + '</h2><p>Your contact is verified. Orders and support requests below are stored securely for this account.</p>' +
         '<div class="btn-row"><a class="btn btn--primary" href="#/orders">Your orders</a><a class="btn btn--secondary" href="#/complaints">Support requests</a><a class="btn btn--secondary" href="#/team">Store team</a><a class="btn btn--secondary" href="#/fulfilment">Store fulfilment</a>' + (p.is_staff ? '<a class="btn btn--primary" href="admin/index.html">Admin panel</a>' : '') + '<a class="btn btn--secondary" href="#/device">Data on this device</a>' +
         '<button class="btn btn--secondary" id="secure-signout" type="button">Sign out</button></div><p class="form-status" role="status"></p></section>' +
-        Z().businessFormHTML({ name: p.business_name || '', tpin: p.business_tpin || '', address: p.business_address || '' }) + '<div id="team-invites"></div><div id="seller-application"></div>', 'My Account');
-      teamInvites(); applicationStatus();
+        Z().businessFormHTML({ name: p.business_name || '', tpin: p.business_tpin || '', address: p.business_address || '' }) + '<div id="cart-reminders"></div><div id="team-invites"></div><div id="seller-application"></div>', 'My Account');
+      teamInvites(); applicationStatus(); cartReminders();
       Z().bindBusinessForm(function (b) {
         return B.rpc('set_business_details', { business: b ? b.name : null, tpin: b ? b.tpin || null : null, address: b ? b.address || null : null }).then(function () { return B.identity(); });
       });
-      document.getElementById('secure-signout').onclick = async function () { this.disabled = true; try { await B.signOut(); } catch (e) { /* local tokens are cleared even when logout is unavailable */ } ready = {}; Z().refreshCounts(); Z().route(); };
+      document.getElementById('secure-signout').onclick = async function () { this.disabled = true; try { await B.signOut(); } catch (e) { /* local tokens are cleared even when logout is unavailable */ } ready = {}; remindOn = null; Z().refreshCounts(); Z().route(); };
       return;
     }
     show('<div class="duo"><form class="form form--card" id="secure-signin"><h2>Sign in with a one-time code</h2><p>We send a code to your email. Your session stays in this tab until you sign out or close it.</p>' +
@@ -286,6 +286,45 @@
     B.rpc(name, body).then(done).catch(function (e) { Z().toast(esc(e.message), 'error'); button.disabled = false; });
   }
   // Invitations for this account's confirmed email, shown on My Account
+  // ---------- Cart reminders (opt-in) ----------
+  // Off unless the buyer switches them on here. Only while they're on does the cart go to the
+  // server, after each change, so the daily job can send one reminder for a cart left a day.
+  var remindOn = null, cartTimer = null;
+  function cartPayload(lines) { return (lines || []).map(function (l) { return { product_id: l.id, quantity: Number(l.qty) || 1 }; }); }
+  function saveCartNow(lines) { return B.rpc('save_cart', { items: cartPayload(lines) }).catch(function () { /* the next change tries again */ }); }
+  ext.hooks.cartChanged = function (lines) {
+    if (!active() || !B.profile() || remindOn === false) return;
+    clearTimeout(cartTimer);
+    cartTimer = setTimeout(function () {
+      (remindOn === null ? B.rpc('cart_reminder_settings', {}).then(function (s) { remindOn = !!s.on; }, function () { remindOn = false; }) : Promise.resolve()).then(function () {
+        if (remindOn && B.profile()) saveCartNow(lines);
+      });
+    }, 1500);
+  };
+  function cartReminders() {
+    B.rpc('cart_reminder_settings', {}).then(function (s) {
+      var box = document.getElementById('cart-reminders');
+      if (!box) return;
+      remindOn = !!s.on;
+      var opt = function (v, label, ok, why) { return '<div class="check"><input type="radio" name="cr-channel" id="cr-' + v + '" value="' + v + '"' + (s.channel === v || (!s.channel && ok && (v === 'email' || !s.can_email)) ? ' checked' : '') + (ok ? '' : ' disabled') + '><label for="cr-' + v + '">' + label + (ok ? '' : ' <small>' + why + '</small>') + '</label></div>'; };
+      box.innerHTML = '<section class="card"><h2>Cart reminders</h2><form class="form" id="cart-remind-form">' +
+        '<div class="check"><input type="checkbox" id="cr-on"' + (s.on ? ' checked' : '') + '><label for="cr-on">Remind me once if I leave items in my cart for a day</label></div>' +
+        '<fieldset class="field" id="cr-how"' + (s.on ? '' : ' hidden') + '><legend>Send the reminder by</legend>' + opt('whatsapp', 'WhatsApp', s.can_whatsapp, '(add a WhatsApp number to your account first)') + opt('email', 'Email', s.can_email, '(no email on this account)') + '</fieldset>' +
+        '<p class="hint">At most one reminder a week, and none after you order. While this is on, your cart is saved to your account so we know what is in it. Turning it off deletes that copy.</p>' +
+        '<button class="btn btn--secondary" type="submit">Save reminder choice</button><p class="form-status" role="status"></p></form></section>';
+      var on = document.getElementById('cr-on');
+      on.addEventListener('change', function () { document.getElementById('cr-how').hidden = !on.checked; });
+      bind('cart-remind-form', async function (form) {
+        var picked = form.querySelector('[name="cr-channel"]:checked'), status = form.querySelector('[role="status"]');
+        if (on.checked && !picked) throw new Error('Choose WhatsApp or email.');
+        var r = await B.rpc('set_cart_reminders', { turn_on: on.checked, p_channel: on.checked ? picked.value : null });
+        remindOn = !!r.on;
+        if (remindOn) await saveCartNow(Z().cart());
+        status.classList.remove('is-error');
+        status.textContent = remindOn ? 'Cart reminders are on, by ' + (r.channel === 'email' ? 'email' : 'WhatsApp') + '.' : 'Cart reminders are off, and your saved cart is deleted.';
+      });
+    }).catch(function () { /* the account page works without this */ });
+  }
   function teamInvites() {
     B.rpc('my_seller_invites', {}).then(function (list) {
       var box = document.getElementById('team-invites');

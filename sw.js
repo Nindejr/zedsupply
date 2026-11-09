@@ -5,7 +5,7 @@
    downloaded in the background or saved, and at most IMAGE_LIMIT images are kept. Orders,
    payments and anything from another site are never cached. Change VERSION with each release
    (scripts/release.cjs does it with the pages). */
-var VERSION = 'zs-20261107-r29';
+var VERSION = 'zs-20261109-r30';
 var SHELL = ['./', 'index.html', 'help.html', 'privacy.html', '404.html', 'css/style.css', 'js/catalogue.js', 'js/couriers.js', 'js/delivery.js', 'js/receipt-pdf.js',
   'js/products.js', 'js/product-zoom.js', 'js/backend.js', 'js/marketplace.js', 'js/backend-ui.js', 'js/delivery-editor.js', 'js/checkout.js', 'js/listing-form.js', 'js/main.js', 'assets/favicon.svg', 'assets/icon-192.png'];
 

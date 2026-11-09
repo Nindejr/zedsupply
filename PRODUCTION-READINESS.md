@@ -1,13 +1,13 @@
 # Production readiness
 
 **Status, 7 November 2026.** The website orders through WhatsApp; connected mode is built but
-off (`settings.api.enabled: false`). The hosted Supabase project has migrations 001–032 applied
+off (`settings.api.enabled: false`). The hosted Supabase project has migrations 001–033 applied
 (accounts, server quotes and checkout, stock, payment attempts and refunds, shipments and
 handover codes, priced delivery, receipts, seller teams and applications, rider applications)
 and the server functions deployed. Every push runs the unit, database (all migrations and SQL
 suites on PostgreSQL) and browser tests in GitHub Actions.
 
-Migration 031 (staff-role concurrency protection) and 032 (vouchers staff can manage, with limits, and the sales report) are applied.
+Migration 031 (staff-role concurrency protection) 032 (vouchers staff can manage, with limits, and the sales report) and 033 (opt-in cart reminders) are applied; `daily-jobs` and `send-notifications` need redeploying for the reminders to go out.
 
 Before going further:
 1. **Staging rehearsal**: the checklist in [integration readiness](INTEGRATION-READINESS.md#staging-rehearsal).

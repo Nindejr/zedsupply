@@ -175,8 +175,15 @@ export const TEMPLATES: Record<string, (p: Json) => string[]> = {
   order_receipt: p => [String(p.name || 'there'), String(p.ref), p.hide_prices ? 'Gift receipt: prices are left out' : p.delivery_pending ? 'K' + Number(p.total).toFixed(2) + ' before delivery' : 'K' + Number(p.total).toFixed(2)],
   handover_code: p => [String(p.ref), String(p.code).replace(/^(\d{3})(\d{3})$/, '$1 $2')],
   rider_application_update: p => [String(p.name || 'there'), ({ info_needed: 'needs more information', vetting: 'is ready for the in-person checks', approved: 'is approved', rejected: 'was not approved' } as Record<string, string>)[String(p.status)] || 'has been updated'],
-  parcel_update: p => [String(p.ref), ({ out_for_delivery: 'is out for delivery', delivered: 'has been delivered by the courier', failed: 'could not be delivered; the courier will try again' } as Record<string, string>)[String(p.status)] || 'has an update']
+  parcel_update: p => [String(p.ref), ({ out_for_delivery: 'is out for delivery', delivered: 'has been delivered by the courier', failed: 'could not be delivered; the courier will try again' } as Record<string, string>)[String(p.status)] || 'has an update'],
+  // Sent only to buyers who switched cart reminders on (migration 033)
+  cart_reminder: p => [String(p.name || 'there'), cartSummary(p)]
 };
+// "Solar lantern", or "Solar lantern and 2 more items"
+function cartSummary(p: Json): string {
+  const more = Math.max(0, Math.floor(Number(p.more) || 0));
+  return String(p.title || 'Your items') + (more ? ` and ${more} more ${more === 1 ? 'item' : 'items'}` : '');
+}
 
 // Emails, sent through EMAIL_API_URL (Resend's API format by default). Only these templates go
 // by email; anything else queued for email is skipped.
@@ -195,6 +202,18 @@ export const EMAILS: Record<string, (p: Json, site: string) => { subject: string
         '<div style="padding:20px 24px;color:#1A2238"><p>Hello ' + html(String(p.name || 'there')) + ',</p><p>Thank you for your order. ' + html(summary) + '</p>' +
         '<p><a href="' + html(link) + '" style="display:inline-block;background:#F5C542;color:#2A1C00;padding:10px 18px;border-radius:999px;text-decoration:none;font-weight:700">View your receipt</a></p>' +
         '<p style="color:#4A5670;font-size:13px">Sign in to your account to open it. We never ask for your PIN.</p></div></div>' };
+  },
+  cart_reminder: (p, site) => {
+    const cart = site + 'index.html#/cart', account = site + 'index.html#/account', name = String(p.name || 'there'), items = cartSummary(p);
+    const text = `Hello ${name},\n\nYou left ${items} in your Zed Supply cart. Prices and stock can change, so check your cart before ordering: ${cart}\n\n` +
+      `You asked for this reminder. To stop them, turn off cart reminders in My Account: ${account}\n\nZed Supply · Lusaka, Zambia`;
+    return { subject: 'You left something in your Zed Supply cart', text,
+      html: '<div style="font-family:Arial,sans-serif;max-width:560px;margin:auto;border:1px solid #DCDFE4;border-radius:12px;overflow:hidden">' +
+        '<div style="background:#0A2A66;color:#fff;padding:20px 24px"><p style="margin:0;font-size:20px;font-weight:700">Zed Supply</p><p style="margin:4px 0 0">Your cart is waiting</p></div>' +
+        '<div style="height:5px;background:linear-gradient(90deg,#198A00 0 64%,#DE2010 64% 76%,#000 76% 88%,#EF7D00 88%)"></div>' +
+        '<div style="padding:20px 24px;color:#1A2238"><p>Hello ' + html(name) + ',</p><p>You left ' + html(items) + ' in your cart. Prices and stock can change, so check your cart before ordering.</p>' +
+        '<p><a href="' + html(cart) + '" style="display:inline-block;background:#F5C542;color:#2A1C00;padding:10px 18px;border-radius:999px;text-decoration:none;font-weight:700">View your cart</a></p>' +
+        '<p style="color:#4A5670;font-size:13px">You asked for this reminder. To stop them, <a href="' + html(account) + '" style="color:#1A6B0E">turn off cart reminders in My Account</a>.</p></div></div>' };
   }
 };
 
@@ -258,14 +277,15 @@ export async function sendNotifications(req: Request, deps: Deps): Promise<Respo
   return reply(200, { configured: true, sent, tried: batch.length, ...(email ? { email } : {}) });
 }
 
-// POST /daily-jobs (scheduled once a day): releases payouts whose hold has passed and cancels
-// lay-bys not paid by their date
+// POST /daily-jobs (scheduled once a day): releases payouts whose hold has passed, cancels
+// lay-bys not paid by their date, and queues cart reminders for buyers who asked for them
 export async function dailyJobs(req: Request, deps: Deps): Promise<Response> {
   if (req.headers.get('authorization') !== 'Bearer ' + deps.env('CRON_SECRET') || !deps.env('CRON_SECRET')) return reply(401, { error: 'Not allowed' });
   if (req.method !== 'POST') return reply(405, { error: 'Use POST' });
   const released = await deps.sql('SELECT app.release_due_payouts() AS n', []);
   const expired = await deps.sql('SELECT app.expire_laybys() AS n', []);
-  return reply(200, { payouts_released: released[0].n, laybys_expired: expired[0].n });
+  const reminded = await deps.sql('SELECT app.queue_cart_reminders() AS n', []);
+  return reply(200, { payouts_released: released[0].n, laybys_expired: expired[0].n, cart_reminders: reminded[0].n });
 }
 
 // POST /start-payment { order_ref, phone }: asks the payment provider to send a mobile money

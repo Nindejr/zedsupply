@@ -1,7 +1,7 @@
 # Connected marketplace implementation and activation
 
 Updated 7 November 2026. Integrations were built while live activation stays disabled
-(`settings.api.enabled: false`). The hosted project has migrations **001–032** applied and the
+(`settings.api.enabled: false`). The hosted project has migrations **001–033** applied and the
 server functions deployed; the website still orders through WhatsApp until the staging
 rehearsal below passes and the owner approves activation. Follow the `supabase/migrations`
 folder (every file, in name order) and `npm run check:launch`, not a fixed range in this note.
@@ -39,7 +39,7 @@ configuration completeness only, not hosted security or operational readiness.
 ## Staging setup
 
 1. Create a **separate staging project** and apply every file in `supabase/migrations`, in name
-   order (currently 001–032), then deploy the server functions: `npx.cmd supabase functions
+   order (currently 001–033), then deploy the server functions: `npx.cmd supabase functions
    deploy place-order start-payment payment-webhook send-notifications daily-jobs courier-quote
    courier-webhook`. Never edit or rerun a migration that a hosted project has already applied;
    add a new one instead.
@@ -92,6 +92,12 @@ Migration **032** is applied to the hosted project. It adds:
 - **Vouchers in the admin panel.** The catalogue role creates and changes vouchers, and finance can see how each is used. A voucher takes off either a percentage, optionally capped, or a whole-kwacha amount, with a minimum spend and dates. It can be limited to a number of uses in total and per buyer, counted by account or by phone number for guests. Uses come only from orders that weren't cancelled. The voucher row is locked while an order uses it, so two orders can't both take its last use.
 - **Voucher check in the cart.** In connected mode the cart asks `voucher_check` what a code takes off. It checks one exact code, for signed-in buyers only, so codes can't be listed. The order is checked again when it's placed.
 - **Sales on the Dashboard.** Finance and operations see sales by day for 7, 30 or 90 days, with a table and a CSV, plus the best-selling products, departments and payment methods.
+
+Migration **033** is applied to the hosted project. `daily-jobs` and `send-notifications` still need redeploying to send the reminders (`npx.cmd supabase functions deploy daily-jobs send-notifications`). It adds **cart reminders**, which are opt-in:
+- **Off until the buyer switches them on.** A signed-in buyer turns them on in My Account and chooses WhatsApp or email.
+- **The cart is kept only while they're on.** The site then saves a copy of the cart (products and quantities) after each change. Switching reminders off deletes it.
+- **One reminder per cart.** `daily-jobs` queues it when a cart has sat unchanged for a day. There's no reminder after an order, for a cart over a week old, or when nothing in it can be bought, and never more than once a week.
+- **Templates.** The email goes out once the email secrets are set. WhatsApp needs a `cart_reminder` template approved first (see `supabase/functions/README.md`). Until then, WhatsApp reminders wait in the queue like other messages.
 
 - **Second sign-in step.** Staff sign in with the email code, then an authenticator app code
   (Supabase's TOTP, `aal2`). Until then the database treats them as an ordinary account: no
