@@ -18,7 +18,9 @@
       Z().bindBusinessForm(function (b) {
         return B.rpc('set_business_details', { business: b ? b.name : null, tpin: b ? b.tpin || null : null, address: b ? b.address || null : null }).then(function () { return B.identity(); });
       });
-      document.getElementById('secure-signout').onclick = async function () { this.disabled = true; try { await B.signOut(); } catch (e) { /* local tokens are cleared even when logout is unavailable */ } ready = {}; remindOn = null; Z().refreshCounts(); Z().route(); };
+      document.getElementById('secure-signout').onclick = async function () { this.disabled = true; try { await B.signOut(); } catch (e) { /* local tokens are cleared even when logout is unavailable */ } ready = {}; remindOn = null;
+        // A voucher the server confirmed for this account isn't carried over to the next one
+        Z().store.set('voucher-server', null); Z().store.set('voucher-why', ''); Z().refreshCounts(); Z().route(); };
       return;
     }
     show('<div class="duo"><form class="form form--card" id="secure-signin"><h2>Sign in with a one-time code</h2><p>We send a code to your email. Your session stays in this tab until you sign out or close it.</p>' +
@@ -86,7 +88,7 @@
       };
     }).catch(function (error) { if (quoteId === navigation && box.isConnected) box.innerHTML = errorHTML(error); });
   };
-  // The cart asks the server about a voucher code that isn't in the catalogue: whether this buyer
+  // The cart asks the server about every voucher code: whether this buyer
   // can use it, and what it takes off. The order is checked again when it's placed.
   ext.hooks.voucherCheck = function (code, done) {
     if (!active()) return;

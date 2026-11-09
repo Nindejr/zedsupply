@@ -533,7 +533,10 @@ test('a receipt downloads as a real PDF file with the order on it', async ({ pag
 
 test('riders apply, and staff approve only after the in-person checks', async ({ page }) => {
   const errors = []; page.on('pageerror', e => errors.push(e.message));
-  await page.addInitScript(() => localStorage.setItem('zs-consent', 'denied'));
+  await page.addInitScript(() => {
+    localStorage.setItem('zs-consent', 'denied');
+    localStorage.setItem('zs-loc-tip-seen', '1');
+  });
   await page.goto('/index.html?demo=1&theme=off#/riders');
   await expect(page.getByRole('heading', { name: 'What you need' })).toBeVisible();
   await expect(page.locator('[aria-labelledby="rd-need-title"]')).toContainText('A police clearance certificate');

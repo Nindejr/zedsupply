@@ -45,7 +45,7 @@
     function voucherFor(code) {
       if (!code) return null;
       var listed = (D.vouchers || []).filter(function (x) { return x.code === code; })[0];
-      if (listed) return listed;
+      if (listed && !secureMode()) return listed;
       var checked = store.get('voucher-server', null);
       return checked && checked.code === code ? checked : null;
     }
@@ -539,7 +539,7 @@
           e.preventDefault();
           var code = $('#voucher').value.trim().toUpperCase();
           store.set('voucher', code); store.set('voucher-server', null); store.set('voucher-why', '');
-          // Connected: the server says whether this buyer can use a code that isn't in the catalogue
+          // Connected: every code needs the server's current eligibility and discount.
           voucherChecking = code && !voucherFor(code) && ext('voucherCheck', code, function (r) {
             if (store.get('voucher', '') !== code) return;
             voucherChecking = '';

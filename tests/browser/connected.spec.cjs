@@ -251,6 +251,8 @@ test('the cart checks a voucher with the server, shows what it takes off, and th
   await page.goto('/index.html?demo=0#/product/LIVE1');
   await page.getByRole('button',{name:'Add to cart',exact:true}).click();
   await page.goto('/index.html?demo=0#/cart');
+  // A stale local promotion must not bypass the server's current usage limits.
+  await page.evaluate(() => window.ZS_CATALOGUE.vouchers.push({code:'USED1',percent:90,minSpend:0}));
   const voucher = page.getByLabel('Voucher code',{exact:true});
   await voucher.fill('used1');
   await page.getByRole('button',{name:'Apply',exact:true}).click();
@@ -275,6 +277,13 @@ test('the cart checks a voucher with the server, shows what it takes off, and th
   await page.getByRole('button',{name:'Place order for K50 before delivery',exact:true}).click();
   await expect(page.getByRole('heading',{name:/Order ZS-/})).toBeVisible();
   expect(calls.find(c => c.path.endsWith('/place-order')).body.voucher_code).toBe('TAKE50');
+  // Signing out forgets what the server confirmed for this account
+  await page.evaluate(() => window.ZS.store.set('voucher-server', {code:'TAKE50',amount:50,minSpend:0}));
+  await page.goto('/index.html?demo=0#/account');
+  await page.getByRole('button',{name:'Sign out',exact:true}).click();
+  await expect(page.getByRole('heading',{name:'Sign in with a one-time code'})).toBeVisible();
+  expect(await page.evaluate(() => window.ZS.store.get('voucher-server', 'gone'))).toBeNull();
+  await signIn(page);
   // Placing the order clears the voucher
   await page.goto('/index.html?demo=0#/product/LIVE1');
   await page.getByRole('button',{name:'Add to cart',exact:true}).click();
