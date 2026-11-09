@@ -93,7 +93,7 @@ Migration **032** is applied to the hosted project. It adds:
 - **Voucher check in the cart.** In connected mode the cart asks `voucher_check` what a code takes off. It checks one exact code, for signed-in buyers only, so codes can't be listed. The order is checked again when it's placed.
 - **Sales on the Dashboard.** Finance and operations see sales by day for 7, 30 or 90 days, with a table and a CSV, plus the best-selling products, departments and payment methods.
 
-Migration **033** is applied to the hosted project. `daily-jobs` and `send-notifications` still need redeploying to send the reminders (`npx.cmd supabase functions deploy daily-jobs send-notifications`). It adds **cart reminders**, which are opt-in:
+Migration **033** is applied to the hosted project, and `daily-jobs` and `send-notifications` are redeployed with it. It adds **cart reminders**, which are opt-in:
 - **Off until the buyer switches them on.** A signed-in buyer turns them on in My Account and chooses WhatsApp or email.
 - **The cart is kept only while they're on.** The site then saves a copy of the cart (products and quantities) after each change. Switching reminders off deletes it.
 - **One reminder per cart.** `daily-jobs` queues it when a cart has sat unchanged for a day. There's no reminder after an order, for a cart over a week old, or when nothing in it can be bought, and never more than once a week.
